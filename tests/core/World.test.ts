@@ -215,8 +215,152 @@ describe('World', () => {
     world.createEntity();
     world.createEntity();
     world.addSystem(new TestSystem());
-    
+
     expect(world.getEntityCount()).toBe(2);
     expect(world.getSystemCount()).toBe(1);
+  });
+
+  test('should handle parallel execution mode', async () => {
+    const system = new TestSystem();
+    world.addSystem(system);
+    world.parallelEnabled = true;
+
+    const entity = world.createEntity();
+    entity.addComponent(new TestComponent(42));
+
+    world.update(16);
+
+    // Wait a bit for async execution to complete
+    await new Promise(resolve => setTimeout(resolve, 10));
+
+    expect(system.updateCalled).toBe(true);
+    expect(system.updatedEntities).toContain(entity);
+  });
+
+  test('should handle system lifecycle methods', () => {
+    class LifecycleSystem extends TestSystem {
+      preUpdate(deltaTime: number): void {
+        super.preUpdate(deltaTime);
+      }
+
+      postUpdate(deltaTime: number): void {
+        super.postUpdate(deltaTime);
+      }
+    }
+
+    const system = new LifecycleSystem();
+    const entity = world.createEntity();
+    entity.addComponent(new TestComponent(42));
+
+    world.addSystem(system);
+    world.update(16);
+
+    expect(system.preUpdateCalled).toBe(true);
+    expect(system.postUpdateCalled).toBe(true);
+  });
+
+  test('should handle addEntity method', () => {
+    const entity = new Entity(999);
+    world.addEntity(entity);
+
+    expect(world.getEntity(999)).toBe(entity);
+    expect(world.entities).toContain(entity);
+  });
+
+  test('should handle system removal by instance', () => {
+    const system1 = new TestSystem();
+    const system2 = new TestSystem();
+
+    world.addSystem(system1);
+    world.addSystem(system2);
+
+    expect(world.systems).toHaveLength(2);
+
+    world.removeSystem(system1);
+
+    expect(world.systems).toHaveLength(1);
+    expect(world.systems).toContain(system2);
+    expect(world.systems).not.toContain(system1);
+  });
+
+  test('should handle system removal and cleanup', () => {
+    const system = new TestSystem();
+    world.addSystem(system);
+
+    expect(world.systems).toContain(system);
+    expect(world.getSystem(TestSystem)).toBe(system);
+
+    world.removeSystem(system);
+
+    expect(world.systems).not.toContain(system);
+    expect(world.getSystem(TestSystem)).toBeUndefined();
+  });
+
+  test('should handle entity destruction during update', () => {
+    class DestroyingSystem extends System {
+      constructor() {
+        super([TestComponent]);
+      }
+
+      update(entities: Entity[], _deltaTime: number): void {
+        for (const entity of entities) {
+          entity.destroy();
+        }
+      }
+    }
+
+    const system = new DestroyingSystem();
+    const entity1 = world.createEntity();
+    const entity2 = world.createEntity();
+
+    entity1.addComponent(new TestComponent(1));
+    entity2.addComponent(new TestComponent(2));
+
+    world.addSystem(system);
+    world.update(16);
+
+    expect(world.getEntity(entity1.id)).toBeUndefined();
+    expect(world.getEntity(entity2.id)).toBeUndefined();
+  });
+
+  test('should handle paused state correctly', () => {
+    const system = new TestSystem();
+    world.addSystem(system);
+
+    world.paused = false;
+    world.update(16);
+    expect(system.updateCalled).toBe(true);
+
+    system.updateCalled = false;
+    world.paused = true;
+    world.update(16);
+    expect(system.updateCalled).toBe(false);
+  });
+
+  test('should handle empty world updates', () => {
+    expect(() => world.update(16)).not.toThrow();
+  });
+
+  test('should handle systems without lifecycle methods', () => {
+    class SimpleSystem extends System {
+      public updateCalled = false;
+
+      constructor() {
+        super([TestComponent]);
+      }
+
+      update(_entities: Entity[], _deltaTime: number): void {
+        this.updateCalled = true;
+      }
+    }
+
+    const system = new SimpleSystem();
+    const entity = world.createEntity();
+    entity.addComponent(new TestComponent(42));
+
+    world.addSystem(system);
+    world.update(16);
+
+    expect(system.updateCalled).toBe(true);
   });
 });

@@ -2,6 +2,7 @@ import { System } from '../../src/core/System';
 import { Entity } from '../../src/core/Entity';
 import { Component } from '../../src/core/Component';
 import { World } from '../../src/core/World';
+import { AccessType } from '../../src/utils/AccessType';
 
 class TestComponent extends Component {
   constructor(public value: number = 0) {
@@ -107,14 +108,135 @@ describe('System', () => {
   test('should support lifecycle methods', () => {
     const preUpdateSpy = jest.fn();
     const postUpdateSpy = jest.fn();
-    
+
     system.preUpdate = preUpdateSpy;
     system.postUpdate = postUpdateSpy;
-    
+
     system.preUpdate?.(16);
     system.postUpdate?.(16);
-    
+
     expect(preUpdateSpy).toHaveBeenCalledWith(16);
     expect(postUpdateSpy).toHaveBeenCalledWith(16);
+  });
+
+  test('should handle componentAccess property', () => {
+    // Test system with componentAccess defined in constructor
+    class ComponentAccessSystem extends System {
+      constructor() {
+        const componentAccess = [
+          { componentType: TestComponent as any, accessType: AccessType.Read }
+        ];
+        super([TestComponent], componentAccess);
+      }
+
+      update(_entities: Entity[], _deltaTime: number): void {
+        // Test implementation
+      }
+    }
+
+    const system = new ComponentAccessSystem();
+    expect(system.componentAccess).toHaveLength(1);
+    expect(system.componentAccess[0].componentType).toBe(TestComponent);
+    expect(system.componentAccess[0].accessType).toBe(AccessType.Read);
+
+    // Test system with default empty componentAccess
+    const defaultSystem = new TestSystem();
+    expect(defaultSystem.componentAccess).toEqual([]);
+  });
+
+  test('should handle systems with multiple required components', () => {
+    class MultiComponentSystem extends System {
+      public updateCalled = false;
+
+      constructor() {
+        super([TestComponent, AnotherComponent]);
+      }
+
+      update(_entities: Entity[], _deltaTime: number): void {
+        this.updateCalled = true;
+      }
+    }
+
+    const system = new MultiComponentSystem();
+    const entity1 = new Entity(1);
+    const entity2 = new Entity(2);
+    const entity3 = new Entity(3);
+
+    // Entity with only one component
+    entity1.addComponent(new TestComponent(42));
+
+    // Entity with both components
+    entity2.addComponent(new TestComponent(42));
+    entity2.addComponent(new AnotherComponent('test'));
+
+    // Entity with different component
+    entity3.addComponent(new AnotherComponent('test'));
+
+    expect(system.matchesEntity(entity1)).toBe(false);
+    expect(system.matchesEntity(entity2)).toBe(true);
+    expect(system.matchesEntity(entity3)).toBe(false);
+  });
+
+  test('should handle system with no required components', () => {
+    class NoComponentSystem extends System {
+      public updateCalled = false;
+
+      constructor() {
+        super([]);
+      }
+
+      update(_entities: Entity[], _deltaTime: number): void {
+        this.updateCalled = true;
+      }
+    }
+
+    const system = new NoComponentSystem();
+    const entity = new Entity(1);
+
+    // Should match any active entity regardless of components
+    expect(system.matchesEntity(entity)).toBe(true);
+
+    entity.active = false;
+    expect(system.matchesEntity(entity)).toBe(false);
+  });
+
+  test('should handle priority comparison edge cases', () => {
+    const system1 = new TestSystem();
+    const system2 = new TestSystem();
+
+    // Test negative priorities
+    system1.priority = -5;
+    system2.priority = -10;
+
+    expect(system1.priority).toBe(-5);
+    expect(system2.priority).toBe(-10);
+
+    // Test zero priority
+    system1.priority = 0;
+    expect(system1.priority).toBe(0);
+
+    // Test large priorities
+    system1.priority = 1000000;
+    expect(system1.priority).toBe(1000000);
+  });
+
+  test('should handle world reference correctly', () => {
+    const system = new TestSystem();
+
+    // Initially no world
+    expect(system['world']).toBeUndefined();
+
+    // Add to world
+    system.onAddedToWorld(world);
+    expect(system['world']).toBe(world);
+
+    // Remove from world
+    system.onRemovedFromWorld();
+    expect(system['world']).toBeUndefined();
+
+    // Add to different world
+    const world2 = new World();
+    system.onAddedToWorld(world2);
+    expect(system['world']).toBe(world2);
   });
 });
