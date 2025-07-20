@@ -8,14 +8,14 @@
 
 ## 特性 Features
 
-- 🚀 **高性能**: 优化的ECS架构，专为游戏性能而设计
+- 🚀 **高性能**: 基于原型(Archetype)的存储系统，优化内存布局和访问模式
 - 🔧 **TypeScript**: 完整的类型支持，提供优秀的开发体验
 - 🌐 **多平台**: 支持浏览器、Node.js、Laya、Cocos等环境
 - 📦 **模块化**: ES/UMD/CommonJS多种构建格式
 - 🧪 **测试覆盖**: 完整的单元测试，确保代码质量
 - 📚 **文档完善**: TSDoc注释，自动生成API文档
-- 🧠 **内存管理**: 智能对象池和共享内存，减少GC压力
-- ⚡ **零拷贝传输**: SharedArrayBuffer支持，高效数据传输
+- 🧠 **内存管理**: 智能组件对象池，减少GC压力
+- ⚡ **智能调度**: 自动分析系统依赖关系，实现高效的执行调度
 
 ## 安装 Installation
 
@@ -70,7 +70,69 @@ const player = world.createEntity()
 // 游戏循环
 function gameLoop(deltaTime: number) {
   world.update(deltaTime);
+
+  // 获取性能统计
+  const stats = world.getPerformanceStatistics();
+  console.log('系统执行统计:', stats);
 }
+
+// 启动游戏循环
+setInterval(() => gameLoop(16), 16);
+```
+
+## 高级功能 Advanced Features
+
+### 系统依赖和并行调度
+
+```typescript
+import { System, AccessType } from '@esengine/nova-ecs';
+
+// 只读系统 - 可以并行执行
+class RenderSystem extends System {
+  constructor() {
+    super([PositionComponent], [
+      { componentType: PositionComponent, accessType: AccessType.Read }
+    ]);
+  }
+
+  update(entities: Entity[], deltaTime: number): void {
+    // 渲染逻辑，只读取位置数据
+    entities.forEach(entity => {
+      const position = entity.getComponent(PositionComponent)!;
+      console.log(`渲染实体在位置: (${position.x}, ${position.y})`);
+    });
+  }
+}
+
+// 写入系统 - 会与其他写入系统串行执行
+class PhysicsSystem extends System {
+  constructor() {
+    super([PositionComponent, VelocityComponent], [
+      { componentType: PositionComponent, accessType: AccessType.Write },
+      { componentType: VelocityComponent, accessType: AccessType.Read }
+    ]);
+  }
+
+  update(entities: Entity[], deltaTime: number): void {
+    // 物理计算，修改位置数据
+    entities.forEach(entity => {
+      const position = entity.getComponent(PositionComponent)!;
+      const velocity = entity.getComponent(VelocityComponent)!;
+
+      position.x += velocity.dx * deltaTime;
+      position.y += velocity.dy * deltaTime;
+    });
+  }
+}
+
+// 添加系统 - 框架会自动分析依赖关系
+world.addSystem(new RenderSystem());
+world.addSystem(new PhysicsSystem());
+world.addSystem(new MovementSystem());
+
+// 查看执行组
+const groups = world.getExecutionGroups();
+console.log('系统执行组:', groups);
 ```
 
 ## 内存管理工具 Memory Management Tools
@@ -157,7 +219,97 @@ setInterval(() => {
 }, 10000);
 ```
 
+### 系统设计最佳实践
 
+1. **明确组件访问类型**
+```typescript
+class OptimizedSystem extends System {
+  constructor() {
+    super([PositionComponent, VelocityComponent], [
+      { componentType: PositionComponent, accessType: AccessType.Write },
+      { componentType: VelocityComponent, accessType: AccessType.Read }
+    ]);
+  }
+}
+```
+
+2. **避免在系统中创建实体**
+```typescript
+// ❌ 不推荐：在系统中直接创建实体
+class BadSystem extends System {
+  update(entities: Entity[], deltaTime: number): void {
+    if (entities.length < 10) {
+      this.world?.createEntity(); // 可能导致并发问题
+    }
+  }
+}
+
+// ✅ 推荐：使用事件或延迟创建
+class GoodSystem extends System {
+  private entitiesToCreate: number = 0;
+
+  update(entities: Entity[], deltaTime: number): void {
+    if (entities.length < 10) {
+      this.entitiesToCreate++;
+    }
+  }
+
+  postUpdate(deltaTime: number): void {
+    // 在后处理阶段创建实体
+    for (let i = 0; i < this.entitiesToCreate; i++) {
+      this.world?.createEntity();
+    }
+    this.entitiesToCreate = 0;
+  }
+}
+```
+
+3. **合理使用查询过滤**
+```typescript
+// 使用自定义查询过滤器
+const activeEntities = world.queryEntities(
+  PositionComponent,
+  VelocityComponent
+).filter(entity => entity.active);
+```
+
+## 性能优化 Performance Optimization
+
+### 原型存储优化
+
+NovaECS使用基于原型(Archetype)的存储系统，自动优化内存布局：
+
+```typescript
+// 框架会自动将具有相同组件组合的实体存储在一起
+const entity1 = world.createEntity()
+  .addComponent(new PositionComponent())
+  .addComponent(new VelocityComponent());
+
+const entity2 = world.createEntity()
+  .addComponent(new PositionComponent())
+  .addComponent(new VelocityComponent());
+
+// entity1和entity2会被存储在同一个原型中，提高缓存效率
+
+// 查看原型统计
+const archetypeStats = world.getArchetypeStatistics();
+console.log('原型数量:', archetypeStats.archetypeCount);
+console.log('平均每个原型的实体数:', archetypeStats.averageEntitiesPerArchetype);
+```
+
+### 系统执行优化
+
+```typescript
+// 查看系统执行统计
+const schedulerStats = world.getSchedulerStatistics();
+console.log('执行组数量:', schedulerStats.totalGroups);
+console.log('系统总数:', schedulerStats.totalSystems);
+
+// 查看详细的执行组信息
+schedulerStats.groupDetails.forEach((group, index) => {
+  console.log(`组 ${index}: 级别 ${group.level}, 系统数 ${group.systemCount}`);
+  console.log('系统列表:', group.systems);
+});
 ```
 
 ## API文档 API Documentation
