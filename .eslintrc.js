@@ -29,6 +29,6 @@ module.exports = {
     'node_modules/',
     'coverage/',
     '*.config.js',
-    '.eslintrc.cjs'
+    '.eslintrc.js'
   ]
 };
