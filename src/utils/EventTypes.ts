@@ -63,6 +63,8 @@ export interface EventDispatchOptions {
   delay?: number;
   /** Whether to stop propagation after first handler 是否在第一个处理器后停止传播 */
   stopPropagation?: boolean;
+  /** Whether to automatically release event to pool after dispatch 是否在分发后自动释放事件到池 */
+  autoRelease?: boolean;
 }
 
 /**
