@@ -468,4 +468,168 @@ describe('World', () => {
     // They should be in different groups due to read/write conflict
     expect(readGroup).not.toBe(writeGroup);
   });
+
+  test('should handle archetype storage correctly', async () => {
+    const entity1 = world.createEntity();
+    const entity2 = world.createEntity();
+
+    // Add different component combinations
+    entity1.addComponent(new TestComponent(1));
+    entity2.addComponent(new TestComponent(2));
+    entity2.addComponent(new AnotherComponent('test'));
+
+    // Verify entities are in different archetypes
+    const stats = world.getArchetypeStatistics();
+    expect(stats.archetypeCount).toBe(2);
+    expect(stats.totalEntities).toBe(2);
+  });
+
+  test('should optimize queries with archetype storage', () => {
+    // Create entities with different component combinations
+    const entity1 = world.createEntity();
+    const entity2 = world.createEntity();
+    const entity3 = world.createEntity();
+
+    entity1.addComponent(new TestComponent(1));
+    entity2.addComponent(new TestComponent(2));
+    entity2.addComponent(new AnotherComponent('test'));
+    entity3.addComponent(new AnotherComponent('test3'));
+
+    // Query for entities with TestComponent
+    const testEntities = world.queryEntities(TestComponent);
+    expect(testEntities).toHaveLength(2);
+    expect(testEntities).toContain(entity1);
+    expect(testEntities).toContain(entity2);
+    expect(testEntities).not.toContain(entity3);
+
+    // Query for entities with both components
+    const bothEntities = world.queryEntities(TestComponent, AnotherComponent);
+    expect(bothEntities).toHaveLength(1);
+    expect(bothEntities).toContain(entity2);
+  });
+
+  test('should handle entity component changes with archetype migration', () => {
+    const entity = world.createEntity();
+    entity.addComponent(new TestComponent(42));
+
+    // Verify initial archetype
+    let stats = world.getArchetypeStatistics();
+    expect(stats.archetypeCount).toBe(1);
+
+    // Add another component (should migrate to new archetype)
+    entity.addComponent(new AnotherComponent('test'));
+
+    // Verify new archetype
+    stats = world.getArchetypeStatistics();
+    expect(stats.archetypeCount).toBe(2);
+
+    // Remove component (should migrate back)
+    entity.removeComponent(AnotherComponent);
+
+    // Verify archetype change
+    const finalEntities = world.queryEntities(TestComponent);
+    expect(finalEntities).toContain(entity);
+
+    const bothEntities = world.queryEntities(TestComponent, AnotherComponent);
+    expect(bothEntities).not.toContain(entity);
+  });
+
+  test('should handle addEntity with archetype configuration', () => {
+    const externalEntity = new Entity(999);
+    externalEntity.addComponent(new TestComponent(999));
+    externalEntity.addComponent(new AnotherComponent('external'));
+
+    world.addEntity(externalEntity);
+
+    // Verify entity is properly configured for archetype storage
+    const component = externalEntity.getComponent(TestComponent);
+    expect(component).toBeDefined();
+    expect((component as TestComponent).value).toBe(999);
+
+    // Verify entity appears in queries
+    const entities = world.queryEntities(TestComponent, AnotherComponent);
+    expect(entities).toContain(externalEntity);
+  });
+
+  test('should provide detailed archetype statistics', () => {
+    // Create entities with various component combinations
+    for (let i = 1; i <= 5; i++) {
+      const entity = world.createEntity();
+      entity.addComponent(new TestComponent(i));
+    }
+
+    for (let i = 6; i <= 8; i++) {
+      const entity = world.createEntity();
+      entity.addComponent(new TestComponent(i));
+      entity.addComponent(new AnotherComponent(`test${i}`));
+    }
+
+    const stats = world.getArchetypeStatistics();
+    expect(stats.archetypeCount).toBe(2);
+    expect(stats.totalEntities).toBe(8);
+    expect(stats.averageEntitiesPerArchetype).toBe(4);
+    expect(stats.largestArchetype).toBeDefined();
+    expect(stats.largestArchetype!.entityCount).toBe(5);
+  });
+
+  test('should handle complex parallel execution with archetype queries', async () => {
+    class ArchetypeTestSystem extends System {
+      public processedEntities: Entity[] = [];
+
+      constructor() {
+        super([TestComponent]);
+      }
+
+      update(entities: Entity[], _deltaTime: number): void {
+        this.processedEntities = [...entities];
+      }
+    }
+
+    const system = new ArchetypeTestSystem();
+    world.addSystem(system);
+
+    // Create entities in different archetypes
+    const entities: Entity[] = [];
+    for (let i = 1; i <= 10; i++) {
+      const entity = world.createEntity();
+      entity.addComponent(new TestComponent(i));
+      if (i % 2 === 0) {
+        entity.addComponent(new AnotherComponent(`test${i}`));
+      }
+      entities.push(entity);
+    }
+
+    world.update(16);
+    await new Promise(resolve => setTimeout(resolve, 20));
+
+    // System should process all entities with TestComponent
+    expect(system.processedEntities).toHaveLength(10);
+    entities.forEach(entity => {
+      expect(system.processedEntities).toContain(entity);
+    });
+  });
+
+  test('should handle scheduler statistics with archetype systems', () => {
+    class ArchetypeSystem1 extends System {
+      constructor() {
+        super([TestComponent]);
+      }
+      update(_entities: Entity[], _deltaTime: number): void {}
+    }
+
+    class ArchetypeSystem2 extends System {
+      constructor() {
+        super([AnotherComponent]);
+      }
+      update(_entities: Entity[], _deltaTime: number): void {}
+    }
+
+    world.addSystem(new ArchetypeSystem1());
+    world.addSystem(new ArchetypeSystem2());
+
+    const stats = world.getSchedulerStatistics();
+    expect(stats.totalSystems).toBe(2);
+    expect(stats.totalGroups).toBeGreaterThan(0);
+    expect(stats.groupDetails).toHaveLength(stats.totalGroups);
+  });
 });
