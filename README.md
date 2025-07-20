@@ -166,6 +166,127 @@ const aliveEntities = world.query({
 });
 ```
 
+## 查询系统 Query System
+
+NovaECS 提供了强大的查询系统，支持复杂的实体筛选、缓存优化和性能监控。
+
+### 基础查询
+
+```typescript
+// 流畅的链式查询API
+const entities = world.query()
+  .with(PositionComponent, VelocityComponent)  // 必须包含的组件
+  .without(DeadComponent)                      // 必须不包含的组件
+  .execute();
+
+// 使用别名
+const entities2 = world.query()
+  .all(PositionComponent)                      // 等同于 with()
+  .none(DeadComponent)                         // 等同于 without()
+  .execute();
+```
+
+### 复杂查询
+
+```typescript
+// 任意组件查询（OR逻辑）
+const combatants = world.query()
+  .any(PlayerComponent, EnemyComponent)        // 包含任一组件
+  .without(DeadComponent)
+  .execute();
+
+// 自定义过滤器
+const lowHealthEntities = world.query()
+  .with(HealthComponent)
+  .filter(entity => {
+    const health = entity.getComponent(HealthComponent);
+    return health.current < health.max * 0.5;
+  })
+  .execute();
+
+// 排序和分页
+const nearestEnemies = world.query()
+  .with(EnemyComponent, PositionComponent)
+  .sort((a, b) => {
+    // 按距离排序
+    const posA = a.getComponent(PositionComponent);
+    const posB = b.getComponent(PositionComponent);
+    return calculateDistance(posA) - calculateDistance(posB);
+  })
+  .limit(5)                                    // 只取前5个
+  .execute();
+```
+
+### 便利方法
+
+```typescript
+// 检查是否存在匹配的实体
+const hasPlayer = world.query().with(PlayerComponent).exists();
+
+// 获取第一个匹配的实体
+const player = world.query().with(PlayerComponent).first();
+
+// 计算匹配的实体数量
+const enemyCount = world.query().with(EnemyComponent).count();
+
+// 获取详细的查询结果
+const result = world.query()
+  .with(PositionComponent)
+  .executeWithMetadata();
+
+console.log(`找到 ${result.entities.length} 个实体`);
+console.log(`查询耗时: ${result.executionTime}ms`);
+console.log(`来自缓存: ${result.fromCache}`);
+```
+
+### 查询构建器复用
+
+```typescript
+// 创建基础查询
+const baseQuery = world.query()
+  .with(EnemyComponent)
+  .without(DeadComponent);
+
+// 克隆并添加额外条件
+const movingEnemies = baseQuery.clone()
+  .with(VelocityComponent)
+  .execute();
+
+const stationaryEnemies = baseQuery.clone()
+  .without(VelocityComponent)
+  .execute();
+```
+
+### 查询缓存和性能
+
+```typescript
+// 配置查询缓存
+world.configureQueryCache({
+  maxSize: 100,        // 最大缓存条目数
+  ttl: 5000,          // 缓存生存时间（毫秒）
+  evictionStrategy: 'lru'  // 淘汰策略：lru, lfu, ttl
+});
+
+// 获取查询统计信息
+const stats = world.getQueryStatistics();
+console.log(`总查询次数: ${stats.totalQueries}`);
+console.log(`缓存命中率: ${stats.cacheHits / (stats.cacheHits + stats.cacheMisses)}`);
+console.log(`平均执行时间: ${stats.averageExecutionTime}ms`);
+
+// 清除查询缓存
+world.clearQueryCache();
+
+// 启用/禁用性能监控
+world.setQueryPerformanceMonitoring(true);
+```
+
+### 查询优化策略
+
+- **原型优化**：自动使用原型系统优化简单查询
+- **智能缓存**：自动缓存查询结果，实体变化时智能失效
+- **批量处理**：支持limit和offset进行分页查询
+- **性能监控**：跟踪慢查询和热门查询
+
 ## 序列化系统 Serialization System
 
 NovaECS 提供了强大的序列化系统，支持游戏保存/加载、网络同步等功能。

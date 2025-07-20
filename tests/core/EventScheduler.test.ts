@@ -261,9 +261,6 @@ describe('EventScheduler', () => {
       eventBus.on('DelayedEvent', listener);
 
       const delayedEvent = new DelayedEvent(42); // Has Delayed processing mode by default
-
-      // Record the time before scheduling to ensure proper timing
-      const beforeSchedule = Date.now();
       scheduler.schedule(delayedEvent); // No options provided
 
       // Immediately check - should not be processed yet
@@ -276,10 +273,9 @@ describe('EventScheduler', () => {
       const sizes = scheduler.getQueueSizes();
       expect(sizes.delayed).toBe(1);
 
-      // Wait for the delay to pass and then process
-      const afterSchedule = Date.now();
-      const waitTime = Math.max(2, beforeSchedule + 2 - afterSchedule); // Ensure at least 2ms have passed
-      await new Promise(resolve => setTimeout(resolve, waitTime));
+      // Wait for sufficient time to ensure delay has passed
+      // EventScheduler uses 1ms default delay, so wait longer to be safe
+      await new Promise(resolve => setTimeout(resolve, 10));
 
       await scheduler.update(16);
 

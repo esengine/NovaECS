@@ -113,17 +113,100 @@ describe('World', () => {
   test('should query entities with filter', () => {
     const entity1 = world.createEntity();
     const entity2 = world.createEntity();
-    
+
     entity1.addComponent(new TestComponent(10));
     entity2.addComponent(new TestComponent(5));
-    
+
     const result = world.queryEntitiesWithFilter(entity => {
       const comp = entity.getComponent(TestComponent);
       return comp ? comp.value > 7 : false;
     });
-    
+
     expect(result).toHaveLength(1);
     expect(result).toContain(entity1);
+  });
+
+  test('should support enhanced query builder API', () => {
+    const entity1 = world.createEntity();
+    const entity2 = world.createEntity();
+    const entity3 = world.createEntity();
+
+    entity1.addComponent(new TestComponent(10));
+    entity1.addComponent(new AnotherComponent('test1'));
+
+    entity2.addComponent(new TestComponent(5));
+
+    entity3.addComponent(new AnotherComponent('test3'));
+
+    // Test fluent query API
+    const result = world.query()
+      .with(TestComponent)
+      .without(AnotherComponent)
+      .execute();
+
+    expect(result).toHaveLength(1);
+    expect(result).toContain(entity2);
+  });
+
+  test('should support query with criteria and options', () => {
+    const entity1 = world.createEntity();
+    const entity2 = world.createEntity();
+
+    entity1.addComponent(new TestComponent(10));
+    entity2.addComponent(new TestComponent(5));
+
+    const result = world.queryWithCriteria(
+      { all: [TestComponent] },
+      {
+        filter: entity => {
+          const comp = entity.getComponent(TestComponent);
+          return comp ? comp.value > 7 : false;
+        }
+      }
+    );
+
+    expect(result.entities).toHaveLength(1);
+    expect(result.entities).toContain(entity1);
+    expect(result.fromCache).toBe(false);
+    expect(result.totalCount).toBe(1);
+  });
+
+  test('should provide query statistics', () => {
+    const entity = world.createEntity();
+    entity.addComponent(new TestComponent(10));
+
+    // Execute some queries
+    world.query().with(TestComponent).execute();
+    world.query().with(TestComponent).execute(); // Should be cached
+
+    const stats = world.getQueryStatistics();
+    expect(stats.totalQueries).toBeGreaterThan(0);
+  });
+
+  test('should support query cache management', () => {
+    const entity = world.createEntity();
+    entity.addComponent(new TestComponent(10));
+
+    // Execute query to populate cache
+    world.query().with(TestComponent).execute();
+
+    // Clear cache
+    world.clearQueryCache();
+
+    // Configure cache
+    world.configureQueryCache({ maxSize: 50 });
+
+    // These should not throw
+    expect(() => world.clearQueryCache()).not.toThrow();
+    expect(() => world.configureQueryCache({ ttl: 5000 })).not.toThrow();
+  });
+
+  test('should support performance monitoring', () => {
+    world.setQueryPerformanceMonitoring(true);
+    world.setQueryPerformanceMonitoring(false);
+
+    // Should not throw
+    expect(() => world.setQueryPerformanceMonitoring(true)).not.toThrow();
   });
 
   test('should add and retrieve systems', () => {

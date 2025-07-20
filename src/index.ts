@@ -52,3 +52,24 @@ export {
   SerializationFormat,
   CURRENT_SERIALIZATION_VERSION
 } from './utils/SerializationTypes';
+
+// Enhanced Query System
+export { QueryBuilder } from './core/QueryBuilder';
+export { QueryManager } from './core/QueryManager';
+export { QueryCache } from './core/QueryCache';
+export { QueryPerformanceMonitor } from './core/QueryPerformanceMonitor';
+export type {
+  QueryCriteria,
+  QueryOptions,
+  QueryResult,
+  QueryStatistics,
+  QueryCacheConfig,
+  IQueryBuilder,
+  IQueryManager
+} from './utils/QueryTypes';
+export {
+  QueryComplexity,
+  QueryExecutionStrategy,
+  QueryEventType,
+  DEFAULT_QUERY_CACHE_CONFIG
+} from './utils/QueryTypes';

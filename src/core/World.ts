@@ -6,6 +6,15 @@ import { ArchetypeManager } from './ArchetypeManager';
 import { ParallelScheduler, type ExecutionGroup } from './ParallelScheduler';
 import { EventBus } from './EventBus';
 import { EventScheduler } from './EventScheduler';
+import { QueryManager } from './QueryManager';
+import type {
+  IQueryBuilder,
+  QueryCriteria,
+  QueryOptions,
+  QueryResult,
+  QueryStatistics,
+  QueryCacheConfig
+} from '../utils/QueryTypes';
 import {
   EntityCreatedEvent,
   EntityDestroyedEvent,
@@ -55,6 +64,10 @@ export class World implements IWorldForEntity {
   private readonly _scheduler = new ParallelScheduler();
   private readonly _eventBus = new EventBus();
   private readonly _eventScheduler = new EventScheduler(this._eventBus);
+  private readonly _queryManager = new QueryManager(
+    this._archetypeManager,
+    () => Array.from(this._entities.values())
+  );
 
 
   /**
@@ -125,6 +138,9 @@ export class World implements IWorldForEntity {
     // Dispatch entity created event
     void this._eventBus.dispatch(new EntityCreatedEvent(entity.id));
 
+    // Invalidate query cache
+    this._queryManager.onEntityChanged(entity.id);
+
     return entity;
   }
 
@@ -150,6 +166,10 @@ export class World implements IWorldForEntity {
     }
 
     this._entities.set(entity.id, entity);
+
+    // Invalidate query cache
+    this._queryManager.onEntityChanged(entity.id);
+
     return this;
   }
 
@@ -166,6 +186,9 @@ export class World implements IWorldForEntity {
 
       // Dispatch entity destroyed event
       void this._eventBus.dispatch(new EntityDestroyedEvent(id));
+
+      // Invalidate query cache
+      this._queryManager.onEntityChanged(id);
     }
     return this;
   }
@@ -204,6 +227,63 @@ export class World implements IWorldForEntity {
    */
   queryEntitiesWithFilter(filter: QueryFilter): Entity[] {
     return this.entities.filter(filter);
+  }
+
+  /**
+   * Create a new query builder for fluent query API
+   * 创建新的查询构建器用于流畅查询API
+   *
+   * @example
+   * ```typescript
+   * const entities = world.query()
+   *   .with(PositionComponent, VelocityComponent)
+   *   .without(DeadComponent)
+   *   .limit(10)
+   *   .execute();
+   * ```
+   */
+  query(): IQueryBuilder {
+    return this._queryManager.createBuilder();
+  }
+
+  /**
+   * Execute query with criteria and options
+   * 使用条件和选项执行查询
+   */
+  queryWithCriteria(criteria: QueryCriteria, options?: QueryOptions): QueryResult {
+    return this._queryManager.query(criteria, options);
+  }
+
+  /**
+   * Get query statistics
+   * 获取查询统计信息
+   */
+  getQueryStatistics(): QueryStatistics {
+    return this._queryManager.getStatistics();
+  }
+
+  /**
+   * Clear query cache
+   * 清除查询缓存
+   */
+  clearQueryCache(): void {
+    this._queryManager.clearCache();
+  }
+
+  /**
+   * Configure query cache
+   * 配置查询缓存
+   */
+  configureQueryCache(config: Partial<QueryCacheConfig>): void {
+    this._queryManager.configureCache(config);
+  }
+
+  /**
+   * Enable/disable query performance monitoring
+   * 启用/禁用查询性能监控
+   */
+  setQueryPerformanceMonitoring(enabled: boolean): void {
+    this._queryManager.setPerformanceMonitoring(enabled);
   }
 
   /**
@@ -459,6 +539,9 @@ export class World implements IWorldForEntity {
 
     // Dispatch component added event
     void this._eventBus.dispatch(new ComponentAddedEvent(entityId, componentType.name));
+
+    // Invalidate query cache
+    this._queryManager.onEntityChanged(entityId);
   }
 
   /**
@@ -484,6 +567,9 @@ export class World implements IWorldForEntity {
 
     // Dispatch component removed event
     void this._eventBus.dispatch(new ComponentRemovedEvent(entityId, componentType.name));
+
+    // Invalidate query cache
+    this._queryManager.onEntityChanged(entityId);
   }
 
 
