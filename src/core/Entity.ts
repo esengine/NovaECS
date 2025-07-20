@@ -2,6 +2,18 @@ import type { Component } from './Component';
 import type { ComponentConstructor, ComponentType, EntityId } from '../utils/Types';
 
 /**
+ * Interface for World methods that Entity needs
+ * Entity 需要的 World 方法接口
+ */
+export interface IWorldForEntity {
+  addComponentToEntity(entityId: EntityId, componentType: ComponentType, component: Component): void;
+  removeComponentFromEntity(entityId: EntityId, componentType: ComponentType): void;
+  getEntityComponent<T extends Component>(entityId: EntityId, componentType: ComponentType<T>): T | undefined;
+  entityHasComponent(entityId: EntityId, componentType: ComponentType): boolean;
+  getEntityComponents(entityId: EntityId): Component[];
+}
+
+/**
  * Callback for notifying when entity components change
  * 实体组件变化时的通知回调
  */
@@ -32,19 +44,14 @@ export class Entity {
   private readonly _id: EntityId;
   private readonly _components = new Map<ComponentConstructor, Component>();
   private _active = true;
-  private _changeCallback?: EntityComponentChangeCallback;
-  private _useArchetypeStorage = false;
-  private _externalComponentProvider?: (entityId: EntityId, componentType: ComponentType) => Component | undefined;
+  private _world?: IWorldForEntity;
 
   /**
    * Create a new entity with unique identifier
    * 创建具有唯一标识符的新实体
    */
-  constructor(id: EntityId, changeCallback?: EntityComponentChangeCallback) {
+  constructor(id: EntityId) {
     this._id = id;
-    if (changeCallback) {
-      this._changeCallback = changeCallback;
-    }
   }
 
   /**
@@ -71,38 +78,15 @@ export class Entity {
     this._active = value;
   }
 
-  /**
-   * Enable or disable archetype storage mode
-   * 启用或禁用原型存储模式
-   */
-  setArchetypeStorageMode(enabled: boolean): void {
-    this._useArchetypeStorage = enabled;
-  }
+
 
   /**
-   * Check if entity uses archetype storage
-   * 检查实体是否使用原型存储
+   * Set the world this entity belongs to (internal use only)
+   * 设置此实体所属的世界（仅供内部使用）
+   * @internal
    */
-  get usesArchetypeStorage(): boolean {
-    return this._useArchetypeStorage;
-  }
-
-  /**
-   * Set component change callback
-   * 设置组件变化回调
-   */
-  setChangeCallback(callback: EntityComponentChangeCallback): void {
-    this._changeCallback = callback;
-  }
-
-  /**
-   * Set external component provider for archetype storage
-   * 为原型存储设置外部组件提供者
-   */
-  setExternalComponentProvider(
-    provider: (entityId: EntityId, componentType: ComponentType) => Component | undefined
-  ): void {
-    this._externalComponentProvider = provider;
+  setWorld(world: IWorldForEntity): void {
+    this._world = world;
   }
 
   /**
@@ -111,18 +95,19 @@ export class Entity {
    */
   addComponent<T extends Component>(component: T): this {
     const constructor = component.constructor as ComponentConstructor<T>;
-    
-    // For archetype storage, notify the world about the change
-    if (this._useArchetypeStorage && this._changeCallback) {
-      this._changeCallback(this._id, constructor, component, true);
+
+    // If entity belongs to a world, use archetype storage
+    if (this._world) {
+      // Let the world handle archetype storage
+      this._world.addComponentToEntity(this._id, constructor, component);
     } else {
-      // Traditional storage
+      // Fallback to traditional storage if not in a world
       this._components.set(constructor, component);
-      
+
       // Call component lifecycle method
       component.onAdded?.();
     }
-    
+
     return this;
   }
 
@@ -131,11 +116,12 @@ export class Entity {
    * 从实体移除组件
    */
   removeComponent<T extends Component>(componentType: ComponentType<T>): this {
-    // For archetype storage, notify the world about the change
-    if (this._useArchetypeStorage && this._changeCallback) {
-      this._changeCallback(this._id, componentType, null, false);
+    // If entity belongs to a world, use archetype storage
+    if (this._world) {
+      // Let the world handle archetype storage
+      this._world.removeComponentFromEntity(this._id, componentType);
     } else {
-      // Traditional storage
+      // Fallback to traditional storage if not in a world
       const component = this._components.get(componentType);
       if (component) {
         // Call component lifecycle method
@@ -143,7 +129,7 @@ export class Entity {
         this._components.delete(componentType);
       }
     }
-    
+
     return this;
   }
 
@@ -152,12 +138,12 @@ export class Entity {
    * 从实体获取组件
    */
   getComponent<T extends Component>(componentType: ComponentType<T>): T | undefined {
-    // For archetype storage, use external provider
-    if (this._useArchetypeStorage && this._externalComponentProvider) {
-      return this._externalComponentProvider(this._id, componentType) as T | undefined;
+    // If entity belongs to a world, use archetype storage
+    if (this._world) {
+      return this._world.getEntityComponent(this._id, componentType) as T | undefined;
     }
-    
-    // Traditional storage
+
+    // Fallback to traditional storage if not in a world
     return this._components.get(componentType) as T | undefined;
   }
 
@@ -166,12 +152,12 @@ export class Entity {
    * 检查实体是否拥有组件
    */
   hasComponent<T extends Component>(componentType: ComponentType<T>): boolean {
-    // For archetype storage, check via external provider
-    if (this._useArchetypeStorage && this._externalComponentProvider) {
-      return this._externalComponentProvider(this._id, componentType) !== undefined;
+    // If entity belongs to a world, use archetype storage
+    if (this._world) {
+      return this._world.entityHasComponent(this._id, componentType);
     }
-    
-    // Traditional storage
+
+    // Fallback to traditional storage if not in a world
     return this._components.has(componentType);
   }
 
@@ -188,6 +174,12 @@ export class Entity {
    * 获取实体上的所有组件
    */
   getComponents(): Component[] {
+    // If entity belongs to a world, use archetype storage
+    if (this._world) {
+      return this._world.getEntityComponents(this._id);
+    }
+
+    // Fallback to traditional storage if not in a world
     return Array.from(this._components.values());
   }
 

@@ -1,5 +1,6 @@
 import { Entity } from '../../src/core/Entity';
 import { Component } from '../../src/core/Component';
+import { World } from '../../src/core/World';
 
 class TestComponent extends Component {
   constructor(public value: number = 0) {
@@ -125,8 +126,8 @@ describe('Entity', () => {
     expect(component.onRemoved).toHaveBeenCalled();
   });
 
-  test('should handle archetype storage mode', () => {
-    // Test traditional storage mode (default)
+  test('should handle archetype storage with fallback', () => {
+    // Test fallback to traditional storage when no providers are set
     expect(entity.hasComponent(TestComponent)).toBe(false);
 
     entity.addComponent(new TestComponent(42));
@@ -136,123 +137,108 @@ describe('Entity', () => {
     expect(component).toBeDefined();
     expect((component as TestComponent).value).toBe(42);
 
-    // Switch to archetype storage mode
-    entity.setArchetypeStorageMode(true);
-
-    // Component should still be accessible
+    // Component should be accessible through traditional storage fallback
     expect(entity.hasComponent(TestComponent)).toBe(true);
-    const archetypeComponent = entity.getComponent(TestComponent);
-    expect(archetypeComponent).toBeDefined();
+    const fallbackComponent = entity.getComponent(TestComponent);
+    expect(fallbackComponent).toBeDefined();
+    expect((fallbackComponent as TestComponent).value).toBe(42);
   });
 
-  test('should handle external component provider', () => {
-    const externalComponent = new TestComponent(999);
-    const provider = jest.fn().mockReturnValue(externalComponent);
+  test('should handle world-based component access', () => {
+    const world = new World();
+    const worldEntity = world.createEntity();
 
-    entity.setExternalComponentProvider(provider);
-    entity.setArchetypeStorageMode(true);
+    const component = new TestComponent(999);
+    worldEntity.addComponent(component);
 
-    const component = entity.getComponent(TestComponent);
-    expect(provider).toHaveBeenCalledWith(entity.id, TestComponent);
-    expect(component).toBe(externalComponent);
+    const retrievedComponent = worldEntity.getComponent(TestComponent);
+    expect(retrievedComponent).toBe(component);
+    expect(retrievedComponent?.value).toBe(999);
   });
 
-  test('should handle change callbacks', () => {
-    const changeCallback = jest.fn();
-    entity.setChangeCallback(changeCallback);
-    entity.setArchetypeStorageMode(true); // Enable archetype mode for callbacks
+  test('should handle component lifecycle in world', () => {
+    const world = new World();
+    const worldEntity = world.createEntity();
 
     const component = new TestComponent(42);
-    entity.addComponent(component);
+    worldEntity.addComponent(component);
 
-    expect(changeCallback).toHaveBeenCalledWith(
-      entity.id,
-      TestComponent,
-      component,
-      true
-    );
+    // Component should be accessible
+    expect(worldEntity.hasComponent(TestComponent)).toBe(true);
+    expect(worldEntity.getComponent(TestComponent)).toBe(component);
 
-    entity.removeComponent(TestComponent);
+    worldEntity.removeComponent(TestComponent);
 
-    // In archetype mode, removed components are passed as null
-    expect(changeCallback).toHaveBeenLastCalledWith(
-      entity.id,
-      TestComponent,
-      null,
-      false
-    );
+    // Component should be removed
+    expect(worldEntity.hasComponent(TestComponent)).toBe(false);
+    expect(worldEntity.getComponent(TestComponent)).toBeUndefined();
   });
 
-  test('should handle archetype mode component operations', () => {
-    const changeCallback = jest.fn();
-    const externalProvider = jest.fn();
+  test('should handle world-based archetype operations', () => {
+    const world = new World();
+    const worldEntity = world.createEntity();
 
-    entity.setArchetypeStorageMode(true);
-    entity.setChangeCallback(changeCallback);
-    entity.setExternalComponentProvider(externalProvider);
-
-    // Add component in archetype mode
+    // Add component through world's archetype system
     const component = new TestComponent(42);
-    entity.addComponent(component);
+    worldEntity.addComponent(component);
 
-    expect(changeCallback).toHaveBeenCalledWith(
-      entity.id,
-      TestComponent,
-      component,
-      true
-    );
-
-    // Get component should use external provider
-    externalProvider.mockReturnValue(component);
-    const retrievedComponent = entity.getComponent(TestComponent);
-    expect(externalProvider).toHaveBeenCalledWith(entity.id, TestComponent);
+    // Component should be accessible through archetype system
+    const retrievedComponent = worldEntity.getComponent(TestComponent);
     expect(retrievedComponent).toBe(component);
 
-    // hasComponent should also use external provider
-    externalProvider.mockReturnValue(component);
-    expect(entity.hasComponent(TestComponent)).toBe(true);
+    // hasComponent should work with archetype system
+    expect(worldEntity.hasComponent(TestComponent)).toBe(true);
 
-    externalProvider.mockReturnValue(undefined);
-    expect(entity.hasComponent(TestComponent)).toBe(false);
+    // Remove component
+    worldEntity.removeComponent(TestComponent);
+    expect(worldEntity.hasComponent(TestComponent)).toBe(false);
   });
 
-  test('should handle hasComponents with archetype storage', () => {
+  test('should handle multiple components with world archetype storage', () => {
+    const world = new World();
+    const worldEntity = world.createEntity();
+
     const component1 = new TestComponent(1);
     const component2 = new AnotherComponent('test');
-    const externalProvider = jest.fn();
 
-    entity.setArchetypeStorageMode(true);
-    entity.setExternalComponentProvider(externalProvider);
+    worldEntity.addComponent(component1);
+    worldEntity.addComponent(component2);
 
-    // Mock provider to return components
-    externalProvider.mockImplementation((_id, componentType) => {
-      if (componentType === TestComponent) return component1;
-      if (componentType === AnotherComponent) return component2;
-      return undefined;
-    });
-
-    expect(entity.hasComponents(TestComponent)).toBe(true);
-    expect(entity.hasComponents(TestComponent, AnotherComponent)).toBe(true);
+    expect(worldEntity.hasComponents(TestComponent)).toBe(true);
+    expect(worldEntity.hasComponents(TestComponent, AnotherComponent)).toBe(true);
 
     // Add a third component class for testing
     class ThirdComponent extends Component {}
-    expect(entity.hasComponents(TestComponent, AnotherComponent, ThirdComponent)).toBe(false);
+    expect(worldEntity.hasComponents(TestComponent, AnotherComponent, ThirdComponent)).toBe(false);
+
+    expect(worldEntity.getComponent(TestComponent)).toBe(component1);
+    expect(worldEntity.getComponent(AnotherComponent)).toBe(component2);
   });
 
-  test('should handle getComponents in archetype mode', () => {
-    entity.setArchetypeStorageMode(true);
+  test('should handle getComponents with world integration', () => {
+    // This test now requires a World instance since Entity uses World directly
+    const world = new World();
 
-    // In archetype mode, getComponents returns empty array since components are stored externally
+    const worldEntity = world.createEntity();
+    const component1 = new TestComponent(1);
+    const component2 = new AnotherComponent('test');
+
+    worldEntity.addComponent(component1);
+    worldEntity.addComponent(component2);
+
+    const components = worldEntity.getComponents();
+    expect(components).toHaveLength(2);
+    expect(components).toContain(component1);
+    expect(components).toContain(component2);
+  });
+
+  test('should fallback to traditional storage for getComponents', () => {
+    // Without archetype provider, should use traditional storage
+    const component = new TestComponent(42);
+    entity.addComponent(component);
+
     const components = entity.getComponents();
-    expect(components).toEqual([]);
-  });
-
-  test('should handle getComponentTypes in archetype mode', () => {
-    entity.setArchetypeStorageMode(true);
-
-    // In archetype mode, getComponentTypes returns empty array since components are stored externally
-    const componentTypes = entity.getComponentTypes();
-    expect(componentTypes).toEqual([]);
+    expect(components).toContain(component);
   });
 
   test('should handle internal component storage access', () => {
@@ -264,21 +250,24 @@ describe('Entity', () => {
     expect(internalStorage.get(TestComponent)).toBe(component);
   });
 
-  test('should handle mixed storage modes', () => {
-    // Start in traditional mode
-    entity.addComponent(new TestComponent(42));
+  test('should handle world integration priority over traditional storage', () => {
+    // Add component to traditional storage (entity not in world)
+    const traditionalComponent = new TestComponent(42);
+    entity.addComponent(traditionalComponent);
     expect(entity.hasComponent(TestComponent)).toBe(true);
+    expect(entity.getComponent(TestComponent)).toBe(traditionalComponent);
 
-    // Switch to archetype mode
-    entity.setArchetypeStorageMode(true);
+    // Now add entity to world - should use archetype storage
+    const world = new World();
+    world.addEntity(entity);
 
-    // Component should still be accessible from internal storage
-    expect(entity.hasComponent(TestComponent)).toBe(true);
+    // Add a different component through world's archetype system
+    const worldComponent = new TestComponent(999);
+    entity.addComponent(worldComponent);
 
-    // Switch back to traditional mode
-    entity.setArchetypeStorageMode(false);
-
-    // Component should still be accessible
-    expect(entity.hasComponent(TestComponent)).toBe(true);
+    // Should now use world's archetype storage
+    const component = entity.getComponent(TestComponent);
+    expect(component).toBe(worldComponent);
+    expect(component).not.toBe(traditionalComponent);
   });
 });

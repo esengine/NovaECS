@@ -149,6 +149,37 @@ export class ArchetypeManager {
   }
 
   /**
+   * Get all component types for an entity
+   * 获取实体的所有组件类型
+   */
+  getEntityComponentTypes(entityId: EntityId): ComponentType[] {
+    const record = this._entityToArchetype.get(entityId);
+    if (!record) {
+      return [];
+    }
+
+    return Array.from(record.archetype.componentTypes);
+  }
+
+  /**
+   * Get all components for an entity
+   * 获取实体的所有组件
+   */
+  getEntityComponents(entityId: EntityId): Component[] {
+    const componentTypes = this.getEntityComponentTypes(entityId);
+    const components: Component[] = [];
+
+    for (const componentType of componentTypes) {
+      const component = this.getEntityComponent(entityId, componentType);
+      if (component) {
+        components.push(component);
+      }
+    }
+
+    return components;
+  }
+
+  /**
    * Check if entity has all specified components
    * 检查实体是否具有所有指定组件
    */

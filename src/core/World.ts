@@ -1,9 +1,13 @@
-import { Entity, type EntityComponentChangeCallback } from './Entity';
+import { Entity, type IWorldForEntity } from './Entity';
 import type { System } from './System';
+import { ExecutionMode } from './System';
 import type { Component } from './Component';
 import type { ComponentType, EntityId, QueryFilter } from '../utils/Types';
 import { ArchetypeManager } from './ArchetypeManager';
 import { ParallelScheduler, type ExecutionGroup } from './ParallelScheduler';
+import { WorkerPool, type WorkerTask, type WorkerResult } from './WorkerPool';
+
+
 
 /**
  * World manages all entities and systems in the ECS architecture
@@ -29,13 +33,15 @@ import { ParallelScheduler, type ExecutionGroup } from './ParallelScheduler';
  * }
  * ```
  */
-export class World {
+export class World implements IWorldForEntity {
   private readonly _entities = new Map<EntityId, Entity>();
   private readonly _systems: System[] = [];
   private _entityIdCounter = 0;
   private _paused = false;
   private readonly _archetypeManager = new ArchetypeManager();
   private readonly _scheduler = new ParallelScheduler();
+  private readonly _workerPool = new WorkerPool();
+
 
   /**
    * Get all entities in world
@@ -77,13 +83,10 @@ export class World {
    */
   createEntity(): Entity {
     const entityId = ++this._entityIdCounter;
-    const entity = new Entity(entityId, this.createEntityChangeCallback(entityId));
+    const entity = new Entity(entityId);
 
-    // Configure entity for archetype storage (always enabled)
-    entity.setArchetypeStorageMode(true);
-    entity.setExternalComponentProvider((id, componentType) =>
-      this._archetypeManager.getEntityComponent(id, componentType)
-    );
+    // Set the world reference so entity can use archetype storage
+    entity.setWorld(this);
 
     this._entities.set(entity.id, entity);
     return entity;
@@ -94,12 +97,8 @@ export class World {
    * 将现有实体添加到世界
    */
   addEntity(entity: Entity): this {
-    // Configure entity for archetype storage (always enabled)
-    entity.setArchetypeStorageMode(true);
-    entity.setChangeCallback(this.createEntityChangeCallback(entity.id));
-    entity.setExternalComponentProvider((id, componentType) =>
-      this._archetypeManager.getEntityComponent(id, componentType)
-    );
+    // Set the world reference so entity can use archetype storage
+    entity.setWorld(this);
 
     // Move existing components to archetype storage
     const components = entity.getComponents();
@@ -199,7 +198,9 @@ export class World {
    */
   update(deltaTime: number): void {
     if (this._paused) return;
-    void this.updateParallel(deltaTime).then(() => {
+
+    // Use parallel execution engine with worker support
+    void this.updateWithParallelExecution(deltaTime).then(() => {
       this._cleanupDestroyedEntities();
     });
   }
@@ -207,10 +208,10 @@ export class World {
 
 
   /**
-   * Update systems in parallel based on dependency analysis
-   * 基于依赖分析并行更新系统
+   * Advanced parallel execution engine with worker support and intelligent scheduling
+   * 支持 Worker 和智能调度的高级并行执行引擎
    */
-  private async updateParallel(deltaTime: number): Promise<void> {
+  private async updateWithParallelExecution(deltaTime: number): Promise<void> {
     const executionGroups = this._scheduler.getExecutionGroups();
 
     // Execute groups sequentially, but systems within each group in parallel
@@ -218,40 +219,262 @@ export class World {
       // Skip empty groups
       if (group.systems.length === 0) continue;
 
-      // Execute systems in the same group in parallel
-      const promises = group.systems
-        .filter((system: System) => system.enabled)
-        .map((system: System) => this.executeSystemAsync(system, deltaTime));
+      const enabledSystems = group.systems.filter((system: System) => system.enabled);
 
-      // Wait for all systems in this group to complete before moving to next group
-      await Promise.all(promises);
+      if (enabledSystems.length === 0) continue;
+
+      // For single system, execute based on its execution mode
+      if (enabledSystems.length === 1) {
+        const system = enabledSystems[0];
+        await this.executeSystemWithMode(system, deltaTime);
+      } else {
+        // Execute multiple systems in parallel based on their execution modes
+        const promises = enabledSystems.map((system: System) =>
+          this.executeSystemWithMode(system, deltaTime)
+        );
+
+        // Wait for all systems in this group to complete before moving to next group
+        await Promise.all(promises);
+      }
     }
   }
 
   /**
-   * Execute a single system asynchronously
-   * 异步执行单个系统
+   * Execute system based on its execution mode
+   * 根据系统的执行模式执行系统
    */
-  private async executeSystemAsync(system: System, deltaTime: number): Promise<void> {
-    return new Promise<void>((resolve) => {
-      // Use setTimeout to make it async and allow other systems to run
-      setTimeout(() => {
-        try {
-          system.preUpdate?.(deltaTime);
+  private async executeSystemWithMode(system: System, deltaTime: number): Promise<void> {
+    const entities = this.queryEntities(...system.requiredComponents);
 
-          // Use archetype-optimized query for better performance
-          const matchingEntities = this.queryEntities(...system.requiredComponents);
+    switch (system.executionMode) {
+      case ExecutionMode.MainThread:
+        // Always execute on main thread
+        return this.executeSystemDirectAsync(system, deltaTime);
 
-          system.update(matchingEntities, deltaTime);
-          system.postUpdate?.(deltaTime);
-        } catch (error) {
-          console.error(`Error in system ${system.constructor.name}:`, error);
-        } finally {
-          resolve();
+      case ExecutionMode.Worker:
+        // Prefer worker execution, fallback to main thread if not supported
+        if (this._workerPool.isWorkerSupported) {
+          return this.executeSystemInWorkerWithFallback(system, entities, deltaTime);
+        } else {
+          console.debug(`Worker not supported, falling back to main thread for system: ${system.constructor.name}`);
+          return this.executeSystemDirectAsync(system, deltaTime);
         }
-      }, 0);
+
+      default:
+        // Default to main thread execution
+        return this.executeSystemDirectAsync(system, deltaTime);
+    }
+  }
+
+
+
+  /**
+   * Execute a single system directly (synchronously) for optimal performance
+   * 直接（同步）执行单个系统以获得最佳性能
+   */
+  private executeSystemDirect(system: System, deltaTime: number): void {
+    try {
+      system.preUpdate?.(deltaTime);
+
+      // Use archetype-optimized query for better performance
+      const matchingEntities = this.queryEntities(...system.requiredComponents);
+
+      system.update(matchingEntities, deltaTime);
+      system.postUpdate?.(deltaTime);
+    } catch (error) {
+      console.error(`Error in system ${system.constructor.name}:`, error);
+      throw error;
+    }
+  }
+
+
+
+
+
+  /**
+   * Execute system directly as async for consistency
+   * 直接异步执行系统以保持一致性
+   */
+  private async executeSystemDirectAsync(system: System, deltaTime: number): Promise<void> {
+    return new Promise<void>((resolve) => {
+      queueMicrotask(() => {
+        try {
+          this.executeSystemDirect(system, deltaTime);
+          resolve();
+        } catch (error) {
+          console.error(`Error in direct async system ${system.constructor.name}:`, error);
+          resolve(); // Don't reject to avoid breaking Promise.all
+        }
+      });
     });
   }
+
+  /**
+   * Advanced worker execution with serialization, timeout handling, and graceful fallback
+   * 高级 Worker 执行，包含序列化、超时处理和优雅回退
+   */
+  private async executeSystemInWorkerWithFallback(
+    system: System,
+    entities: Entity[],
+    deltaTime: number
+  ): Promise<void> {
+    const task: WorkerTask = {
+      id: `${system.constructor.name}-${Date.now()}`,
+      systemName: system.constructor.name,
+      entities: this.serializeEntitiesForSystem(entities, system),
+      deltaTime,
+      priority: system.priority || 0,
+      estimatedExecutionTime: entities.length * 0.1
+    };
+
+    try {
+      // Execute pre-update synchronously
+      system.preUpdate?.(deltaTime);
+
+      // Execute in worker with timeout
+      const result = await Promise.race([
+        this._workerPool.executeTask(task),
+        this.createTimeoutPromise(5000) // 5 second timeout
+      ]);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Worker execution failed');
+      }
+
+      // Apply component updates from worker
+      if (result.componentUpdates) {
+        this.applyComponentUpdates(result.componentUpdates);
+      }
+
+      // Execute post-update synchronously
+      system.postUpdate?.(deltaTime);
+
+    } catch (error) {
+      console.warn(`Worker execution failed for ${system.constructor.name}, falling back to main thread:`, error);
+      // Graceful fallback to main thread execution
+      this.executeSystemDirect(system, deltaTime);
+    }
+  }
+
+
+
+  /**
+   * Serialize entities optimized for specific system
+   * 为特定系统优化序列化实体
+   */
+  private serializeEntitiesForSystem(entities: Entity[], system: System): Array<{
+    id: number;
+    components: Array<{
+      type: string;
+      data: unknown;
+    }>;
+  }> {
+    const requiredComponentTypes = new Set(
+      system.requiredComponents.map(comp => comp.name)
+    );
+
+    return entities.map(entity => ({
+      id: entity.id,
+      // Only serialize components that the system actually needs
+      components: entity.getComponents()
+        .filter(comp => requiredComponentTypes.has(comp.constructor.name))
+        .map(comp => ({
+          type: comp.constructor.name,
+          data: this.serializeComponent(comp)
+        }))
+    }));
+  }
+
+  /**
+   * Serialize component data efficiently
+   * 高效序列化组件数据
+   */
+  private serializeComponent(component: Component): Record<string, unknown> {
+    const data: Record<string, unknown> = {};
+
+    // Get all enumerable properties, excluding methods
+    Object.getOwnPropertyNames(component).forEach(key => {
+      if (key !== 'constructor') {
+        const value = (component as unknown as Record<string, unknown>)[key];
+        if (typeof value !== 'function') {
+          // Deep clone to avoid reference issues
+          data[key] = this.deepClone(value);
+        }
+      }
+    });
+
+    return data;
+  }
+
+  /**
+   * Deep clone a value for safe serialization
+   * 深度克隆值以进行安全序列化
+   */
+  private deepClone(value: unknown): unknown {
+    if (value === null || typeof value !== 'object') {
+      return value;
+    }
+
+    if (value instanceof Date) {
+      return new Date(value.getTime());
+    }
+
+    if (Array.isArray(value)) {
+      return value.map(item => this.deepClone(item));
+    }
+
+    const cloned: Record<string, unknown> = {};
+    Object.keys(value as Record<string, unknown>).forEach(key => {
+      cloned[key] = this.deepClone((value as Record<string, unknown>)[key]);
+    });
+
+    return cloned;
+  }
+
+  /**
+   * Apply component updates from worker execution
+   * 应用来自工作线程执行的组件更新
+   */
+  private applyComponentUpdates(updates: Array<{
+    entityId: number;
+    componentType: string;
+    data: Record<string, unknown>;
+  }>): void {
+    updates.forEach(update => {
+      const entity = this._entities.get(update.entityId);
+      if (!entity) {
+        console.warn(`Entity ${update.entityId} not found for component update`);
+        return;
+      }
+
+      // Find the component by type name
+      const component = entity.getComponents().find(
+        comp => comp.constructor.name === update.componentType
+      );
+
+      if (!component) {
+        console.warn(`Component ${update.componentType} not found on entity ${update.entityId}`);
+        return;
+      }
+
+      // Apply the updates to the component
+      Object.assign(component, update.data);
+    });
+  }
+
+  /**
+   * Create timeout promise for worker execution
+   * 为工作线程执行创建超时 Promise
+   */
+  private createTimeoutPromise(timeoutMs: number): Promise<WorkerResult> {
+    return new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`Worker execution timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
+    });
+  }
+
+
 
   /**
    * Clear all entities and systems
@@ -273,6 +496,15 @@ export class World {
   }
 
   /**
+   * Dispose of the world and clean up resources
+   * 处理世界并清理资源
+   */
+  dispose(): void {
+    this.clear();
+    this._workerPool.terminate();
+  }
+
+  /**
    * Get entity count
    * 获取实体数量
    */
@@ -288,21 +520,7 @@ export class World {
     return this._systems.length;
   }
 
-  /**
-   * Create entity component change callback
-   * 创建实体组件变化回调
-   */
-  private createEntityChangeCallback(_entityId: EntityId): EntityComponentChangeCallback {
-    return (id, componentType, component, isAddition) => {
-      if (isAddition && component) {
-        // Handle component addition
-        this.handleComponentAddition(id, componentType, component);
-      } else {
-        // Handle component removal
-        this.handleComponentRemoval(id, componentType);
-      }
-    };
-  }
+
 
   /**
    * Handle component addition in archetype storage
@@ -390,11 +608,85 @@ export class World {
     return this._scheduler.getExecutionGroups();
   }
 
+  /**
+   * Get worker pool statistics
+   * 获取工作池统计信息
+   */
+  getWorkerPoolStatistics(): ReturnType<typeof this._workerPool.getStatistics> {
+    return this._workerPool.getStatistics();
+  }
+
+  /**
+   * Check if true parallel execution is supported
+   * 检查是否支持真正的并行执行
+   */
+  get isParallelExecutionSupported(): boolean {
+    return this._workerPool.isWorkerSupported;
+  }
+
+  /**
+   * Get comprehensive performance statistics
+   * 获取全面的性能统计信息
+   */
+  getPerformanceStatistics(): Record<string, unknown> {
+    return {
+      archetype: this.getArchetypeStatistics(),
+      scheduler: this.getSchedulerStatistics(),
+      workerPool: this.getWorkerPoolStatistics(),
+      memory: this._workerPool.getMemoryStatistics()
+    };
+  }
+
   private _cleanupDestroyedEntities(): void {
     for (const [id, entity] of this._entities) {
       if (!entity.active) {
         this._entities.delete(id);
       }
     }
+  }
+
+  /**
+   * Add component to entity (called by Entity)
+   * 向实体添加组件（由 Entity 调用）
+   * @internal
+   */
+  addComponentToEntity(entityId: EntityId, componentType: ComponentType, component: Component): void {
+    this.handleComponentAddition(entityId, componentType, component);
+  }
+
+  /**
+   * Remove component from entity (called by Entity)
+   * 从实体移除组件（由 Entity 调用）
+   * @internal
+   */
+  removeComponentFromEntity(entityId: EntityId, componentType: ComponentType): void {
+    this.handleComponentRemoval(entityId, componentType);
+  }
+
+  /**
+   * Get component from entity (called by Entity)
+   * 从实体获取组件（由 Entity 调用）
+   * @internal
+   */
+  getEntityComponent<T extends Component>(entityId: EntityId, componentType: ComponentType<T>): T | undefined {
+    return this._archetypeManager.getEntityComponent(entityId, componentType);
+  }
+
+  /**
+   * Check if entity has component (called by Entity)
+   * 检查实体是否有组件（由 Entity 调用）
+   * @internal
+   */
+  entityHasComponent(entityId: EntityId, componentType: ComponentType): boolean {
+    return this._archetypeManager.entityHasComponent(entityId, componentType);
+  }
+
+  /**
+   * Get all components from entity (called by Entity)
+   * 获取实体的所有组件（由 Entity 调用）
+   * @internal
+   */
+  getEntityComponents(entityId: EntityId): Component[] {
+    return this._archetypeManager.getEntityComponents(entityId);
   }
 }
