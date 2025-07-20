@@ -1,5 +1,7 @@
 import typescript from '@rollup/plugin-typescript';
 
+const external = ['superjson', '@msgpack/msgpack'];
+
 export default [
   // ES Module build
   {
@@ -14,10 +16,11 @@ export default [
         tsconfig: './tsconfig.json',
         declaration: true,
         declarationDir: 'dist',
-        rootDir: 'src'
+        rootDir: 'src',
+        declarationMap: true
       })
     ],
-    external: []
+    external
   },
   // UMD build
   {
@@ -26,15 +29,20 @@ export default [
       file: 'dist/nova-ecs.umd.js',
       format: 'umd',
       name: 'NovaECS',
-      sourcemap: true
+      sourcemap: true,
+      globals: {
+        'superjson': 'superjson',
+        '@msgpack/msgpack': 'msgpack'
+      }
     },
     plugins: [
       typescript({
         tsconfig: './tsconfig.json',
-        declaration: false
+        declaration: false,
+        declarationMap: false
       })
     ],
-    external: []
+    external
   },
   // CommonJS build
   {
@@ -48,9 +56,10 @@ export default [
     plugins: [
       typescript({
         tsconfig: './tsconfig.json',
-        declaration: false
+        declaration: false,
+        declarationMap: false
       })
     ],
-    external: []
+    external
   }
 ];

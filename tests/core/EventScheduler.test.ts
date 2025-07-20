@@ -259,18 +259,33 @@ describe('EventScheduler', () => {
     test('should use event processing mode when no option provided', async () => {
       const listener = vi.fn();
       eventBus.on('DelayedEvent', listener);
-      
+
       const delayedEvent = new DelayedEvent(42); // Has Delayed processing mode by default
+
+      // Record the time before scheduling to ensure proper timing
+      const beforeSchedule = Date.now();
       scheduler.schedule(delayedEvent); // No options provided
-      
+
+      // Immediately check - should not be processed yet
       await scheduler.update(16);
-      
+
       // Should not be processed immediately due to event's processing mode
       expect(listener).not.toHaveBeenCalled();
-      
+
       // Should be in delayed queue
       const sizes = scheduler.getQueueSizes();
       expect(sizes.delayed).toBe(1);
+
+      // Wait for the delay to pass and then process
+      const afterSchedule = Date.now();
+      const waitTime = Math.max(2, beforeSchedule + 2 - afterSchedule); // Ensure at least 2ms have passed
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+
+      await scheduler.update(16);
+
+      // Now it should be processed
+      expect(listener).toHaveBeenCalledWith(delayedEvent);
+      expect(scheduler.getQueueSizes().delayed).toBe(0);
     });
   });
 });

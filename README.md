@@ -22,11 +22,11 @@
 
 ```bash
 npm install @esengine/nova-ecs
+```
 
 ## API 文档 API Documentation
 
 完整的API文档请访问：[https://esengine.github.io/NovaECS/](https://esengine.github.io/NovaECS/)
-```
 
 ## 快速开始 Quick Start
 
