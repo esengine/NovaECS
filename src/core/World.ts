@@ -311,13 +311,13 @@ export class World {
   private handleComponentAddition(entityId: EntityId, componentType: ComponentType, component: Component): void {
     // Get current components
     const currentArchetype = this._archetypeManager.getEntityArchetype(entityId);
-    const currentComponents = currentArchetype 
-      ? this._archetypeManager.removeEntity(entityId) || new Map()
-      : new Map();
+    const currentComponents: Map<ComponentType, Component> = currentArchetype
+      ? this._archetypeManager.removeEntity(entityId) || new Map<ComponentType, Component>()
+      : new Map<ComponentType, Component>();
 
     // Add new component
     currentComponents.set(componentType, component);
-    
+
     // Call component lifecycle method
     component.onAdded?.();
 
@@ -353,7 +353,7 @@ export class World {
    * Get archetype manager statistics
    * 获取原型管理器统计信息
    */
-  getArchetypeStatistics() {
+  getArchetypeStatistics(): ReturnType<typeof this._archetypeManager.getStatistics> {
     return this._archetypeManager.getStatistics();
   }
 
@@ -361,7 +361,15 @@ export class World {
    * Get parallel scheduler statistics
    * 获取并行调度器统计信息
    */
-  getSchedulerStatistics() {
+  getSchedulerStatistics(): {
+    totalGroups: number;
+    totalSystems: number;
+    groupDetails: Array<{
+      level: number;
+      systemCount: number;
+      systems: string[];
+    }>;
+  } {
     const groups = this._scheduler.getExecutionGroups();
     return {
       totalGroups: groups.length,
