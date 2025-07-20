@@ -1,6 +1,6 @@
 {
   "name": "@esengine/nova-ecs",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Next-generation ECS game framework for TypeScript",
   "keywords": [
     "ecs",
