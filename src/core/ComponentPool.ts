@@ -65,8 +65,7 @@ export class ComponentPool<T extends Component> {
       totalCreated: 0,
       poolSize: 0,
       inUse: 0,
-      hitRate: 0,
-      memoryUsage: 0
+      hitRate: 0
     };
 
     this._initializePool();
@@ -266,10 +265,6 @@ export class ComponentPool<T extends Component> {
     const totalAcquired = this._statistics.totalCreated;
     const poolHits = totalAcquired - this._statistics.totalCreated + this._pool.length;
     this._statistics.hitRate = totalAcquired > 0 ? poolHits / totalAcquired : 0;
-    
-    // Estimate memory usage (rough calculation)
-    const componentSize = 64; // Estimated average component size in bytes
-    this._statistics.memoryUsage = (this._pool.length + this._inUse.size) * componentSize;
   }
 }
 

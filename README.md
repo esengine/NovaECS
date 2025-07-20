@@ -16,6 +16,7 @@
 - 📚 **文档完善**: TSDoc注释，自动生成API文档
 - 🧠 **内存管理**: 智能组件对象池，减少GC压力
 - ⚡ **智能调度**: 自动分析系统依赖关系，实现高效的执行调度
+- 📡 **事件系统**: 类型安全的事件总线，支持优先级和延迟处理
 
 ## 安装 Installation
 
@@ -63,304 +64,120 @@ const world = new World();
 world.addSystem(new MovementSystem());
 
 // 创建实体
-const player = world.createEntity()
-  .addComponent(new PositionComponent(100, 100))
-  .addComponent(new VelocityComponent(5, 0));
+const entity = world.createEntity();
+entity.addComponent(new PositionComponent(0, 0));
+entity.addComponent(new VelocityComponent(1, 1));
 
 // 游戏循环
 function gameLoop(deltaTime: number) {
   world.update(deltaTime);
-
-  // 获取性能统计
-  const stats = world.getPerformanceStatistics();
-  console.log('系统执行统计:', stats);
 }
 
 // 启动游戏循环
 setInterval(() => gameLoop(16), 16);
 ```
 
-## 高级功能 Advanced Features
+## 事件系统 Event System
 
-### 系统依赖和并行调度
+NovaECS 提供了强大的事件系统，支持系统间的松耦合通信。
 
 ```typescript
-import { System, AccessType } from '@esengine/nova-ecs';
+import { Event, EventPriority } from '@esengine/nova-ecs';
 
-// 只读系统 - 可以并行执行
-class RenderSystem extends System {
-  constructor() {
-    super([PositionComponent], [
-      { componentType: PositionComponent, accessType: AccessType.Read }
-    ]);
-  }
-
-  update(entities: Entity[], deltaTime: number): void {
-    // 渲染逻辑，只读取位置数据
-    entities.forEach(entity => {
-      const position = entity.getComponent(PositionComponent)!;
-      console.log(`渲染实体在位置: (${position.x}, ${position.y})`);
-    });
+// 定义自定义事件
+class PlayerDeathEvent extends Event {
+  constructor(
+    public readonly playerId: number,
+    public readonly cause: string
+  ) {
+    super('PlayerDeath', EventPriority.High);
   }
 }
 
-// 写入系统 - 会与其他写入系统串行执行
-class PhysicsSystem extends System {
-  constructor() {
-    super([PositionComponent, VelocityComponent], [
-      { componentType: PositionComponent, accessType: AccessType.Write },
-      { componentType: VelocityComponent, accessType: AccessType.Read }
-    ]);
+// 在系统中使用事件
+class HealthSystem extends System {
+  onAddedToWorld(world: World): void {
+    super.onAddedToWorld(world);
+    
+    // 订阅事件
+    this.subscribeToEventType(PlayerDeathEvent, (event) => {
+      console.log(`Player ${event.playerId} died: ${event.cause}`);
+    });
   }
 
   update(entities: Entity[], deltaTime: number): void {
-    // 物理计算，修改位置数据
-    entities.forEach(entity => {
-      const position = entity.getComponent(PositionComponent)!;
-      const velocity = entity.getComponent(VelocityComponent)!;
-
-      position.x += velocity.dx * deltaTime;
-      position.y += velocity.dy * deltaTime;
-    });
+    for (const entity of entities) {
+      const health = entity.getComponent(HealthComponent)!;
+      
+      if (health.current <= 0) {
+        // 分发事件
+        this.dispatchEvent(new PlayerDeathEvent(entity.id, 'health depleted'));
+      }
+    }
   }
 }
-
-// 添加系统 - 框架会自动分析依赖关系
-world.addSystem(new RenderSystem());
-world.addSystem(new PhysicsSystem());
-world.addSystem(new MovementSystem());
-
-// 查看执行组
-const groups = world.getExecutionGroups();
-console.log('系统执行组:', groups);
 ```
 
-## 内存管理工具 Memory Management Tools
+## 组件对象池 Component Pool
 
-NovaECS 提供了独立的内存管理工具，包括组件对象池，可以根据需要选择性使用。
-
-### 组件对象池 Component Object Pool
+使用组件对象池来优化内存管理：
 
 ```typescript
-import { ComponentPool, ComponentPoolManager } from '@esengine/nova-ecs';
+import { ComponentPool } from '@esengine/nova-ecs';
 
-// 创建单个组件池
-const positionPool = new ComponentPool(PositionComponent, {
-  initialSize: 50,    // 初始池大小
-  maxSize: 200,       // 最大池大小
-  autoCleanup: true,  // 自动清理
-  cleanupInterval: 60000, // 清理间隔
-  maxIdleTime: 30000  // 最大空闲时间
-});
+// 创建组件池
+const bulletPool = new ComponentPool(
+  () => new BulletComponent(),
+  { initialSize: 50, maxSize: 200 }
+);
 
 // 从池中获取组件
-const position = positionPool.acquire();
-position.x = 100;
-position.y = 200;
+const bullet = bulletPool.acquire();
+bullet.damage = 10;
+bullet.speed = 100;
 
 // 使用完毕后释放回池
-positionPool.release(position);
-
-// 使用池管理器管理多个池
-const poolManager = new ComponentPoolManager();
-const pool = poolManager.getPool(PositionComponent);
-const component = pool.acquire();
+bulletPool.release(bullet);
 ```
 
+## 实体查询 Entity Queries
 
+查询具有特定组件组合的实体：
 
-
-
-## 核心概念 Core Concepts
-
-### Entity (实体)
-实体是游戏世界中的基本对象，本身不包含数据或逻辑，只是组件的容器。
-
-### Component (组件)
-组件存储数据，定义实体的属性和状态。
-
-### System (系统)
-系统包含逻辑，处理具有特定组件组合的实体。
-
-### World (世界)
-世界管理所有实体和系统，协调整个ECS架构的运行。
-
-### Memory Management Tools (内存管理工具)
-独立的内存管理工具，包括组件对象池，可选择性使用以优化性能。
-
-## 最佳实践 Best Practices
-
-### 内存管理最佳实践
-
-1. **合理配置对象池大小**
 ```typescript
-// 根据游戏规模配置池大小
-const pool = new ComponentPool(PositionComponent, {
-  initialSize: Math.min(expectedEntityCount * 0.8, 100),
-  maxSize: expectedEntityCount * 1.2
+// 查询具有特定组件的实体
+const movableEntities = world.query({
+  all: [PositionComponent, VelocityComponent]
+});
+
+// 查询具有任一组件的实体
+const renderableEntities = world.query({
+  any: [SpriteComponent, MeshComponent]
+});
+
+// 查询排除特定组件的实体
+const aliveEntities = world.query({
+  all: [HealthComponent],
+  none: [DeadComponent]
 });
 ```
 
-2. **及时释放组件**
-```typescript
-// 手动管理组件池时要记得释放
-const component = pool.acquire();
-// ... 使用组件
-pool.release(component);
-```
+## API 文档 API Documentation
 
-3. **监控内存使用**
-```typescript
-// 定期检查内存使用情况
-setInterval(() => {
-  const stats = pool.statistics;
-  console.log('Pool hit rate:', stats.hitRate);
-  console.log('Memory usage:', stats.memoryUsage);
-}, 10000);
-```
-
-### 系统设计最佳实践
-
-1. **明确组件访问类型**
-```typescript
-class OptimizedSystem extends System {
-  constructor() {
-    super([PositionComponent, VelocityComponent], [
-      { componentType: PositionComponent, accessType: AccessType.Write },
-      { componentType: VelocityComponent, accessType: AccessType.Read }
-    ]);
-  }
-}
-```
-
-2. **避免在系统中创建实体**
-```typescript
-// ❌ 不推荐：在系统中直接创建实体
-class BadSystem extends System {
-  update(entities: Entity[], deltaTime: number): void {
-    if (entities.length < 10) {
-      this.world?.createEntity(); // 可能导致并发问题
-    }
-  }
-}
-
-// ✅ 推荐：使用事件或延迟创建
-class GoodSystem extends System {
-  private entitiesToCreate: number = 0;
-
-  update(entities: Entity[], deltaTime: number): void {
-    if (entities.length < 10) {
-      this.entitiesToCreate++;
-    }
-  }
-
-  postUpdate(deltaTime: number): void {
-    // 在后处理阶段创建实体
-    for (let i = 0; i < this.entitiesToCreate; i++) {
-      this.world?.createEntity();
-    }
-    this.entitiesToCreate = 0;
-  }
-}
-```
-
-3. **合理使用查询过滤**
-```typescript
-// 使用自定义查询过滤器
-const activeEntities = world.queryEntities(
-  PositionComponent,
-  VelocityComponent
-).filter(entity => entity.active);
-```
-
-## 性能优化 Performance Optimization
-
-### 原型存储优化
-
-NovaECS使用基于原型(Archetype)的存储系统，自动优化内存布局：
-
-```typescript
-// 框架会自动将具有相同组件组合的实体存储在一起
-const entity1 = world.createEntity()
-  .addComponent(new PositionComponent())
-  .addComponent(new VelocityComponent());
-
-const entity2 = world.createEntity()
-  .addComponent(new PositionComponent())
-  .addComponent(new VelocityComponent());
-
-// entity1和entity2会被存储在同一个原型中，提高缓存效率
-
-// 查看原型统计
-const archetypeStats = world.getArchetypeStatistics();
-console.log('原型数量:', archetypeStats.archetypeCount);
-console.log('平均每个原型的实体数:', archetypeStats.averageEntitiesPerArchetype);
-```
-
-### 系统执行优化
-
-```typescript
-// 查看系统执行统计
-const schedulerStats = world.getSchedulerStatistics();
-console.log('执行组数量:', schedulerStats.totalGroups);
-console.log('系统总数:', schedulerStats.totalSystems);
-
-// 查看详细的执行组信息
-schedulerStats.groupDetails.forEach((group, index) => {
-  console.log(`组 ${index}: 级别 ${group.level}, 系统数 ${group.systemCount}`);
-  console.log('系统列表:', group.systems);
-});
-```
-
-## API文档 API Documentation
-
-完整的API文档请访问: [API Documentation](https://esengine.github.io/NovaECS/)
-
-## 构建和开发 Build & Development
-
-```bash
-# 安装依赖
-npm install
-
-# 开发模式
-npm run dev
-
-# 构建
-npm run build
-
-# 运行测试
-npm test
-
-# 生成文档
-npm run docs
-
-# 代码检查
-npm run lint
-```
-
-## 平台兼容性 Platform Compatibility
-
-- ✅ 现代浏览器 (Chrome, Firefox, Safari, Edge)
-- ✅ Node.js 16+
-- ✅ Laya引擎
-- ✅ Cocos Creator
-- ✅ 微信小游戏
-- ✅ 支付宝小游戏
+完整的API文档请访问：[https://esengine.github.io/NovaECS/](https://esengine.github.io/NovaECS/)
 
 ## 许可证 License
 
-MIT © [esengine](https://github.com/esengine)
+MIT License - 详见 [LICENSE](LICENSE) 文件。
 
 ## 贡献 Contributing
 
-欢迎提交Issue和Pull Request！
+欢迎提交 Issue 和 Pull Request！
 
-1. Fork 这个仓库
-2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add some amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 开启Pull Request
+## 支持 Support
 
-## 更新日志 Changelog
+如果您在使用过程中遇到问题，请：
 
-查看 [CHANGELOG.md](CHANGELOG.md) 了解版本更新信息。
+1. 查看 [API 文档](https://esengine.github.io/NovaECS/)
+2. 搜索已有的 [Issues](https://github.com/esengine/NovaECS/issues)
+3. 创建新的 Issue 描述您的问题

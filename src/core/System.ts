@@ -1,7 +1,9 @@
 import type { Entity } from './Entity';
 import type { World } from './World';
-import type { ComponentType } from '../utils/Types';
+import type { ComponentType, EventListener } from '../utils/Types';
 import type { ComponentAccess } from '../utils/AccessType';
+import type { Event } from './Event';
+import type { EventListenerOptions } from '../utils/EventTypes';
 
 
 
@@ -32,6 +34,7 @@ export abstract class System {
   private _enabled = true;
   private _priority = 0;
   protected world: World | undefined = undefined;
+  private readonly _eventListenerIds: string[] = [];
 
   /**
    * Component types required by this system
@@ -104,6 +107,8 @@ export abstract class System {
    * 系统从世界移除时调用
    */
   onRemovedFromWorld(): void {
+    // Unsubscribe from all events
+    this._unsubscribeFromAllEvents();
     this.world = undefined;
   }
 
@@ -133,5 +138,99 @@ export abstract class System {
    */
   postUpdate?(deltaTime: number): void;
 
+  /**
+   * Subscribe to events by event type string
+   * 通过事件类型字符串订阅事件
+   *
+   * @param eventType Event type string 事件类型字符串
+   * @param listener Event listener function 事件监听器函数
+   * @param options Listener options 监听器选项
+   * @returns Listener ID for unsubscription 用于取消订阅的监听器ID
+   */
+  protected subscribeToEvent<T extends Event>(
+    eventType: string,
+    listener: EventListener<T>,
+    options?: EventListenerOptions
+  ): string {
+    if (!this.world) {
+      throw new Error('System must be added to world before subscribing to events');
+    }
 
+    const listenerId = this.world.eventBus.on(eventType, listener, options);
+    this._eventListenerIds.push(listenerId);
+    return listenerId;
+  }
+
+  /**
+   * Subscribe to events by event class constructor
+   * 通过事件类构造函数订阅事件
+   *
+   * @param eventClass Event class constructor 事件类构造函数
+   * @param listener Event listener function 事件监听器函数
+   * @param options Listener options 监听器选项
+   * @returns Listener ID for unsubscription 用于取消订阅的监听器ID
+   */
+  protected subscribeToEventType<T extends Event>(
+    eventClass: new (...args: unknown[]) => T,
+    listener: EventListener<T>,
+    options?: EventListenerOptions
+  ): string {
+    if (!this.world) {
+      throw new Error('System must be added to world before subscribing to events');
+    }
+
+    const listenerId = this.world.eventBus.onType(eventClass, listener, options);
+    this._eventListenerIds.push(listenerId);
+    return listenerId;
+  }
+
+  /**
+   * Dispatch an event
+   * 分发事件
+   *
+   * @param event Event to dispatch 要分发的事件
+   */
+  protected dispatchEvent(event: Event): void {
+    if (!this.world) {
+      throw new Error('System must be added to world before dispatching events');
+    }
+
+    void this.world.eventBus.dispatch(event);
+  }
+
+  /**
+   * Unsubscribe from a specific event
+   * 取消订阅特定事件
+   *
+   * @param listenerId Listener ID returned by subscribe methods 订阅方法返回的监听器ID
+   * @returns Whether listener was found and removed 是否找到并移除了监听器
+   */
+  protected unsubscribeFromEvent(listenerId: string): boolean {
+    if (!this.world) {
+      return false;
+    }
+
+    const index = this._eventListenerIds.indexOf(listenerId);
+    if (index !== -1) {
+      this._eventListenerIds.splice(index, 1);
+      return this.world.eventBus.off(listenerId);
+    }
+
+    return false;
+  }
+
+  /**
+   * Unsubscribe from all events
+   * 取消订阅所有事件
+   */
+  private _unsubscribeFromAllEvents(): void {
+    if (!this.world) {
+      return;
+    }
+
+    for (const listenerId of this._eventListenerIds) {
+      this.world.eventBus.off(listenerId);
+    }
+    this._eventListenerIds.length = 0;
+  }
 }

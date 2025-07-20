@@ -63,7 +63,47 @@ export interface PoolStatistics {
   inUse: number;
   /** Pool hit rate 池命中率 */
   hitRate: number;
-  /** Memory usage estimate 内存使用估计 */
-  memoryUsage: number;
+}
+
+// Event System Types
+// 事件系统类型
+
+/**
+ * Event unique identifier type
+ * 事件唯一标识符类型
+ */
+export type EventId = string;
+
+/**
+ * Event constructor type
+ * 事件构造函数类型
+ */
+export type EventConstructor<T = unknown> = new (...args: unknown[]) => T;
+
+/**
+ * Event class type
+ * 事件类类型
+ */
+export type EventType<T = unknown> = EventConstructor<T>;
+
+/**
+ * Event listener function type
+ * 事件监听器函数类型
+ */
+export type EventListener<T = unknown> = (event: T) => void | Promise<void>;
+
+/**
+ * Event listener with metadata
+ * 带有元数据的事件监听器
+ */
+export interface EventListenerInfo<T = unknown> {
+  /** Listener function 监听器函数 */
+  listener: EventListener<T>;
+  /** Listener priority 监听器优先级 */
+  priority: number;
+  /** Whether listener should be called only once 是否只调用一次 */
+  once: boolean;
+  /** Listener identifier for removal 用于移除的监听器标识符 */
+  id: string;
 }
 

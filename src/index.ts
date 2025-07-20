@@ -13,9 +13,28 @@ export { ParallelScheduler } from './core/ParallelScheduler';
 export { Archetype } from './core/Archetype';
 export { ArchetypeManager } from './core/ArchetypeManager';
 
+// Event System
+export {
+  Event,
+  TypedEvent,
+  EntityCreatedEvent,
+  EntityDestroyedEvent,
+  ComponentAddedEvent,
+  ComponentRemovedEvent,
+  SystemAddedEvent,
+  SystemRemovedEvent,
+  WorldPausedEvent,
+  WorldResumedEvent,
+  WorldUpdateStartEvent,
+  WorldUpdateEndEvent
+} from './core/Event';
+export { EventBus } from './core/EventBus';
+export { EventScheduler } from './core/EventScheduler';
+
 // Memory Management Tools (standalone utilities)
 export { ComponentPool, ComponentPoolManager } from './core/ComponentPool';
 
 export * from './utils/Types';
 export * from './utils/AccessType';
 export * from './utils/ArchetypeTypes';
+export * from './utils/EventTypes';

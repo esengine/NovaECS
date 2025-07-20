@@ -4,6 +4,21 @@ import type { Component } from './Component';
 import type { ComponentType, EntityId, QueryFilter } from '../utils/Types';
 import { ArchetypeManager } from './ArchetypeManager';
 import { ParallelScheduler, type ExecutionGroup } from './ParallelScheduler';
+import { EventBus } from './EventBus';
+import { EventScheduler } from './EventScheduler';
+import {
+  EntityCreatedEvent,
+  EntityDestroyedEvent,
+  ComponentAddedEvent,
+  ComponentRemovedEvent,
+  SystemAddedEvent,
+  SystemRemovedEvent,
+  WorldPausedEvent,
+  WorldResumedEvent,
+  WorldUpdateStartEvent,
+  WorldUpdateEndEvent
+} from './Event';
+import type { EventStatistics } from '../utils/EventTypes';
 
 
 
@@ -38,6 +53,8 @@ export class World implements IWorldForEntity {
   private _paused = false;
   private readonly _archetypeManager = new ArchetypeManager();
   private readonly _scheduler = new ParallelScheduler();
+  private readonly _eventBus = new EventBus();
+  private readonly _eventScheduler = new EventScheduler(this._eventBus);
 
 
   /**
@@ -69,7 +86,23 @@ export class World implements IWorldForEntity {
    * 设置世界暂停状态
    */
   set paused(value: boolean) {
+    const waspaused = this._paused;
     this._paused = value;
+
+    // Dispatch pause/resume events
+    if (!waspaused && value) {
+      void this._eventBus.dispatch(new WorldPausedEvent());
+    } else if (waspaused && !value) {
+      void this._eventBus.dispatch(new WorldResumedEvent());
+    }
+  }
+
+  /**
+   * Get event bus for subscribing to and dispatching events
+   * 获取事件总线用于订阅和分发事件
+   */
+  get eventBus(): EventBus {
+    return this._eventBus;
   }
 
 
@@ -88,6 +121,10 @@ export class World implements IWorldForEntity {
     entity.setWorld(this);
 
     this._entities.set(entity.id, entity);
+
+    // Dispatch entity created event
+    void this._eventBus.dispatch(new EntityCreatedEvent(entity.id));
+
     return entity;
   }
 
@@ -126,6 +163,9 @@ export class World implements IWorldForEntity {
     if (entity) {
       entity.destroy();
       this._entities.delete(id);
+
+      // Dispatch entity destroyed event
+      void this._eventBus.dispatch(new EntityDestroyedEvent(id));
     }
     return this;
   }
@@ -175,6 +215,10 @@ export class World implements IWorldForEntity {
     this._systems.sort((a, b) => b.priority - a.priority);
     this._scheduler.addSystem(system);
     system.onAddedToWorld(this);
+
+    // Dispatch system added event
+    void this._eventBus.dispatch(new SystemAddedEvent(system.constructor.name));
+
     return this;
   }
 
@@ -188,6 +232,9 @@ export class World implements IWorldForEntity {
       this._systems.splice(index, 1);
       this._scheduler.removeSystem(system);
       system.onRemovedFromWorld();
+
+      // Dispatch system removed event
+      void this._eventBus.dispatch(new SystemRemovedEvent(system.constructor.name));
     }
     return this;
   }
@@ -208,9 +255,21 @@ export class World implements IWorldForEntity {
   update(deltaTime: number): void {
     if (this._paused) return;
 
+    // Dispatch world update start event
+    void this._eventBus.dispatch(new WorldUpdateStartEvent(deltaTime));
+
+    // Process immediate events first
+    void this._eventScheduler.update(deltaTime);
+
     // Use simplified parallel execution
     void this.updateWithParallelExecution(deltaTime).then(() => {
       this._cleanupDestroyedEntities();
+
+      // Process end-of-frame events
+      void this._eventScheduler.processEndOfFrame();
+
+      // Dispatch world update end event
+      void this._eventBus.dispatch(new WorldUpdateEndEvent(deltaTime));
     });
   }
 
@@ -221,9 +280,21 @@ export class World implements IWorldForEntity {
   async updateAsync(deltaTime: number): Promise<void> {
     if (this._paused) return;
 
+    // Dispatch world update start event
+    await this._eventBus.dispatch(new WorldUpdateStartEvent(deltaTime));
+
+    // Process immediate events first
+    await this._eventScheduler.update(deltaTime);
+
     // Use simplified parallel execution
     await this.updateWithParallelExecution(deltaTime);
     this._cleanupDestroyedEntities();
+
+    // Process end-of-frame events
+    await this._eventScheduler.processEndOfFrame();
+
+    // Dispatch world update end event
+    await this._eventBus.dispatch(new WorldUpdateEndEvent(deltaTime));
   }
 
   /**
@@ -332,6 +403,10 @@ export class World implements IWorldForEntity {
     }
     this._systems.length = 0;
 
+    // Clear event system
+    this._eventBus.clear();
+    this._eventScheduler.clear();
+
     this._entityIdCounter = 0;
     return this;
   }
@@ -381,6 +456,9 @@ export class World implements IWorldForEntity {
 
     // Add to new archetype
     this._archetypeManager.addEntity(entityId, currentComponents);
+
+    // Dispatch component added event
+    void this._eventBus.dispatch(new ComponentAddedEvent(entityId, componentType.name));
   }
 
   /**
@@ -403,6 +481,9 @@ export class World implements IWorldForEntity {
     if (currentComponents.size > 0) {
       this._archetypeManager.addEntity(entityId, currentComponents);
     }
+
+    // Dispatch component removed event
+    void this._eventBus.dispatch(new ComponentRemovedEvent(entityId, componentType.name));
   }
 
 
@@ -457,8 +538,30 @@ export class World implements IWorldForEntity {
   getPerformanceStatistics(): Record<string, unknown> {
     return {
       archetype: this.getArchetypeStatistics(),
-      scheduler: this.getSchedulerStatistics()
+      scheduler: this.getSchedulerStatistics(),
+      events: this.getEventStatistics()
     };
+  }
+
+  /**
+   * Get event system statistics
+   * 获取事件系统统计信息
+   */
+  getEventStatistics(): EventStatistics {
+    return this._eventBus.getStatistics();
+  }
+
+  /**
+   * Get event scheduler queue sizes
+   * 获取事件调度器队列大小
+   */
+  getEventQueueSizes(): {
+    immediate: number;
+    endOfFrame: number;
+    nextFrame: number;
+    delayed: number;
+  } {
+    return this._eventScheduler.getQueueSizes();
   }
 
   private _cleanupDestroyedEntities(): void {
