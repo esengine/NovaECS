@@ -37,6 +37,8 @@ export class QueryBuilder implements IQueryBuilder {
   /**
    * Add required components (AND logic)
    * 添加必需组件（AND逻辑）
+   * @param componentTypes Component types that entities must have 实体必须拥有的组件类型
+   * @returns Query builder for method chaining 查询构建器，用于方法链式调用
    */
   with(...componentTypes: ComponentType[]): IQueryBuilder {
     if (!this._criteria.all) {
@@ -49,6 +51,8 @@ export class QueryBuilder implements IQueryBuilder {
   /**
    * Add required components (alias for with)
    * 添加必需组件（with的别名）
+   * @param componentTypes Component types that entities must have 实体必须拥有的组件类型
+   * @returns Query builder for method chaining 查询构建器，用于方法链式调用
    */
   all(...componentTypes: ComponentType[]): IQueryBuilder {
     return this.with(...componentTypes);
@@ -57,6 +61,8 @@ export class QueryBuilder implements IQueryBuilder {
   /**
    * Add optional components (OR logic)
    * 添加可选组件（OR逻辑）
+   * @param componentTypes Component types where entities must have at least one 实体必须至少拥有其中一个的组件类型
+   * @returns Query builder for method chaining 查询构建器，用于方法链式调用
    */
   any(...componentTypes: ComponentType[]): IQueryBuilder {
     if (!this._criteria.any) {
@@ -69,6 +75,8 @@ export class QueryBuilder implements IQueryBuilder {
   /**
    * Add excluded components (NOT logic)
    * 添加排除组件（NOT逻辑）
+   * @param componentTypes Component types that entities must not have 实体不能拥有的组件类型
+   * @returns Query builder for method chaining 查询构建器，用于方法链式调用
    */
   without(...componentTypes: ComponentType[]): IQueryBuilder {
     if (!this._criteria.none) {
@@ -81,6 +89,8 @@ export class QueryBuilder implements IQueryBuilder {
   /**
    * Add excluded components (alias for without)
    * 添加排除组件（without的别名）
+   * @param componentTypes Component types that entities must not have 实体不能拥有的组件类型
+   * @returns Query builder for method chaining 查询构建器，用于方法链式调用
    */
   none(...componentTypes: ComponentType[]): IQueryBuilder {
     return this.without(...componentTypes);
@@ -89,6 +99,8 @@ export class QueryBuilder implements IQueryBuilder {
   /**
    * Add custom filter function
    * 添加自定义过滤函数
+   * @param predicate Filter function that returns true for entities to include 过滤函数，对要包含的实体返回true
+   * @returns Query builder for method chaining 查询构建器，用于方法链式调用
    */
   filter(predicate: (entity: Entity) => boolean): IQueryBuilder {
     const existingFilter = this._options.filter;
@@ -104,6 +116,8 @@ export class QueryBuilder implements IQueryBuilder {
   /**
    * Set result limit
    * 设置结果限制
+   * @param count Maximum number of entities to return 返回的最大实体数量
+   * @returns Query builder for method chaining 查询构建器，用于方法链式调用
    */
   limit(count: number): IQueryBuilder {
     this._options.limit = Math.floor(count);
@@ -113,6 +127,8 @@ export class QueryBuilder implements IQueryBuilder {
   /**
    * Set result offset
    * 设置结果偏移
+   * @param count Number of entities to skip from the beginning 从开头跳过的实体数量
+   * @returns Query builder for method chaining 查询构建器，用于方法链式调用
    */
   offset(count: number): IQueryBuilder {
     this._options.offset = Math.floor(count);
@@ -122,6 +138,8 @@ export class QueryBuilder implements IQueryBuilder {
   /**
    * Include inactive entities
    * 包含非活跃实体
+   * @param include Whether to include inactive entities in results 是否在结果中包含非活跃实体
+   * @returns Query builder for method chaining 查询构建器，用于方法链式调用
    */
   includeInactive(include = true): IQueryBuilder {
     this._options.includeInactive = include;
@@ -131,6 +149,8 @@ export class QueryBuilder implements IQueryBuilder {
   /**
    * Enable/disable caching
    * 启用/禁用缓存
+   * @param use Whether to use query result caching 是否使用查询结果缓存
+   * @returns Query builder for method chaining 查询构建器，用于方法链式调用
    */
   useCache(use = true): IQueryBuilder {
     this._options.useCache = use;
@@ -140,6 +160,8 @@ export class QueryBuilder implements IQueryBuilder {
   /**
    * Add sorting function
    * 添加排序函数
+   * @param compareFn Comparison function for sorting entities 用于排序实体的比较函数
+   * @returns Query builder for method chaining 查询构建器，用于方法链式调用
    */
   sort(compareFn: (a: Entity, b: Entity) => number): IQueryBuilder {
     this._options.sort = compareFn;

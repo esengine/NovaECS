@@ -97,6 +97,15 @@ export abstract class Event {
   }
 
   /**
+   * Initialize event with new parameters (for object pooling)
+   * 使用新参数初始化事件（用于对象池）
+   */
+  initialize(..._args: unknown[]): void {
+    // Default implementation does nothing
+    // Subclasses should override this method to handle initialization
+  }
+
+  /**
    * Get event age in milliseconds
    * 获取事件年龄（毫秒）
    */

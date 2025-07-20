@@ -50,6 +50,8 @@ export class ArchetypeManager {
   /**
    * Get archetype by ID
    * 通过ID获取原型
+   * @param archetypeId The archetype ID to retrieve 要获取的原型ID
+   * @returns The archetype if found, undefined otherwise 如果找到则返回原型，否则返回undefined
    */
   getArchetype(archetypeId: ArchetypeId): Archetype | undefined {
     return this._archetypes.get(archetypeId);
@@ -66,6 +68,8 @@ export class ArchetypeManager {
   /**
    * Add entity to appropriate archetype
    * 将实体添加到适当的原型
+   * @param entityId The entity ID to add 要添加的实体ID
+   * @param components Map of component types to component instances 组件类型到组件实例的映射
    */
   addEntity(entityId: EntityId, components: Map<ComponentType, Component>): void {
     const componentTypes = Array.from(components.keys());
@@ -78,6 +82,8 @@ export class ArchetypeManager {
   /**
    * Remove entity from its archetype
    * 从原型中移除实体
+   * @param entityId The entity ID to remove 要移除的实体ID
+   * @returns Map of components that were removed, undefined if entity not found 被移除的组件映射，如果实体未找到则返回undefined
    */
   removeEntity(entityId: EntityId): Map<ComponentType, Component> | undefined {
     const record = this._entityToArchetype.get(entityId);

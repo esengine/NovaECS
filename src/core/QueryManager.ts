@@ -1,4 +1,5 @@
 import type { Entity } from './Entity';
+import type { ComponentType } from '../utils/Types';
 import type {
   IQueryManager,
   IQueryBuilder,
@@ -41,6 +42,9 @@ export class QueryManager implements IQueryManager {
   /**
    * Execute query with criteria
    * 使用条件执行查询
+   * @param criteria Query criteria specifying which entities to find 查询条件，指定要查找的实体
+   * @param options Query options for filtering, sorting, pagination, etc. 查询选项，用于过滤、排序、分页等
+   * @returns Query result with entities and metadata 查询结果，包含实体和元数据
    */
   query(criteria: QueryCriteria, options: QueryOptions = {}): QueryResult {
     const startTime = performance.now();
@@ -90,7 +94,7 @@ export class QueryManager implements IQueryManager {
 
     // Cache result (if enabled and cacheable)
     if (options.useCache !== false && this._isCacheable(criteria, options)) {
-      this._cache.set(signature, result.entities);
+      this._cache.set(signature, result.entities, criteria);
     }
 
     // Record performance
@@ -130,6 +134,7 @@ export class QueryManager implements IQueryManager {
   /**
    * Configure query cache
    * 配置查询缓存
+   * @param config Cache configuration options 缓存配置选项
    */
   configureCache(config: Partial<QueryCacheConfig>): void {
     this._cache.updateConfig(config);
@@ -138,10 +143,24 @@ export class QueryManager implements IQueryManager {
   /**
    * Invalidate cache entries matching criteria
    * 使匹配条件的缓存条目失效
+   * @param criteria Optional query criteria to match for invalidation. If not provided, clears all cache 可选的查询条件用于匹配失效。如果未提供，则清除所有缓存
    */
   invalidateCache(criteria?: QueryCriteria): void {
     if (criteria) {
-      this._cache.invalidateByCriteria(criteria);
+      // Extract component types from criteria and invalidate by component types
+      const componentTypes: ComponentType[] = [];
+
+      if (criteria.all) componentTypes.push(...criteria.all);
+      if (criteria.with) componentTypes.push(...criteria.with);
+      if (criteria.any) componentTypes.push(...criteria.any);
+      if (criteria.none) componentTypes.push(...criteria.none);
+      if (criteria.without) componentTypes.push(...criteria.without);
+
+      if (componentTypes.length > 0) {
+        this._cache.invalidateByComponentTypes(componentTypes);
+      } else {
+        this._cache.clear();
+      }
     } else {
       this._cache.clear();
     }
@@ -150,17 +169,30 @@ export class QueryManager implements IQueryManager {
   /**
    * Enable/disable query performance monitoring
    * 启用/禁用查询性能监控
+   * @param enabled Whether to enable performance monitoring 是否启用性能监控
    */
   setPerformanceMonitoring(enabled: boolean): void {
     this._performanceMonitor.setEnabled(enabled);
   }
 
+
+
   /**
-   * Invalidate cache when entities change
-   * 当实体变化时使缓存失效
+   * Invalidate cache when component type changes
+   * 当组件类型变化时使缓存失效
+   * @param componentType The component type that changed 发生变化的组件类型
    */
-  onEntityChanged(entityId: number): void {
-    this._cache.invalidateByEntity(entityId);
+  onComponentChanged(componentType: ComponentType): void {
+    this._cache.invalidateByComponentType(componentType);
+  }
+
+  /**
+   * Invalidate cache when multiple component types change
+   * 当多个组件类型变化时使缓存失效
+   * @param componentTypes Array of component types that changed 发生变化的组件类型数组
+   */
+  onComponentsChanged(componentTypes: ComponentType[]): void {
+    this._cache.invalidateByComponentTypes(componentTypes);
   }
 
   /**

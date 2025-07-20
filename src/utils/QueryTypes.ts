@@ -145,27 +145,60 @@ export interface QueryCacheConfig {
  * 查询构建器接口用于流畅API
  */
 export interface IQueryBuilder {
-  /** Add required components (AND logic) 添加必需组件（AND逻辑） */
+  /**
+   * Add required components (AND logic) 添加必需组件（AND逻辑）
+   * @param componentTypes Component types that entities must have 实体必须拥有的组件类型
+   */
   with(...componentTypes: ComponentType[]): IQueryBuilder;
-  /** Add required components (alias for with) 添加必需组件（with的别名） */
+  /**
+   * Add required components (alias for with) 添加必需组件（with的别名）
+   * @param componentTypes Component types that entities must have 实体必须拥有的组件类型
+   */
   all(...componentTypes: ComponentType[]): IQueryBuilder;
-  /** Add optional components (OR logic) 添加可选组件（OR逻辑） */
+  /**
+   * Add optional components (OR logic) 添加可选组件（OR逻辑）
+   * @param componentTypes Component types where entities must have at least one 实体必须至少拥有其中一个的组件类型
+   */
   any(...componentTypes: ComponentType[]): IQueryBuilder;
-  /** Add excluded components (NOT logic) 添加排除组件（NOT逻辑） */
+  /**
+   * Add excluded components (NOT logic) 添加排除组件（NOT逻辑）
+   * @param componentTypes Component types that entities must not have 实体不能拥有的组件类型
+   */
   without(...componentTypes: ComponentType[]): IQueryBuilder;
-  /** Add excluded components (alias for without) 添加排除组件（without的别名） */
+  /**
+   * Add excluded components (alias for without) 添加排除组件（without的别名）
+   * @param componentTypes Component types that entities must not have 实体不能拥有的组件类型
+   */
   none(...componentTypes: ComponentType[]): IQueryBuilder;
-  /** Add custom filter function 添加自定义过滤函数 */
+  /**
+   * Add custom filter function 添加自定义过滤函数
+   * @param predicate Filter function that returns true for entities to include 过滤函数，对要包含的实体返回true
+   */
   filter(predicate: (entity: Entity) => boolean): IQueryBuilder;
-  /** Set result limit 设置结果限制 */
+  /**
+   * Set result limit 设置结果限制
+   * @param count Maximum number of entities to return 返回的最大实体数量
+   */
   limit(count: number): IQueryBuilder;
-  /** Set result offset 设置结果偏移 */
+  /**
+   * Set result offset 设置结果偏移
+   * @param count Number of entities to skip from the beginning 从开头跳过的实体数量
+   */
   offset(count: number): IQueryBuilder;
-  /** Include inactive entities 包含非活跃实体 */
+  /**
+   * Include inactive entities 包含非活跃实体
+   * @param include Whether to include inactive entities in results 是否在结果中包含非活跃实体
+   */
   includeInactive(include?: boolean): IQueryBuilder;
-  /** Enable/disable caching 启用/禁用缓存 */
+  /**
+   * Enable/disable caching 启用/禁用缓存
+   * @param use Whether to use query result caching 是否使用查询结果缓存
+   */
   useCache(use?: boolean): IQueryBuilder;
-  /** Add sorting function 添加排序函数 */
+  /**
+   * Add sorting function 添加排序函数
+   * @param compareFn Comparison function for sorting entities 用于排序实体的比较函数
+   */
   sort(compareFn: (a: Entity, b: Entity) => number): IQueryBuilder;
   /** Execute query and return entities 执行查询并返回实体 */
   execute(): Entity[];

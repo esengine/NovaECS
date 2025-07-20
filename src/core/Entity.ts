@@ -115,6 +115,8 @@ export class Entity {
   /**
    * Remove component from entity
    * 从实体移除组件
+   * @param componentType The component type to remove 要移除的组件类型
+   * @returns This entity instance for method chaining 实体实例，用于方法链式调用
    */
   removeComponent<T extends Component>(componentType: ComponentType<T>): this {
     // If entity belongs to a world, use archetype storage
@@ -137,6 +139,8 @@ export class Entity {
   /**
    * Get component from entity
    * 从实体获取组件
+   * @param componentType The component type to retrieve 要获取的组件类型
+   * @returns The component instance if found, undefined otherwise 如果找到则返回组件实例，否则返回undefined
    */
   getComponent<T extends Component>(componentType: ComponentType<T>): T | undefined {
     // If entity belongs to a world, use archetype storage
@@ -151,6 +155,8 @@ export class Entity {
   /**
    * Check if entity has component
    * 检查实体是否拥有组件
+   * @param componentType The component type to check for 要检查的组件类型
+   * @returns True if entity has the component 如果实体拥有该组件则返回true
    */
   hasComponent<T extends Component>(componentType: ComponentType<T>): boolean {
     // If entity belongs to a world, use archetype storage
@@ -165,6 +171,8 @@ export class Entity {
   /**
    * Check if entity has all specified components
    * 检查实体是否拥有所有指定组件
+   * @param componentTypes Component types to check for 要检查的组件类型
+   * @returns True if entity has all specified components 如果实体拥有所有指定组件则返回true
    */
   hasComponents(...componentTypes: ComponentType[]): boolean {
     return componentTypes.every(type => this.hasComponent(type));

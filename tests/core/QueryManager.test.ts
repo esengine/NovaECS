@@ -223,8 +223,8 @@ describe('QueryManager', () => {
       const result1 = queryManager.query(criteria);
       expect(result1.fromCache).toBe(false);
 
-      // Simulate entity change
-      queryManager.onEntityChanged(1);
+      // Simulate component change to invalidate cache
+      queryManager.onComponentChanged(PositionComponent);
 
       // Second query should not be from cache
       const result2 = queryManager.query(criteria);

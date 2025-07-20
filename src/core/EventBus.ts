@@ -2,6 +2,7 @@ import type { Event } from './Event';
 import type { EventListener, EventListenerInfo, EventType } from '../utils/Types';
 import type { EventListenerOptions, EventDispatchOptions, EventStatistics } from '../utils/EventTypes';
 import { EventPriority, EventProcessingMode } from '../utils/EventTypes';
+import { EventPoolManager } from './EventPool';
 
 /**
  * Global event bus for decoupled communication between systems
@@ -36,6 +37,8 @@ export class EventBus {
   };
   private _lastSecondTimestamp = Date.now();
   private _eventsThisSecond = 0;
+  private _eventPoolManager = new EventPoolManager();
+  private _poolingEnabled = true;
 
   /**
    * Subscribe to events by event type string
@@ -245,6 +248,11 @@ export class EventBus {
       const processingTime = performance.now() - startTime;
       this._updateAverageProcessingTime(processingTime);
 
+      // Auto-release to pool if enabled (after dispatch is complete)
+      if (this._poolingEnabled && options.autoRelease !== false) {
+        this._tryReleaseToPool(event);
+      }
+
     } catch (error) {
       console.error(`Error dispatching event ${event.type}:`, error);
       throw error;
@@ -271,6 +279,55 @@ export class EventBus {
       averageProcessingTime: 0,
       eventsPerSecond: 0
     };
+    
+    // Clear event pools
+    this._eventPoolManager.clear();
+  }
+
+  /**
+   * Enable or disable event pooling
+   * 启用或禁用事件池
+   */
+  setPoolingEnabled(enabled: boolean): void {
+    this._poolingEnabled = enabled;
+  }
+
+  /**
+   * Check if event pooling is enabled
+   * 检查是否启用了事件池
+   */
+  isPoolingEnabled(): boolean {
+    return this._poolingEnabled;
+  }
+
+  /**
+   * Get event pool manager
+   * 获取事件池管理器
+   */
+  getEventPoolManager(): EventPoolManager {
+    return this._eventPoolManager;
+  }
+
+  /**
+   * Acquire an event from the pool
+   * 从池中获取事件
+   */
+  acquireEvent<T extends Event>(eventType: new (...args: unknown[]) => T, ...args: unknown[]): T {
+    if (this._poolingEnabled) {
+      return this._eventPoolManager.acquire(eventType, ...args);
+    } else {
+      return new eventType(...args);
+    }
+  }
+
+  /**
+   * Release an event back to the pool
+   * 将事件释放回池
+   */
+  releaseEvent<T extends Event>(event: T): void {
+    if (this._poolingEnabled) {
+      this._eventPoolManager.release(event);
+    }
   }
 
   /**
@@ -398,5 +455,18 @@ export class EventBus {
     // Calculate running average
     this._statistics.averageProcessingTime = 
       (currentAverage * (totalEvents - 1) + processingTime) / totalEvents;
+  }
+
+  /**
+   * Try to release an event back to its pool
+   * 尝试将事件释放回其池
+   */
+  private _tryReleaseToPool<T extends Event>(event: T): void {
+    try {
+      this._eventPoolManager.release(event);
+    } catch (error) {
+      // Silently ignore release errors (event might not be from a pool)
+      console.debug('Failed to release event to pool:', event.type, error);
+    }
   }
 }

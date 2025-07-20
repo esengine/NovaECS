@@ -48,11 +48,11 @@ export abstract class System {
    */
   public readonly componentAccess: ComponentAccess[];
 
-
-
   /**
    * Create a new system with required component types
    * 创建具有所需组件类型的新系统
+   * @param requiredComponents Component types that entities must have for this system 实体必须拥有的组件类型才能被此系统处理
+   * @param componentAccess Component access patterns for dependency analysis 组件访问模式，用于依赖分析
    */
   constructor(
     requiredComponents: ComponentType[] = [],
@@ -97,6 +97,7 @@ export abstract class System {
   /**
    * Called when system is added to world
    * 系统添加到世界时调用
+   * @param world The world instance this system is being added to 系统被添加到的世界实例
    */
   onAddedToWorld(world: World): void {
     this.world = world;
@@ -115,6 +116,8 @@ export abstract class System {
   /**
    * Check if entity matches system requirements
    * 检查实体是否符合系统要求
+   * @param entity The entity to check against system requirements 要检查是否符合系统要求的实体
+   * @returns True if entity matches system requirements 如果实体符合系统要求则返回true
    */
   matchesEntity(entity: Entity): boolean {
     return entity.active && entity.hasComponents(...this.requiredComponents);
@@ -123,12 +126,15 @@ export abstract class System {
   /**
    * Update system with matching entities
    * 使用匹配的实体更新系统
+   * @param entities Array of entities that match this system's requirements 匹配此系统要求的实体数组
+   * @param deltaTime Time elapsed since last update in milliseconds 自上次更新以来经过的时间（毫秒）
    */
   abstract update(entities: Entity[], deltaTime: number): void;
 
   /**
    * Called before update
    * 更新前调用
+   * @param deltaTime Time elapsed since last update in milliseconds 自上次更新以来经过的时间（毫秒）
    */
   preUpdate?(deltaTime: number): void;
 

@@ -118,10 +118,6 @@ export class World implements IWorldForEntity {
     return this._eventBus;
   }
 
-
-
-
-
   /**
    * Create new entity in world
    * 在世界中创建新实体
@@ -138,15 +134,14 @@ export class World implements IWorldForEntity {
     // Dispatch entity created event
     void this._eventBus.dispatch(new EntityCreatedEvent(entity.id));
 
-    // Invalidate query cache
-    this._queryManager.onEntityChanged(entity.id);
-
     return entity;
   }
 
   /**
    * Add existing entity to world
    * 将现有实体添加到世界
+   * @param entity The entity to add to the world 要添加到世界的实体
+   * @returns This world instance for method chaining 世界实例，用于方法链式调用
    */
   addEntity(entity: Entity): this {
     // Get existing components BEFORE setting world reference
@@ -167,15 +162,14 @@ export class World implements IWorldForEntity {
 
     this._entities.set(entity.id, entity);
 
-    // Invalidate query cache
-    this._queryManager.onEntityChanged(entity.id);
-
     return this;
   }
 
   /**
    * Remove entity from world
    * 从世界移除实体
+   * @param entityOrId Entity instance or entity ID to remove 要移除的实体实例或实体ID
+   * @returns This world instance for method chaining 世界实例，用于方法链式调用
    */
   removeEntity(entityOrId: Entity | EntityId): this {
     const id = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
@@ -187,8 +181,9 @@ export class World implements IWorldForEntity {
       // Dispatch entity destroyed event
       void this._eventBus.dispatch(new EntityDestroyedEvent(id));
 
-      // Invalidate query cache
-      this._queryManager.onEntityChanged(id);
+      // Clear query cache when entity is destroyed to be safe
+      // This is conservative but ensures correctness
+      this._queryManager.clearCache();
     }
     return this;
   }
@@ -196,6 +191,8 @@ export class World implements IWorldForEntity {
   /**
    * Check if entity exists in world
    * 检查实体是否存在于世界中
+   * @param entityId The entity ID to check 要检查的实体ID
+   * @returns True if entity exists in world 如果实体存在于世界中则返回true
    */
   hasEntity(entityId: EntityId): boolean {
     return this._entities.has(entityId);
@@ -204,6 +201,8 @@ export class World implements IWorldForEntity {
   /**
    * Get entity by ID
    * 通过ID获取实体
+   * @param id The entity ID to retrieve 要获取的实体ID
+   * @returns The entity if found, undefined otherwise 如果找到则返回实体，否则返回undefined
    */
   getEntity(id: EntityId): Entity | undefined {
     return this._entities.get(id);
@@ -212,6 +211,8 @@ export class World implements IWorldForEntity {
   /**
    * Query entities with specific component types
    * 查询具有特定组件类型的实体
+   * @param componentTypes Component types that entities must have 实体必须拥有的组件类型
+   * @returns Array of entities matching the criteria 匹配条件的实体数组
    */
   queryEntities(...componentTypes: ComponentType[]): Entity[] {
     // Use archetype-optimized query (always enabled)
@@ -224,6 +225,8 @@ export class World implements IWorldForEntity {
   /**
    * Query entities with custom filter
    * 使用自定义过滤器查询实体
+   * @param filter Custom filter function to apply to entities 应用于实体的自定义过滤函数
+   * @returns Array of entities matching the filter 匹配过滤器的实体数组
    */
   queryEntitiesWithFilter(filter: QueryFilter): Entity[] {
     return this.entities.filter(filter);
@@ -436,10 +439,6 @@ export class World implements IWorldForEntity {
     }
   }
 
-
-
-
-
   /**
    * Execute system directly as async for consistency
    * 直接异步执行系统以保持一致性
@@ -540,8 +539,8 @@ export class World implements IWorldForEntity {
     // Dispatch component added event
     void this._eventBus.dispatch(new ComponentAddedEvent(entityId, componentType.name));
 
-    // Invalidate query cache
-    this._queryManager.onEntityChanged(entityId);
+    // Invalidate query cache (optimized)
+    this._queryManager.onComponentChanged(componentType);
   }
 
   /**
@@ -568,8 +567,8 @@ export class World implements IWorldForEntity {
     // Dispatch component removed event
     void this._eventBus.dispatch(new ComponentRemovedEvent(entityId, componentType.name));
 
-    // Invalidate query cache
-    this._queryManager.onEntityChanged(entityId);
+    // Invalidate query cache (optimized)
+    this._queryManager.onComponentChanged(componentType);
   }
 
 

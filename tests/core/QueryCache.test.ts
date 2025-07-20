@@ -1,7 +1,15 @@
-import { describe, test, expect, beforeEach, vi } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { QueryCache } from '../../src/core/QueryCache';
 import { Entity } from '../../src/core/Entity';
+import { Component } from '../../src/core/Component';
 import type { QueryCacheConfig } from '../../src/utils/QueryTypes';
+
+// Test component
+class PositionComponent extends Component {
+  constructor(public x: number = 0, public y: number = 0) {
+    super();
+  }
+}
 
 describe('QueryCache', () => {
   let cache: QueryCache;
@@ -233,12 +241,13 @@ describe('QueryCache', () => {
   });
 
   describe('Invalidation', () => {
-    test('should invalidate by entity ID', () => {
-      cache.set('query1', mockEntities);
-      cache.set('query2', mockEntities);
+    test('should invalidate by component type', () => {
+      // Set cache entries with criteria that include PositionComponent
+      cache.set('query1', mockEntities, { all: [PositionComponent] });
+      cache.set('query2', mockEntities, { all: [PositionComponent] });
 
-      cache.invalidateByEntity(1);
-      
+      cache.invalidateByComponentType(PositionComponent);
+
       // With auto-invalidate enabled, all entries should be cleared
       expect(cache.has('query1')).toBe(false);
       expect(cache.has('query2')).toBe(false);
@@ -248,19 +257,21 @@ describe('QueryCache', () => {
       const noAutoInvalidateCache = new QueryCache({ autoInvalidate: false });
       noAutoInvalidateCache.set('query1', mockEntities);
 
-      noAutoInvalidateCache.invalidateByEntity(1);
-      
+      noAutoInvalidateCache.invalidateByComponentType(PositionComponent);
+
       // With auto-invalidate disabled, entries should remain
       expect(noAutoInvalidateCache.has('query1')).toBe(true);
     });
 
-    test('should invalidate by criteria', () => {
-      cache.set('query1', mockEntities);
-      cache.set('query2', mockEntities);
+    test('should invalidate by component types', () => {
+      // Set cache entries with criteria that include PositionComponent
+      cache.set('query1', mockEntities, { all: [PositionComponent] });
+      cache.set('query2', mockEntities, { all: [PositionComponent] });
 
-      cache.invalidateByCriteria({ all: [] });
-      
-      // With auto-invalidate enabled, all entries should be cleared
+      // Invalidate by component type
+      cache.invalidateByComponentTypes([PositionComponent]);
+
+      // Entries should be cleared if they involve the component type
       expect(cache.has('query1')).toBe(false);
       expect(cache.has('query2')).toBe(false);
     });
