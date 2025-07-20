@@ -15,6 +15,7 @@ export type EntityId = number;
  * Component constructor type
  * 组件构造函数类型
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ComponentConstructor<T extends Component = Component> = new (...args: any[]) => T;
 
 /**

@@ -23,7 +23,7 @@ class TestSystem extends System {
     super([TestComponent]);
   }
 
-  update(entities: Entity[], deltaTime: number): void {
+  update(entities: Entity[], _deltaTime: number): void {
     this.updateCalled = true;
     this.updatedEntities = [...entities];
   }

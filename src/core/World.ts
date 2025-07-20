@@ -151,6 +151,7 @@ export class World {
    * Get system by type
    * 通过类型获取系统
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getSystem<T extends System>(systemType: new (...args: any[]) => T): T | undefined {
     return this._systems.find(system => system instanceof systemType) as T | undefined;
   }
