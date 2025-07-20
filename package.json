@@ -1,8 +1,16 @@
 {
   "name": "@esengine/nova-ecs",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Next-generation ECS game framework for TypeScript",
-  "keywords": ["ecs", "game", "framework", "typescript", "entity", "component", "system"],
+  "keywords": [
+    "ecs",
+    "game",
+    "framework",
+    "typescript",
+    "entity",
+    "component",
+    "system"
+  ],
   "author": "esengine",
   "license": "MIT",
   "repository": {
