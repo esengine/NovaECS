@@ -3,6 +3,7 @@ import { System } from '../../src/core/System';
 import { Component } from '../../src/core/Component';
 import { Entity } from '../../src/core/Entity';
 import { AccessType } from '../../src/utils/AccessType';
+import { describe, beforeEach, test, expect } from 'vitest';
 
 class TestComponent extends Component {
   constructor(public value: number = 0) {

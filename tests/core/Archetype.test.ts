@@ -1,3 +1,4 @@
+import { describe, beforeEach, test, expect } from 'vitest';
 import { Archetype } from '../../src/core/Archetype';
 import { Component } from '../../src/core/Component';
 import type { ComponentType, EntityId } from '../../src/utils/Types';

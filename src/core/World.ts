@@ -1,11 +1,9 @@
 import { Entity, type IWorldForEntity } from './Entity';
 import type { System } from './System';
-import { ExecutionMode } from './System';
 import type { Component } from './Component';
 import type { ComponentType, EntityId, QueryFilter } from '../utils/Types';
 import { ArchetypeManager } from './ArchetypeManager';
 import { ParallelScheduler, type ExecutionGroup } from './ParallelScheduler';
-import { WorkerPool, type WorkerTask, type WorkerResult } from './WorkerPool';
 
 
 
@@ -40,7 +38,6 @@ export class World implements IWorldForEntity {
   private _paused = false;
   private readonly _archetypeManager = new ArchetypeManager();
   private readonly _scheduler = new ParallelScheduler();
-  private readonly _workerPool = new WorkerPool();
 
 
   /**
@@ -77,6 +74,8 @@ export class World implements IWorldForEntity {
 
 
 
+
+
   /**
    * Create new entity in world
    * 在世界中创建新实体
@@ -97,11 +96,13 @@ export class World implements IWorldForEntity {
    * 将现有实体添加到世界
    */
   addEntity(entity: Entity): this {
+    // Get existing components BEFORE setting world reference
+    const components = entity.getComponents();
+
     // Set the world reference so entity can use archetype storage
     entity.setWorld(this);
 
     // Move existing components to archetype storage
-    const components = entity.getComponents();
     if (components.length > 0) {
       const componentMap = new Map<ComponentType, Component>();
       for (const component of components) {
@@ -127,6 +128,14 @@ export class World implements IWorldForEntity {
       this._entities.delete(id);
     }
     return this;
+  }
+
+  /**
+   * Check if entity exists in world
+   * 检查实体是否存在于世界中
+   */
+  hasEntity(entityId: EntityId): boolean {
+    return this._entities.has(entityId);
   }
 
   /**
@@ -199,17 +208,27 @@ export class World implements IWorldForEntity {
   update(deltaTime: number): void {
     if (this._paused) return;
 
-    // Use parallel execution engine with worker support
+    // Use simplified parallel execution
     void this.updateWithParallelExecution(deltaTime).then(() => {
       this._cleanupDestroyedEntities();
     });
   }
 
+  /**
+   * Update all systems with matching entities (async version)
+   * 使用匹配的实体更新所有系统（异步版本）
+   */
+  async updateAsync(deltaTime: number): Promise<void> {
+    if (this._paused) return;
 
+    // Use simplified parallel execution
+    await this.updateWithParallelExecution(deltaTime);
+    this._cleanupDestroyedEntities();
+  }
 
   /**
-   * Advanced parallel execution engine with worker support and intelligent scheduling
-   * 支持 Worker 和智能调度的高级并行执行引擎
+   * parallel execution engine with intelligent scheduling
+   * 并行执行引擎，具有智能调度
    */
   private async updateWithParallelExecution(deltaTime: number): Promise<void> {
     const executionGroups = this._scheduler.getExecutionGroups();
@@ -244,29 +263,8 @@ export class World implements IWorldForEntity {
    * 根据系统的执行模式执行系统
    */
   private async executeSystemWithMode(system: System, deltaTime: number): Promise<void> {
-    const entities = this.queryEntities(...system.requiredComponents);
-
-    switch (system.executionMode) {
-      case ExecutionMode.MainThread:
-        // Always execute on main thread
-        return this.executeSystemDirectAsync(system, deltaTime);
-
-      case ExecutionMode.Worker:
-        // Prefer worker execution, fallback to main thread if not supported
-        if (this._workerPool.isWorkerSupported) {
-          return this.executeSystemInWorkerWithFallback(system, entities, deltaTime);
-        } else {
-          console.debug(`Worker not supported, falling back to main thread for system: ${system.constructor.name}`);
-          return this.executeSystemDirectAsync(system, deltaTime);
-        }
-
-      default:
-        // Default to main thread execution
-        return this.executeSystemDirectAsync(system, deltaTime);
-    }
+    return this.executeSystemDirectAsync(system, deltaTime);
   }
-
-
 
   /**
    * Execute a single system directly (synchronously) for optimal performance
@@ -309,170 +307,13 @@ export class World implements IWorldForEntity {
     });
   }
 
-  /**
-   * Advanced worker execution with serialization, timeout handling, and graceful fallback
-   * 高级 Worker 执行，包含序列化、超时处理和优雅回退
-   */
-  private async executeSystemInWorkerWithFallback(
-    system: System,
-    entities: Entity[],
-    deltaTime: number
-  ): Promise<void> {
-    const task: WorkerTask = {
-      id: `${system.constructor.name}-${Date.now()}`,
-      systemName: system.constructor.name,
-      entities: this.serializeEntitiesForSystem(entities, system),
-      deltaTime,
-      priority: system.priority || 0,
-      estimatedExecutionTime: entities.length * 0.1
-    };
-
-    try {
-      // Execute pre-update synchronously
-      system.preUpdate?.(deltaTime);
-
-      // Execute in worker with timeout
-      const result = await Promise.race([
-        this._workerPool.executeTask(task),
-        this.createTimeoutPromise(5000) // 5 second timeout
-      ]);
-
-      if (!result.success) {
-        throw new Error(result.error || 'Worker execution failed');
-      }
-
-      // Apply component updates from worker
-      if (result.componentUpdates) {
-        this.applyComponentUpdates(result.componentUpdates);
-      }
-
-      // Execute post-update synchronously
-      system.postUpdate?.(deltaTime);
-
-    } catch (error) {
-      console.warn(`Worker execution failed for ${system.constructor.name}, falling back to main thread:`, error);
-      // Graceful fallback to main thread execution
-      this.executeSystemDirect(system, deltaTime);
-    }
-  }
 
 
 
-  /**
-   * Serialize entities optimized for specific system
-   * 为特定系统优化序列化实体
-   */
-  private serializeEntitiesForSystem(entities: Entity[], system: System): Array<{
-    id: number;
-    components: Array<{
-      type: string;
-      data: unknown;
-    }>;
-  }> {
-    const requiredComponentTypes = new Set(
-      system.requiredComponents.map(comp => comp.name)
-    );
 
-    return entities.map(entity => ({
-      id: entity.id,
-      // Only serialize components that the system actually needs
-      components: entity.getComponents()
-        .filter(comp => requiredComponentTypes.has(comp.constructor.name))
-        .map(comp => ({
-          type: comp.constructor.name,
-          data: this.serializeComponent(comp)
-        }))
-    }));
-  }
 
-  /**
-   * Serialize component data efficiently
-   * 高效序列化组件数据
-   */
-  private serializeComponent(component: Component): Record<string, unknown> {
-    const data: Record<string, unknown> = {};
 
-    // Get all enumerable properties, excluding methods
-    Object.getOwnPropertyNames(component).forEach(key => {
-      if (key !== 'constructor') {
-        const value = (component as unknown as Record<string, unknown>)[key];
-        if (typeof value !== 'function') {
-          // Deep clone to avoid reference issues
-          data[key] = this.deepClone(value);
-        }
-      }
-    });
 
-    return data;
-  }
-
-  /**
-   * Deep clone a value for safe serialization
-   * 深度克隆值以进行安全序列化
-   */
-  private deepClone(value: unknown): unknown {
-    if (value === null || typeof value !== 'object') {
-      return value;
-    }
-
-    if (value instanceof Date) {
-      return new Date(value.getTime());
-    }
-
-    if (Array.isArray(value)) {
-      return value.map(item => this.deepClone(item));
-    }
-
-    const cloned: Record<string, unknown> = {};
-    Object.keys(value as Record<string, unknown>).forEach(key => {
-      cloned[key] = this.deepClone((value as Record<string, unknown>)[key]);
-    });
-
-    return cloned;
-  }
-
-  /**
-   * Apply component updates from worker execution
-   * 应用来自工作线程执行的组件更新
-   */
-  private applyComponentUpdates(updates: Array<{
-    entityId: number;
-    componentType: string;
-    data: Record<string, unknown>;
-  }>): void {
-    updates.forEach(update => {
-      const entity = this._entities.get(update.entityId);
-      if (!entity) {
-        console.warn(`Entity ${update.entityId} not found for component update`);
-        return;
-      }
-
-      // Find the component by type name
-      const component = entity.getComponents().find(
-        comp => comp.constructor.name === update.componentType
-      );
-
-      if (!component) {
-        console.warn(`Component ${update.componentType} not found on entity ${update.entityId}`);
-        return;
-      }
-
-      // Apply the updates to the component
-      Object.assign(component, update.data);
-    });
-  }
-
-  /**
-   * Create timeout promise for worker execution
-   * 为工作线程执行创建超时 Promise
-   */
-  private createTimeoutPromise(timeoutMs: number): Promise<WorkerResult> {
-    return new Promise((_, reject) => {
-      setTimeout(() => {
-        reject(new Error(`Worker execution timeout after ${timeoutMs}ms`));
-      }, timeoutMs);
-    });
-  }
 
 
 
@@ -501,7 +342,6 @@ export class World implements IWorldForEntity {
    */
   dispose(): void {
     this.clear();
-    this._workerPool.terminate();
   }
 
   /**
@@ -608,21 +448,7 @@ export class World implements IWorldForEntity {
     return this._scheduler.getExecutionGroups();
   }
 
-  /**
-   * Get worker pool statistics
-   * 获取工作池统计信息
-   */
-  getWorkerPoolStatistics(): ReturnType<typeof this._workerPool.getStatistics> {
-    return this._workerPool.getStatistics();
-  }
 
-  /**
-   * Check if true parallel execution is supported
-   * 检查是否支持真正的并行执行
-   */
-  get isParallelExecutionSupported(): boolean {
-    return this._workerPool.isWorkerSupported;
-  }
 
   /**
    * Get comprehensive performance statistics
@@ -631,9 +457,7 @@ export class World implements IWorldForEntity {
   getPerformanceStatistics(): Record<string, unknown> {
     return {
       archetype: this.getArchetypeStatistics(),
-      scheduler: this.getSchedulerStatistics(),
-      workerPool: this.getWorkerPoolStatistics(),
-      memory: this._workerPool.getMemoryStatistics()
+      scheduler: this.getSchedulerStatistics()
     };
   }
 
@@ -643,6 +467,27 @@ export class World implements IWorldForEntity {
         this._entities.delete(id);
       }
     }
+  }
+
+  /**
+   * Destroy world and cleanup all resources
+   * 销毁世界并清理所有资源
+   */
+  destroy(): void {
+    // Cleanup all entities and their components
+    for (const entity of this._entities.values()) {
+      entity.destroy();
+    }
+    this._entities.clear();
+
+    // Cleanup systems
+    for (const system of this._systems) {
+      system.onRemovedFromWorld();
+    }
+    this._systems.length = 0;
+
+    // Mark as paused
+    this._paused = true;
   }
 
   /**

@@ -3,6 +3,7 @@ import { Entity } from '../../src/core/Entity';
 import { Component } from '../../src/core/Component';
 import { World } from '../../src/core/World';
 import { AccessType } from '../../src/utils/AccessType';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 class TestComponent extends Component {
   constructor(public value: number = 0) {
@@ -106,8 +107,8 @@ describe('System', () => {
   });
 
   test('should support lifecycle methods', () => {
-    const preUpdateSpy = jest.fn();
-    const postUpdateSpy = jest.fn();
+    const preUpdateSpy = vi.fn();
+    const postUpdateSpy = vi.fn();
 
     system.preUpdate = preUpdateSpy;
     system.postUpdate = postUpdateSpy;

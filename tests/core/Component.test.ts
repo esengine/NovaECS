@@ -1,4 +1,5 @@
 import { Component } from '../../src/core/Component';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 class TestComponent extends Component {
   constructor(public value: number = 0) {
@@ -30,9 +31,9 @@ describe('Component', () => {
   });
 
   test('should call lifecycle methods if defined', () => {
-    const spyOnAdded = jest.fn();
-    const spyOnRemoved = jest.fn();
-    const spyReset = jest.fn();
+    const spyOnAdded = vi.fn();
+    const spyOnRemoved = vi.fn();
+    const spyReset = vi.fn();
 
     component.onAdded = spyOnAdded;
     component.onRemoved = spyOnRemoved;

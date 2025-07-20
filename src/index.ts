@@ -1,7 +1,7 @@
 /**
  * NovaECS - Next-generation Entity Component System framework
  * 下一代实体组件系统框架
- * 
+ *
  * @packageDocumentation
  */
 
@@ -12,6 +12,9 @@ export { World } from './core/World';
 export { ParallelScheduler } from './core/ParallelScheduler';
 export { Archetype } from './core/Archetype';
 export { ArchetypeManager } from './core/ArchetypeManager';
+
+// Memory Management Tools (standalone utilities)
+export { ComponentPool, ComponentPoolManager } from './core/ComponentPool';
 
 export * from './utils/Types';
 export * from './utils/AccessType';

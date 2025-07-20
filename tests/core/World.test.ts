@@ -1,3 +1,4 @@
+import { describe, test, beforeEach, expect } from 'vitest';
 import { World } from '../../src/core/World';
 import { Entity } from '../../src/core/Entity';
 import { System } from '../../src/core/System';

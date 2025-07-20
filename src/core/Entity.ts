@@ -140,7 +140,7 @@ export class Entity {
   getComponent<T extends Component>(componentType: ComponentType<T>): T | undefined {
     // If entity belongs to a world, use archetype storage
     if (this._world) {
-      return this._world.getEntityComponent(this._id, componentType) as T | undefined;
+      return this._world.getEntityComponent(this._id, componentType);
     }
 
     // Fallback to traditional storage if not in a world

@@ -14,6 +14,8 @@
 - 📦 **模块化**: ES/UMD/CommonJS多种构建格式
 - 🧪 **测试覆盖**: 完整的单元测试，确保代码质量
 - 📚 **文档完善**: TSDoc注释，自动生成API文档
+- 🧠 **内存管理**: 智能对象池和共享内存，减少GC压力
+- ⚡ **零拷贝传输**: SharedArrayBuffer支持，高效数据传输
 
 ## 安装 Installation
 
@@ -71,6 +73,42 @@ function gameLoop(deltaTime: number) {
 }
 ```
 
+## 内存管理工具 Memory Management Tools
+
+NovaECS 提供了独立的内存管理工具，包括组件对象池，可以根据需要选择性使用。
+
+### 组件对象池 Component Object Pool
+
+```typescript
+import { ComponentPool, ComponentPoolManager } from '@esengine/nova-ecs';
+
+// 创建单个组件池
+const positionPool = new ComponentPool(PositionComponent, {
+  initialSize: 50,    // 初始池大小
+  maxSize: 200,       // 最大池大小
+  autoCleanup: true,  // 自动清理
+  cleanupInterval: 60000, // 清理间隔
+  maxIdleTime: 30000  // 最大空闲时间
+});
+
+// 从池中获取组件
+const position = positionPool.acquire();
+position.x = 100;
+position.y = 200;
+
+// 使用完毕后释放回池
+positionPool.release(position);
+
+// 使用池管理器管理多个池
+const poolManager = new ComponentPoolManager();
+const pool = poolManager.getPool(PositionComponent);
+const component = pool.acquire();
+```
+
+
+
+
+
 ## 核心概念 Core Concepts
 
 ### Entity (实体)
@@ -84,6 +122,43 @@ function gameLoop(deltaTime: number) {
 
 ### World (世界)
 世界管理所有实体和系统，协调整个ECS架构的运行。
+
+### Memory Management Tools (内存管理工具)
+独立的内存管理工具，包括组件对象池，可选择性使用以优化性能。
+
+## 最佳实践 Best Practices
+
+### 内存管理最佳实践
+
+1. **合理配置对象池大小**
+```typescript
+// 根据游戏规模配置池大小
+const pool = new ComponentPool(PositionComponent, {
+  initialSize: Math.min(expectedEntityCount * 0.8, 100),
+  maxSize: expectedEntityCount * 1.2
+});
+```
+
+2. **及时释放组件**
+```typescript
+// 手动管理组件池时要记得释放
+const component = pool.acquire();
+// ... 使用组件
+pool.release(component);
+```
+
+3. **监控内存使用**
+```typescript
+// 定期检查内存使用情况
+setInterval(() => {
+  const stats = pool.statistics;
+  console.log('Pool hit rate:', stats.hitRate);
+  console.log('Memory usage:', stats.memoryUsage);
+}, 10000);
+```
+
+
+```
 
 ## API文档 API Documentation
 

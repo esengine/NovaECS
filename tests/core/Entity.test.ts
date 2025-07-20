@@ -1,6 +1,7 @@
 import { Entity } from '../../src/core/Entity';
 import { Component } from '../../src/core/Component';
 import { World } from '../../src/core/World';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 class TestComponent extends Component {
   constructor(public value: number = 0) {
@@ -116,8 +117,8 @@ describe('Entity', () => {
     const component = new TestComponent(42);
 
     // Add lifecycle methods to the component
-    component.onAdded = jest.fn();
-    component.onRemoved = jest.fn();
+    component.onAdded = vi.fn();
+    component.onRemoved = vi.fn();
 
     entity.addComponent(component);
     expect(component.onAdded).toHaveBeenCalled();

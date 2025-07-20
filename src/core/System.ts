@@ -3,23 +3,7 @@ import type { World } from './World';
 import type { ComponentType } from '../utils/Types';
 import type { ComponentAccess } from '../utils/AccessType';
 
-/**
- * System execution modes
- * 系统执行模式
- */
-export enum ExecutionMode {
-  /**
-   * Always execute on main thread
-   * 总是在主线程执行
-   */
-  MainThread = 'main_thread',
 
-  /**
-   * Prefer worker execution, fallback to main thread if not supported
-   * 优先使用 Worker 执行，不支持时回退到主线程
-   */
-  Worker = 'worker'
-}
 
 /**
  * Base class for all systems in the ECS architecture
@@ -61,11 +45,7 @@ export abstract class System {
    */
   public readonly componentAccess: ComponentAccess[];
 
-  /**
-   * Execution mode for this system
-   * 系统的执行模式
-   */
-  public readonly executionMode: ExecutionMode;
+
 
   /**
    * Create a new system with required component types
@@ -73,12 +53,10 @@ export abstract class System {
    */
   constructor(
     requiredComponents: ComponentType[] = [],
-    componentAccess: ComponentAccess[] = [],
-    executionMode: ExecutionMode = ExecutionMode.MainThread
+    componentAccess: ComponentAccess[] = []
   ) {
     this.requiredComponents = requiredComponents;
     this.componentAccess = componentAccess;
-    this.executionMode = executionMode;
   }
 
   /**
@@ -155,39 +133,5 @@ export abstract class System {
    */
   postUpdate?(deltaTime: number): void;
 
-  /**
-   * Create a system that always runs on main thread
-   * 创建总是在主线程运行的系统
-   */
-  static createMainThreadSystem<T extends System>(
-    SystemClass: new () => T
-  ): T {
-    const system = new SystemClass();
-    // Override execution mode using object property assignment
-    Object.defineProperty(system, 'executionMode', {
-      value: ExecutionMode.MainThread,
-      writable: false,
-      enumerable: true,
-      configurable: false
-    });
-    return system;
-  }
 
-  /**
-   * Create a system that prefers worker execution
-   * 创建优先使用 Worker 执行的系统
-   */
-  static createWorkerSystem<T extends System>(
-    SystemClass: new () => T
-  ): T {
-    const system = new SystemClass();
-    // Override execution mode using object property assignment
-    Object.defineProperty(system, 'executionMode', {
-      value: ExecutionMode.Worker,
-      writable: false,
-      enumerable: true,
-      configurable: false
-    });
-    return system;
-  }
 }

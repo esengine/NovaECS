@@ -13,8 +13,18 @@ module.exports = {
   ],
   env: {
     node: true,
-    es6: true,
-    jest: true
+    es6: true
+  },
+  globals: {
+    // Vitest globals
+    describe: 'readonly',
+    test: 'readonly',
+    expect: 'readonly',
+    beforeEach: 'readonly',
+    afterEach: 'readonly',
+    beforeAll: 'readonly',
+    afterAll: 'readonly',
+    vi: 'readonly'
   },
   rules: {
     '@typescript-eslint/no-unused-vars': ['error', { 'argsIgnorePattern': '^_' }],
