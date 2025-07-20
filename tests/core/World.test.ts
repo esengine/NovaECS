@@ -156,14 +156,17 @@ describe('World', () => {
     expect(world.systems[1]).toBe(system1);
   });
 
-  test('should update systems with matching entities', () => {
+  test('should update systems with matching entities', async () => {
     const system = new TestSystem();
     const entity = world.createEntity();
     entity.addComponent(new TestComponent(42));
-    
+
     world.addSystem(system);
     world.update(16);
-    
+
+    // Wait for async execution
+    await new Promise(resolve => setTimeout(resolve, 10));
+
     expect(system.updateCalled).toBe(true);
     expect(system.updatedEntities).toContain(entity);
     expect(system.preUpdateCalled).toBe(true);
@@ -190,12 +193,15 @@ describe('World', () => {
     expect(system.updateCalled).toBe(false);
   });
 
-  test('should clean up destroyed entities', () => {
+  test('should clean up destroyed entities', async () => {
     const entity = world.createEntity();
     entity.destroy();
-    
+
     world.update(16);
-    
+
+    // Wait for async cleanup
+    await new Promise(resolve => setTimeout(resolve, 10));
+
     expect(world.getEntity(entity.id)).toBeUndefined();
   });
 
@@ -220,10 +226,9 @@ describe('World', () => {
     expect(world.getSystemCount()).toBe(1);
   });
 
-  test('should handle parallel execution mode', async () => {
+  test('should handle parallel execution by default', async () => {
     const system = new TestSystem();
     world.addSystem(system);
-    world.parallelEnabled = true;
 
     const entity = world.createEntity();
     entity.addComponent(new TestComponent(42));
@@ -237,7 +242,9 @@ describe('World', () => {
     expect(system.updatedEntities).toContain(entity);
   });
 
-  test('should handle system lifecycle methods', () => {
+
+
+  test('should handle system lifecycle methods', async () => {
     class LifecycleSystem extends TestSystem {
       preUpdate(deltaTime: number): void {
         super.preUpdate(deltaTime);
@@ -254,6 +261,9 @@ describe('World', () => {
 
     world.addSystem(system);
     world.update(16);
+
+    // Wait for async execution
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     expect(system.preUpdateCalled).toBe(true);
     expect(system.postUpdateCalled).toBe(true);
@@ -296,7 +306,7 @@ describe('World', () => {
     expect(world.getSystem(TestSystem)).toBeUndefined();
   });
 
-  test('should handle entity destruction during update', () => {
+  test('should handle entity destruction during update', async () => {
     class DestroyingSystem extends System {
       constructor() {
         super([TestComponent]);
@@ -319,21 +329,30 @@ describe('World', () => {
     world.addSystem(system);
     world.update(16);
 
+    // Wait for async execution
+    await new Promise(resolve => setTimeout(resolve, 10));
+
     expect(world.getEntity(entity1.id)).toBeUndefined();
     expect(world.getEntity(entity2.id)).toBeUndefined();
   });
 
-  test('should handle paused state correctly', () => {
+  test('should handle paused state correctly', async () => {
     const system = new TestSystem();
     world.addSystem(system);
 
     world.paused = false;
     world.update(16);
+
+    // Wait for async execution
+    await new Promise(resolve => setTimeout(resolve, 10));
     expect(system.updateCalled).toBe(true);
 
     system.updateCalled = false;
     world.paused = true;
     world.update(16);
+
+    // Wait a bit to ensure paused systems don't execute
+    await new Promise(resolve => setTimeout(resolve, 10));
     expect(system.updateCalled).toBe(false);
   });
 
@@ -341,7 +360,7 @@ describe('World', () => {
     expect(() => world.update(16)).not.toThrow();
   });
 
-  test('should handle systems without lifecycle methods', () => {
+  test('should handle systems without lifecycle methods', async () => {
     class SimpleSystem extends System {
       public updateCalled = false;
 
@@ -361,6 +380,92 @@ describe('World', () => {
     world.addSystem(system);
     world.update(16);
 
+    // Wait for async execution
+    await new Promise(resolve => setTimeout(resolve, 10));
+
     expect(system.updateCalled).toBe(true);
+  });
+
+  test('should provide scheduler statistics', () => {
+    const system1 = new TestSystem();
+    const system2 = new TestSystem();
+
+    world.addSystem(system1);
+    world.addSystem(system2);
+
+    const stats = world.getSchedulerStatistics();
+    expect(stats.totalSystems).toBe(2);
+    expect(stats.totalGroups).toBeGreaterThan(0);
+    expect(stats.groupDetails).toBeDefined();
+  });
+
+  test('should provide execution groups for debugging', () => {
+    const system = new TestSystem();
+    world.addSystem(system);
+
+    const groups = world.getExecutionGroups();
+    expect(Array.isArray(groups)).toBe(true);
+    expect(groups.length).toBeGreaterThan(0);
+    expect(groups[0]).toHaveProperty('systems');
+    expect(groups[0]).toHaveProperty('level');
+  });
+
+  test('should handle systems with dependencies correctly', async () => {
+    class ReadSystem extends System {
+      public updateCalled = false;
+      public updatedEntities: Entity[] = [];
+
+      constructor() {
+        super([TestComponent], [
+          { componentType: TestComponent as any, accessType: 'read' as any }
+        ]);
+      }
+
+      update(entities: Entity[], _deltaTime: number): void {
+        this.updateCalled = true;
+        this.updatedEntities = entities;
+      }
+    }
+
+    class WriteSystem extends System {
+      public updateCalled = false;
+      public updatedEntities: Entity[] = [];
+
+      constructor() {
+        super([TestComponent], [
+          { componentType: TestComponent as any, accessType: 'write' as any }
+        ]);
+      }
+
+      update(entities: Entity[], _deltaTime: number): void {
+        this.updateCalled = true;
+        this.updatedEntities = entities;
+      }
+    }
+
+    const readSystem = new ReadSystem();
+    const writeSystem = new WriteSystem();
+
+    world.addSystem(readSystem);
+    world.addSystem(writeSystem);
+
+    const entity = world.createEntity();
+    entity.addComponent(new TestComponent(42));
+
+    world.update(16);
+
+    // Wait for async execution
+    await new Promise(resolve => setTimeout(resolve, 20));
+
+    expect(readSystem.updateCalled).toBe(true);
+    expect(writeSystem.updateCalled).toBe(true);
+
+    // Check that they were scheduled in different groups due to conflict
+    const groups = world.getExecutionGroups();
+    const readGroup = groups.find(g => g.systems.includes(readSystem));
+    const writeGroup = groups.find(g => g.systems.includes(writeSystem));
+
+    // They should be in different groups due to read/write conflict
+    expect(readGroup).not.toBe(writeGroup);
   });
 });

@@ -16,7 +16,7 @@ interface SystemNode {
  * Parallel execution group
  * 并行执行组
  */
-interface ExecutionGroup {
+export interface ExecutionGroup {
   systems: System[];
   level: number;
 }
