@@ -1,5 +1,6 @@
 import type { Component } from './Component';
 import type { ComponentConstructor, ComponentType, EntityId } from '../utils/Types';
+// No imports needed for basic serialization support
 
 /**
  * Interface for World methods that Entity needs

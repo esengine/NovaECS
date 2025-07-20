@@ -38,3 +38,17 @@ export * from './utils/Types';
 export * from './utils/AccessType';
 export * from './utils/ArchetypeTypes';
 export * from './utils/EventTypes';
+
+// Serialization System
+export { Serializer, serializer, SerializationUtils } from './core/Serialization';
+export type {
+  SerializationOptions,
+  DeserializationOptions,
+  SerializationResult,
+  DeserializationResult,
+  SerializationVersion
+} from './utils/SerializationTypes';
+export {
+  SerializationFormat,
+  CURRENT_SERIALIZATION_VERSION
+} from './utils/SerializationTypes';

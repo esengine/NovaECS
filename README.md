@@ -22,6 +22,10 @@
 
 ```bash
 npm install @esengine/nova-ecs
+
+## API 文档 API Documentation
+
+完整的API文档请访问：[https://esengine.github.io/NovaECS/](https://esengine.github.io/NovaECS/)
 ```
 
 ## 快速开始 Quick Start
@@ -162,9 +166,38 @@ const aliveEntities = world.query({
 });
 ```
 
-## API 文档 API Documentation
+## 序列化系统 Serialization System
 
-完整的API文档请访问：[https://esengine.github.io/NovaECS/](https://esengine.github.io/NovaECS/)
+NovaECS 提供了强大的序列化系统，支持游戏保存/加载、网络同步等功能。
+
+```typescript
+import { Serializer, SerializationUtils, SerializationFormat } from '@esengine/nova-ecs';
+
+// 创建序列化器
+const serializer = new Serializer();
+
+// 注册组件类型
+serializer.registerComponentType('PositionComponent', PositionComponent);
+serializer.registerComponentType('VelocityComponent', VelocityComponent);
+
+// JSON 序列化（人类可读）
+const jsonData = await SerializationUtils.toJSON(gameData, true);
+const restored = await SerializationUtils.fromJSON(jsonData);
+
+// 二进制序列化（高性能，小体积）
+const binaryData = await SerializationUtils.toBinary(gameData);
+const restored2 = await SerializationUtils.fromBinary(binaryData);
+
+// 深拷贝对象
+const clone = SerializationUtils.clone(originalObject);
+```
+
+### 支持的数据类型
+
+- ✅ 基础类型：string, number, boolean, null, undefined
+- ✅ 复杂类型：Date, Map, Set, Array, Object
+- ✅ 循环引用：自动处理循环引用
+- ✅ 自定义类型：通过注册支持组件和系统序列化
 
 ## 许可证 License
 
