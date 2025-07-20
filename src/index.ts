@@ -9,5 +9,7 @@ export { Entity } from './core/Entity';
 export { Component } from './core/Component';
 export { System } from './core/System';
 export { World } from './core/World';
+export { ParallelScheduler } from './core/ParallelScheduler';
 
 export * from './utils/Types';
+export * from './utils/AccessType';

@@ -1,6 +1,7 @@
 import { Entity } from './Entity';
 import type { System } from './System';
 import type { ComponentType, EntityId, QueryFilter } from '../utils/Types';
+import { ParallelScheduler } from './ParallelScheduler';
 
 /**
  * World manages all entities and systems in the ECS architecture
@@ -31,6 +32,8 @@ export class World {
   private readonly _systems: System[] = [];
   private _entityIdCounter = 0;
   private _paused = false;
+  private _parallelEnabled = false;
+  private readonly _scheduler = new ParallelScheduler();
 
   /**
    * Get all entities in world
@@ -62,6 +65,22 @@ export class World {
    */
   set paused(value: boolean) {
     this._paused = value;
+  }
+
+  /**
+   * Get parallel execution enabled state
+   * 获取并行执行启用状态
+   */
+  get parallelEnabled(): boolean {
+    return this._parallelEnabled;
+  }
+
+  /**
+   * Set parallel execution enabled state
+   * 设置并行执行启用状态
+   */
+  set parallelEnabled(value: boolean) {
+    this._parallelEnabled = value;
   }
 
   /**
@@ -130,6 +149,7 @@ export class World {
   addSystem(system: System): this {
     this._systems.push(system);
     this._systems.sort((a, b) => b.priority - a.priority);
+    this._scheduler.addSystem(system);
     system.onAddedToWorld(this);
     return this;
   }
@@ -142,6 +162,7 @@ export class World {
     const index = this._systems.indexOf(system);
     if (index !== -1) {
       this._systems.splice(index, 1);
+      this._scheduler.removeSystem(system);
       system.onRemovedFromWorld();
     }
     return this;
@@ -163,6 +184,20 @@ export class World {
   update(deltaTime: number): void {
     if (this._paused) return;
 
+    if (this._parallelEnabled) {
+      void this.updateParallel(deltaTime);
+    } else {
+      this.updateSequential(deltaTime);
+    }
+
+    this._cleanupDestroyedEntities();
+  }
+
+  /**
+   * Update systems sequentially (original behavior)
+   * 顺序更新系统（原始行为）
+   */
+  private updateSequential(deltaTime: number): void {
     for (const system of this._systems) {
       if (!system.enabled) continue;
 
@@ -175,8 +210,49 @@ export class World {
       system.update(matchingEntities, deltaTime);
       system.postUpdate?.(deltaTime);
     }
+  }
 
-    this._cleanupDestroyedEntities();
+  /**
+   * Update systems in parallel based on dependency analysis
+   * 基于依赖分析并行更新系统
+   */
+  private async updateParallel(deltaTime: number): Promise<void> {
+    const executionGroups = this._scheduler.getExecutionGroups();
+
+    for (const group of executionGroups) {
+      // Execute systems in the same group in parallel
+      const promises = group.systems
+        .filter(system => system.enabled)
+        .map(system => this.executeSystemAsync(system, deltaTime));
+
+      await Promise.all(promises);
+    }
+  }
+
+  /**
+   * Execute a single system asynchronously
+   * 异步执行单个系统
+   */
+  private async executeSystemAsync(system: System, deltaTime: number): Promise<void> {
+    return new Promise<void>((resolve) => {
+      // Use setTimeout to make it async and allow other systems to run
+      setTimeout(() => {
+        try {
+          system.preUpdate?.(deltaTime);
+
+          const matchingEntities = this.entities.filter(entity => 
+            system.matchesEntity(entity)
+          );
+
+          system.update(matchingEntities, deltaTime);
+          system.postUpdate?.(deltaTime);
+        } catch (error) {
+          console.error(`Error in system ${system.constructor.name}:`, error);
+        } finally {
+          resolve();
+        }
+      }, 0);
+    });
   }
 
   /**

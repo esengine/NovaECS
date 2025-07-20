@@ -1,6 +1,7 @@
 import type { Entity } from './Entity';
 import type { World } from './World';
 import type { ComponentType } from '../utils/Types';
+import type { ComponentAccess } from '../utils/AccessType';
 
 /**
  * Base class for all systems in the ECS architecture
@@ -37,11 +38,18 @@ export abstract class System {
   public readonly requiredComponents: ComponentType[];
 
   /**
+   * Component access patterns for dependency analysis
+   * 组件访问模式，用于依赖分析
+   */
+  public readonly componentAccess: ComponentAccess[];
+
+  /**
    * Create a new system with required component types
    * 创建具有所需组件类型的新系统
    */
-  constructor(requiredComponents: ComponentType[] = []) {
+  constructor(requiredComponents: ComponentType[] = [], componentAccess: ComponentAccess[] = []) {
     this.requiredComponents = requiredComponents;
+    this.componentAccess = componentAccess;
   }
 
   /**
