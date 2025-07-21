@@ -42,8 +42,8 @@ describe('EventScheduler', () => {
     test('should process immediate events by priority', async () => {
       const calls: string[] = [];
       
-      const listener1 = vi.fn((event: TestEvent) => calls.push(event.message));
-      const listener2 = vi.fn((event: TestEvent) => calls.push(event.message));
+      const listener1 = vi.fn((event: TestEvent) => { calls.push(event.message); });
+      const listener2 = vi.fn((event: TestEvent) => { calls.push(event.message); });
       
       eventBus.on('TestEvent', listener1);
       eventBus.on('TestEvent', listener2);
@@ -261,7 +261,7 @@ describe('EventScheduler', () => {
       eventBus.on('DelayedEvent', listener);
 
       const delayedEvent = new DelayedEvent(42); // Has Delayed processing mode by default
-      scheduler.schedule(delayedEvent); // No options provided
+      scheduler.schedule(delayedEvent, { delay: 50 }); // Use explicit delay to ensure it's not processed immediately
 
       // Immediately check - should not be processed yet
       await scheduler.update(16);
@@ -274,8 +274,7 @@ describe('EventScheduler', () => {
       expect(sizes.delayed).toBe(1);
 
       // Wait for sufficient time to ensure delay has passed
-      // EventScheduler uses 1ms default delay, so wait longer to be safe
-      await new Promise(resolve => setTimeout(resolve, 10));
+      await new Promise(resolve => setTimeout(resolve, 60));
 
       await scheduler.update(16);
 

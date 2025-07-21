@@ -53,7 +53,7 @@ export {
   CURRENT_SERIALIZATION_VERSION
 } from './utils/SerializationTypes';
 
-// Enhanced Query System
+// Query System
 export { QueryBuilder } from './core/QueryBuilder';
 export { QueryManager } from './core/QueryManager';
 export { QueryCache } from './core/QueryCache';
@@ -73,3 +73,23 @@ export {
   QueryEventType,
   DEFAULT_QUERY_CACHE_CONFIG
 } from './utils/QueryTypes';
+
+// Plugin System
+export { PluginManager } from './core/PluginManager';
+export { BasePlugin } from './core/BasePlugin';
+export { PluginUtils, PluginDecorators } from './utils/PluginUtils';
+export type {
+  ECSPlugin,
+  PluginMetadata,
+  PluginInstallOptions,
+  PluginInstallResult,
+  PluginDependencyResult,
+  PluginLifecycleHooks,
+  PluginManagerEvents,
+  PluginRegistry
+} from './utils/PluginTypes';
+export {
+  PluginLifecyclePhase,
+  PluginPriority,
+  PluginState
+} from './utils/PluginTypes';

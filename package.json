@@ -23,7 +23,7 @@
   },
   "main": "dist/nova-ecs.umd.js",
   "module": "dist/nova-ecs.esm.js",
-  "types": "dist/index.d.ts",
+  "types": "dist/nova-ecs.d.ts",
   "files": [
     "dist"
   ],
@@ -57,6 +57,7 @@
     "jsdom": "^26.1.0",
     "prettier": "^3.0.0",
     "rollup": "^4.9.0",
+    "rollup-plugin-dts": "^6.2.1",
     "ts-jest": "^29.1.0",
     "tslib": "^2.6.2",
     "typedoc": "^0.28.7",

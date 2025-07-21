@@ -1,4 +1,5 @@
 import typescript from '@rollup/plugin-typescript';
+import { dts } from 'rollup-plugin-dts';
 
 const external = ['superjson', '@msgpack/msgpack'];
 
@@ -14,10 +15,8 @@ export default [
     plugins: [
       typescript({
         tsconfig: './tsconfig.json',
-        declaration: true,
-        declarationDir: 'dist',
-        rootDir: 'src',
-        declarationMap: true
+        declaration: false,
+        declarationMap: false
       })
     ],
     external
@@ -60,6 +59,16 @@ export default [
         declarationMap: false
       })
     ],
+    external
+  },
+  // TypeScript declarations
+  {
+    input: 'src/index.ts',
+    output: {
+      file: 'dist/nova-ecs.d.ts',
+      format: 'es'
+    },
+    plugins: [dts()],
     external
   }
 ];

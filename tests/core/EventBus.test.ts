@@ -9,11 +9,16 @@ class TestEvent extends Event {
   }
 }
 
-class HighPriorityEvent extends Event {
-  constructor(public readonly value: number) {
-    super('HighPriorityEvent', EventPriority.High);
+// Compatible event class for onType testing
+class CompatibleTestEvent extends Event {
+  constructor(...args: unknown[]) {
+    super('CompatibleTestEvent');
+    this.message = (args[0] as string) || 'default';
   }
+  public readonly message: string;
 }
+
+
 
 describe('EventBus', () => {
   let eventBus: EventBus;
@@ -46,11 +51,11 @@ describe('EventBus', () => {
 
     test('should call multiple listeners in priority order', async () => {
       const calls: number[] = [];
-      
-      const listener1 = vi.fn(() => calls.push(1));
-      const listener2 = vi.fn(() => calls.push(2));
-      const listener3 = vi.fn(() => calls.push(3));
-      
+
+      const listener1 = vi.fn(() => { calls.push(1); });
+      const listener2 = vi.fn(() => { calls.push(2); });
+      const listener3 = vi.fn(() => { calls.push(3); });
+
       eventBus.on('TestEvent', listener1, { priority: EventPriority.Low });
       eventBus.on('TestEvent', listener2, { priority: EventPriority.High });
       eventBus.on('TestEvent', listener3, { priority: EventPriority.Normal });
@@ -105,49 +110,49 @@ describe('EventBus', () => {
   describe('Type-based event subscription', () => {
     test('should subscribe to events by class type', () => {
       const listener = vi.fn();
-      const listenerId = eventBus.onType(TestEvent, listener);
-      
+      const listenerId = eventBus.onType(CompatibleTestEvent, listener);
+
       expect(typeof listenerId).toBe('string');
       expect(listenerId).toContain('type_listener_');
-      expect(eventBus.hasTypeListeners(TestEvent)).toBe(true);
-      expect(eventBus.getTypeListenerCount(TestEvent)).toBe(1);
+      expect(eventBus.hasTypeListeners(CompatibleTestEvent)).toBe(true);
+      expect(eventBus.getTypeListenerCount(CompatibleTestEvent)).toBe(1);
     });
 
     test('should call type listener when event is dispatched', async () => {
       const listener = vi.fn();
-      eventBus.onType(TestEvent, listener);
-      
-      const event = new TestEvent('hello');
+      eventBus.onType(CompatibleTestEvent, listener);
+
+      const event = new CompatibleTestEvent('hello');
       await eventBus.dispatch(event);
-      
+
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith(event);
     });
 
     test('should handle once type listeners', async () => {
       const listener = vi.fn();
-      eventBus.onceType(TestEvent, listener);
-      
-      const event1 = new TestEvent('first');
-      const event2 = new TestEvent('second');
-      
+      eventBus.onceType(CompatibleTestEvent, listener);
+
+      const event1 = new CompatibleTestEvent('first');
+      const event2 = new CompatibleTestEvent('second');
+
       await eventBus.dispatch(event1);
       await eventBus.dispatch(event2);
-      
+
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith(event1);
-      expect(eventBus.getTypeListenerCount(TestEvent)).toBe(0);
+      expect(eventBus.getTypeListenerCount(CompatibleTestEvent)).toBe(0);
     });
 
     test('should remove all type listeners', () => {
-      eventBus.onType(TestEvent, vi.fn());
-      eventBus.onType(TestEvent, vi.fn());
-      
-      expect(eventBus.getTypeListenerCount(TestEvent)).toBe(2);
-      
-      const removedCount = eventBus.offAllType(TestEvent);
+      eventBus.onType(CompatibleTestEvent, vi.fn());
+      eventBus.onType(CompatibleTestEvent, vi.fn());
+
+      expect(eventBus.getTypeListenerCount(CompatibleTestEvent)).toBe(2);
+
+      const removedCount = eventBus.offAllType(CompatibleTestEvent);
       expect(removedCount).toBe(2);
-      expect(eventBus.getTypeListenerCount(TestEvent)).toBe(0);
+      expect(eventBus.getTypeListenerCount(CompatibleTestEvent)).toBe(0);
     });
   });
 
@@ -240,15 +245,15 @@ describe('EventBus', () => {
   describe('Clear and cleanup', () => {
     test('should clear all listeners and reset statistics', () => {
       eventBus.on('TestEvent', vi.fn());
-      eventBus.onType(TestEvent, vi.fn());
-      
+      eventBus.onType(CompatibleTestEvent, vi.fn());
+
       expect(eventBus.getListenerCount('TestEvent')).toBe(1);
-      expect(eventBus.getTypeListenerCount(TestEvent)).toBe(1);
-      
+      expect(eventBus.getTypeListenerCount(CompatibleTestEvent)).toBe(1);
+
       eventBus.clear();
-      
+
       expect(eventBus.getListenerCount('TestEvent')).toBe(0);
-      expect(eventBus.getTypeListenerCount(TestEvent)).toBe(0);
+      expect(eventBus.getTypeListenerCount(CompatibleTestEvent)).toBe(0);
       
       const stats = eventBus.getStatistics();
       expect(stats.totalDispatched).toBe(0);
@@ -257,9 +262,9 @@ describe('EventBus', () => {
 
   describe('Async listeners', () => {
     test('should handle async listeners', async () => {
-      const asyncListener = vi.fn(async (event: TestEvent) => {
+      const asyncListener = vi.fn(async (_event: TestEvent) => {
         await new Promise(resolve => setTimeout(resolve, 10));
-        return `processed: ${event.message}`;
+        // Don't return anything to match EventListener<T> signature
       });
       
       eventBus.on('TestEvent', asyncListener);

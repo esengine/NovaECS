@@ -7,6 +7,7 @@ import { ParallelScheduler, type ExecutionGroup } from './ParallelScheduler';
 import { EventBus } from './EventBus';
 import { EventScheduler } from './EventScheduler';
 import { QueryManager } from './QueryManager';
+import { PluginManager } from './PluginManager';
 import type {
   IQueryBuilder,
   QueryCriteria,
@@ -68,6 +69,7 @@ export class World implements IWorldForEntity {
     this._archetypeManager,
     () => Array.from(this._entities.values())
   );
+  private readonly _pluginManager = new PluginManager(this);
 
 
   /**
@@ -92,6 +94,14 @@ export class World implements IWorldForEntity {
    */
   get paused(): boolean {
     return this._paused;
+  }
+
+  /**
+   * Get plugin manager
+   * 获取插件管理器
+   */
+  get plugins(): PluginManager {
+    return this._pluginManager;
   }
 
   /**
@@ -130,6 +140,9 @@ export class World implements IWorldForEntity {
     entity.setWorld(this);
 
     this._entities.set(entity.id, entity);
+
+    // Notify plugins of entity creation
+    void this._notifyPluginsEntityCreate(entity);
 
     // Dispatch entity created event
     void this._eventBus.dispatch(new EntityCreatedEvent(entity.id));
@@ -175,6 +188,9 @@ export class World implements IWorldForEntity {
     const id = typeof entityOrId === 'number' ? entityOrId : entityOrId.id;
     const entity = this._entities.get(id);
     if (entity) {
+      // Notify plugins of entity destruction
+      void this._notifyPluginsEntityDestroy(entity);
+
       entity.destroy();
       this._entities.delete(id);
 
@@ -299,6 +315,9 @@ export class World implements IWorldForEntity {
     this._scheduler.addSystem(system);
     system.onAddedToWorld(this);
 
+    // Notify plugins of system addition
+    void this._notifyPluginsSystemAdd(system);
+
     // Dispatch system added event
     void this._eventBus.dispatch(new SystemAddedEvent(system.constructor.name));
 
@@ -312,6 +331,9 @@ export class World implements IWorldForEntity {
   removeSystem(system: System): this {
     const index = this._systems.indexOf(system);
     if (index !== -1) {
+      // Notify plugins of system removal
+      void this._notifyPluginsSystemRemove(system);
+
       this._systems.splice(index, 1);
       this._scheduler.removeSystem(system);
       system.onRemovedFromWorld();
@@ -341,8 +363,14 @@ export class World implements IWorldForEntity {
     // Dispatch world update start event
     void this._eventBus.dispatch(new WorldUpdateStartEvent(deltaTime));
 
+    // Notify plugins of update start
+    void this._notifyPluginsUpdateStart(deltaTime);
+
     // Process immediate events first
     void this._eventScheduler.update(deltaTime);
+
+    // Update plugins
+    void this._pluginManager.update(deltaTime);
 
     // Use simplified parallel execution
     void this.updateWithParallelExecution(deltaTime).then(() => {
@@ -350,6 +378,9 @@ export class World implements IWorldForEntity {
 
       // Process end-of-frame events
       void this._eventScheduler.processEndOfFrame();
+
+      // Notify plugins of update end
+      void this._notifyPluginsUpdateEnd(deltaTime);
 
       // Dispatch world update end event
       void this._eventBus.dispatch(new WorldUpdateEndEvent(deltaTime));
@@ -366,8 +397,14 @@ export class World implements IWorldForEntity {
     // Dispatch world update start event
     await this._eventBus.dispatch(new WorldUpdateStartEvent(deltaTime));
 
+    // Notify plugins of update start
+    await this._notifyPluginsUpdateStart(deltaTime);
+
     // Process immediate events first
     await this._eventScheduler.update(deltaTime);
+
+    // Update plugins
+    await this._pluginManager.update(deltaTime);
 
     // Use simplified parallel execution
     await this.updateWithParallelExecution(deltaTime);
@@ -375,6 +412,9 @@ export class World implements IWorldForEntity {
 
     // Process end-of-frame events
     await this._eventScheduler.processEndOfFrame();
+
+    // Notify plugins of update end
+    await this._notifyPluginsUpdateEnd(deltaTime);
 
     // Dispatch world update end event
     await this._eventBus.dispatch(new WorldUpdateEndEvent(deltaTime));
@@ -536,6 +576,12 @@ export class World implements IWorldForEntity {
     // Add to new archetype
     this._archetypeManager.addEntity(entityId, currentComponents);
 
+    // Notify plugins of component addition
+    const entity = this._entities.get(entityId);
+    if (entity) {
+      void this._notifyPluginsComponentAdd(entity, component);
+    }
+
     // Dispatch component added event
     void this._eventBus.dispatch(new ComponentAddedEvent(entityId, componentType.name));
 
@@ -555,6 +601,12 @@ export class World implements IWorldForEntity {
     // Call component lifecycle method
     const removedComponent = currentComponents.get(componentType);
     if (removedComponent) {
+      // Notify plugins of component removal
+      const entity = this._entities.get(entityId);
+      if (entity) {
+        void this._notifyPluginsComponentRemove(entity, removedComponent);
+      }
+
       removedComponent.onRemoved?.();
       currentComponents.delete(componentType);
     }
@@ -685,6 +737,150 @@ export class World implements IWorldForEntity {
    */
   addComponentToEntity(entityId: EntityId, componentType: ComponentType, component: Component): void {
     this.handleComponentAddition(entityId, componentType, component);
+  }
+
+  /**
+   * Notify plugins of update start
+   * 通知插件更新开始
+   * @private
+   */
+  private async _notifyPluginsUpdateStart(deltaTime: number): Promise<void> {
+    for (const pluginName of this._pluginManager.list()) {
+      const plugin = this._pluginManager.get(pluginName);
+      if (plugin?.onWorldUpdateStart) {
+        try {
+          await plugin.onWorldUpdateStart(this, deltaTime);
+        } catch (error) {
+          console.error(`Error in plugin ${pluginName} onWorldUpdateStart:`, error);
+        }
+      }
+    }
+  }
+
+  /**
+   * Notify plugins of update end
+   * 通知插件更新结束
+   * @private
+   */
+  private async _notifyPluginsUpdateEnd(deltaTime: number): Promise<void> {
+    for (const pluginName of this._pluginManager.list()) {
+      const plugin = this._pluginManager.get(pluginName);
+      if (plugin?.onWorldUpdateEnd) {
+        try {
+          await plugin.onWorldUpdateEnd(this, deltaTime);
+        } catch (error) {
+          console.error(`Error in plugin ${pluginName} onWorldUpdateEnd:`, error);
+        }
+      }
+    }
+  }
+
+  /**
+   * Notify plugins of entity creation
+   * 通知插件实体创建
+   * @private
+   */
+  private async _notifyPluginsEntityCreate(entity: Entity): Promise<void> {
+    for (const pluginName of this._pluginManager.list()) {
+      const plugin = this._pluginManager.get(pluginName);
+      if (plugin?.onEntityCreate) {
+        try {
+          await plugin.onEntityCreate(entity);
+        } catch (error) {
+          console.error(`Error in plugin ${pluginName} onEntityCreate:`, error);
+        }
+      }
+    }
+  }
+
+  /**
+   * Notify plugins of entity destruction
+   * 通知插件实体销毁
+   * @private
+   */
+  private async _notifyPluginsEntityDestroy(entity: Entity): Promise<void> {
+    for (const pluginName of this._pluginManager.list()) {
+      const plugin = this._pluginManager.get(pluginName);
+      if (plugin?.onEntityDestroy) {
+        try {
+          await plugin.onEntityDestroy(entity);
+        } catch (error) {
+          console.error(`Error in plugin ${pluginName} onEntityDestroy:`, error);
+        }
+      }
+    }
+  }
+
+  /**
+   * Notify plugins of system addition
+   * 通知插件系统添加
+   * @private
+   */
+  private async _notifyPluginsSystemAdd(system: System): Promise<void> {
+    for (const pluginName of this._pluginManager.list()) {
+      const plugin = this._pluginManager.get(pluginName);
+      if (plugin?.onSystemAdd) {
+        try {
+          await plugin.onSystemAdd(system);
+        } catch (error) {
+          console.error(`Error in plugin ${pluginName} onSystemAdd:`, error);
+        }
+      }
+    }
+  }
+
+  /**
+   * Notify plugins of system removal
+   * 通知插件系统移除
+   * @private
+   */
+  private async _notifyPluginsSystemRemove(system: System): Promise<void> {
+    for (const pluginName of this._pluginManager.list()) {
+      const plugin = this._pluginManager.get(pluginName);
+      if (plugin?.onSystemRemove) {
+        try {
+          await plugin.onSystemRemove(system);
+        } catch (error) {
+          console.error(`Error in plugin ${pluginName} onSystemRemove:`, error);
+        }
+      }
+    }
+  }
+
+  /**
+   * Notify plugins of component addition
+   * 通知插件组件添加
+   * @private
+   */
+  private async _notifyPluginsComponentAdd(entity: Entity, component: Component): Promise<void> {
+    for (const pluginName of this._pluginManager.list()) {
+      const plugin = this._pluginManager.get(pluginName);
+      if (plugin?.onComponentAdd) {
+        try {
+          await plugin.onComponentAdd(entity, component);
+        } catch (error) {
+          console.error(`Error in plugin ${pluginName} onComponentAdd:`, error);
+        }
+      }
+    }
+  }
+
+  /**
+   * Notify plugins of component removal
+   * 通知插件组件移除
+   * @private
+   */
+  private async _notifyPluginsComponentRemove(entity: Entity, component: Component): Promise<void> {
+    for (const pluginName of this._pluginManager.list()) {
+      const plugin = this._pluginManager.get(pluginName);
+      if (plugin?.onComponentRemove) {
+        try {
+          await plugin.onComponentRemove(entity, component);
+        } catch (error) {
+          console.error(`Error in plugin ${pluginName} onComponentRemove:`, error);
+        }
+      }
+    }
   }
 
   /**

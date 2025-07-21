@@ -146,11 +146,16 @@ describe('System Events', () => {
 
 describe('Event Priority', () => {
   test('should create events with different priorities', () => {
-    const lowEvent = new TestEvent('low');
-    lowEvent.priority = EventPriority.Low;
-    
+    // Create events with priority set in constructor
+    class LowPriorityEvent extends Event {
+      constructor() {
+        super('LowPriorityEvent', EventPriority.Low);
+      }
+    }
+
+    const lowEvent = new LowPriorityEvent();
     const highEvent = new HighPriorityEvent();
-    
+
     expect(lowEvent.priority).toBe(EventPriority.Low);
     expect(highEvent.priority).toBe(EventPriority.High);
     expect(highEvent.priority).toBeGreaterThan(lowEvent.priority);

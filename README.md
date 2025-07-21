@@ -27,6 +27,8 @@ Next-generation Entity Component System (ECS) game framework built with TypeScri
   **智能调度**: 自动分析系统依赖关系，实现高效的执行调度
 - 📡 **Event System**: Type-safe event bus with priority and deferred processing support
   **事件系统**: 类型安全的事件总线，支持优先级和延迟处理
+- 🔌 **Plugin System**: Extensible plugin architecture with dependency management and lifecycle hooks
+  **插件系统**: 可扩展的插件架构，支持依赖管理和生命周期钩子
 
 ## Installation | 安装
 
@@ -305,6 +307,210 @@ world.setQueryPerformanceMonitoring(true);
   **批量处理**：支持limit和offset进行分页查询
 - **Performance Monitoring**: Track slow queries and popular queries
   **性能监控**：跟踪慢查询和热门查询
+
+## Plugin System | 插件系统
+
+NovaECS provides a powerful plugin system that allows you to extend functionality in a modular way.
+NovaECS 提供了强大的插件系统，允许您以模块化的方式扩展功能。
+
+```typescript
+import { BasePlugin, PluginPriority, World } from '@esengine/nova-ecs';
+
+// Define a custom plugin | 定义自定义插件
+class MyPlugin extends BasePlugin {
+  constructor() {
+    super({
+      name: 'MyPlugin',
+      version: '1.0.0',
+      description: 'My custom plugin',
+      priority: PluginPriority.Normal
+    });
+  }
+
+  async install(world: World): Promise<void> {
+    this.log('Plugin installed');
+    // Plugin installation logic | 插件安装逻辑
+  }
+
+  async uninstall(world: World): Promise<void> {
+    this.log('Plugin uninstalled');
+    // Plugin cleanup logic | 插件清理逻辑
+  }
+
+  update(deltaTime: number): void {
+    // Plugin update logic | 插件更新逻辑
+  }
+}
+
+// Install plugin | 安装插件
+const world = new World();
+const plugin = new MyPlugin();
+const result = await world.plugins.install(plugin);
+
+if (result.success) {
+  console.log('Plugin installed successfully');
+} else {
+  console.error('Plugin installation failed:', result.error);
+}
+
+// Get plugin instance | 获取插件实例
+const myPlugin = world.plugins.get<MyPlugin>('MyPlugin');
+
+// Uninstall plugin | 卸载插件
+await world.plugins.uninstall('MyPlugin');
+```
+
+### Plugin Dependencies | 插件依赖
+
+```typescript
+class DependentPlugin extends BasePlugin {
+  constructor() {
+    super({
+      name: 'DependentPlugin',
+      version: '1.0.0',
+      description: 'Plugin with dependencies',
+      dependencies: ['MyPlugin'], // Required dependencies | 必需依赖
+      optionalDependencies: ['OptionalPlugin'], // Optional dependencies | 可选依赖
+      conflicts: ['ConflictingPlugin'] // Conflicting plugins | 冲突插件
+    });
+  }
+
+  async install(world: World): Promise<void> {
+    // Installation logic | 安装逻辑
+  }
+
+  async uninstall(world: World): Promise<void> {
+    // Uninstallation logic | 卸载逻辑
+  }
+}
+```
+
+### Plugin Lifecycle Hooks | 插件生命周期钩子
+
+```typescript
+class LifecyclePlugin extends BasePlugin {
+  constructor() {
+    super({
+      name: 'LifecyclePlugin',
+      version: '1.0.0'
+    });
+  }
+
+  async install(world: World): Promise<void> {
+    // Plugin installation | 插件安装
+  }
+
+  async uninstall(world: World): Promise<void> {
+    // Plugin uninstallation | 插件卸载
+  }
+
+  // World lifecycle | 世界生命周期
+  onWorldCreate(world: World): void {
+    this.log('World created');
+  }
+
+  onWorldDestroy(world: World): void {
+    this.log('World destroyed');
+  }
+
+  // Entity lifecycle | 实体生命周期
+  onEntityCreate(entity: Entity): void {
+    this.log(`Entity ${entity.id} created`);
+  }
+
+  onEntityDestroy(entity: Entity): void {
+    this.log(`Entity ${entity.id} destroyed`);
+  }
+
+  // Component lifecycle | 组件生命周期
+  onComponentAdd(entity: Entity, component: Component): void {
+    this.log(`Component added to entity ${entity.id}`);
+  }
+
+  onComponentRemove(entity: Entity, component: Component): void {
+    this.log(`Component removed from entity ${entity.id}`);
+  }
+
+  // System lifecycle | 系统生命周期
+  onSystemAdd(system: System): void {
+    this.log(`System ${system.constructor.name} added`);
+  }
+
+  onSystemRemove(system: System): void {
+    this.log(`System ${system.constructor.name} removed`);
+  }
+}
+```
+
+### Plugin Configuration | 插件配置
+
+```typescript
+class ConfigurablePlugin extends BasePlugin {
+  constructor() {
+    super({
+      name: 'ConfigurablePlugin',
+      version: '1.0.0'
+    });
+  }
+
+  async install(world: World, options?: PluginInstallOptions): Promise<void> {
+    // Use configuration | 使用配置
+    const enabled = this.getConfigValue('enabled', true);
+    const maxItems = this.getConfigValue('maxItems', 100);
+
+    this.log(`Plugin enabled: ${enabled}, maxItems: ${maxItems}`);
+  }
+
+  validateConfig(config: Record<string, unknown>): boolean {
+    // Validate configuration | 验证配置
+    return typeof config.enabled === 'boolean' &&
+           typeof config.maxItems === 'number';
+  }
+
+  async uninstall(world: World): Promise<void> {
+    // Cleanup logic | 清理逻辑
+  }
+}
+
+// Install with configuration | 带配置安装
+await world.plugins.install(new ConfigurablePlugin(), {
+  config: {
+    enabled: true,
+    maxItems: 200
+  }
+});
+```
+
+### Plugin Utilities | 插件工具
+
+```typescript
+import { PluginUtils } from '@esengine/nova-ecs';
+
+// Create metadata with defaults | 创建带默认值的元数据
+const metadata = PluginUtils.createMetadata({
+  name: 'MyPlugin',
+  version: '1.0.0'
+});
+
+// Validate metadata | 验证元数据
+const validation = PluginUtils.validateMetadata(metadata);
+if (!validation.valid) {
+  console.error('Invalid metadata:', validation.errors);
+}
+
+// Check version compatibility | 检查版本兼容性
+const isCompatible = PluginUtils.isCompatible(plugin, '1.0.0');
+
+// Create configuration validator | 创建配置验证器
+const validator = PluginUtils.createConfigValidator({
+  enabled: { type: 'boolean', required: true },
+  count: { type: 'number', required: false }
+});
+
+// Install multiple plugins | 安装多个插件
+const helper = PluginUtils.createInstallationHelper(world);
+const result = await helper.installMany([plugin1, plugin2, plugin3]);
+```
 
 ## Serialization System | 序列化系统
 

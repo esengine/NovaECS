@@ -70,7 +70,7 @@ describe('ComponentPool', () => {
 
   test('should create new components when pool is empty', () => {
     // Acquire all preloaded components
-    const components = [];
+    const components: TestComponent[] = [];
     for (let i = 0; i < 5; i++) {
       components.push(pool.acquire());
     }
@@ -102,7 +102,7 @@ describe('ComponentPool', () => {
 
   test('should not exceed max pool size', () => {
     // Fill pool to max capacity
-    const components = [];
+    const components: TestComponent[] = [];
     for (let i = 0; i < 20; i++) {
       components.push(pool.acquire());
     }

@@ -39,7 +39,7 @@ describe('QueryBuilder', () => {
     ];
 
     // Mock execute query function
-    mockExecuteQuery = (criteria: QueryCriteria, options?: QueryOptions): QueryResult => {
+    mockExecuteQuery = (_criteria: QueryCriteria, _options?: QueryOptions): QueryResult => {
       return {
         entities: mockEntities,
         totalCount: mockEntities.length,

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { World } from '../../src/core/World';
 import { Entity } from '../../src/core/Entity';
 import { Component } from '../../src/core/Component';
@@ -28,14 +28,14 @@ class EventListeningSystem extends System {
 
   onAddedToWorld(world: World): void {
     super.onAddedToWorld(world);
-    
+
     // Subscribe to custom events
     this.subscribeToEvent('TestEvent', (event: TestEvent) => {
       this.receivedEvents.push(event);
     });
-    
+
     // Subscribe to system events
-    this.subscribeToEventType(EntityCreatedEvent, (event: EntityCreatedEvent) => {
+    this.subscribeToEvent('EntityCreated', (event: EntityCreatedEvent) => {
       this.receivedEntityEvents.push(event);
     });
   }
@@ -45,6 +45,19 @@ class EventListeningSystem extends System {
     for (const entity of entities) {
       this.dispatchEvent(new TestEvent(`Processed entity ${entity.id}`));
     }
+  }
+
+  // Public methods for testing
+  public testSubscribeToEvent(eventType: string, listener: (event: any) => void): string {
+    return this.subscribeToEvent(eventType, listener);
+  }
+
+  public testDispatchEvent(event: Event): void {
+    this.dispatchEvent(event);
+  }
+
+  public testUnsubscribeFromEvent(listenerId: string): boolean {
+    return this.unsubscribeFromEvent(listenerId);
   }
 }
 
@@ -102,9 +115,9 @@ describe('System Events Integration', () => {
 
     test('should throw error when subscribing before added to world', () => {
       const system = new EventListeningSystem();
-      
+
       expect(() => {
-        system.subscribeToEvent('TestEvent', () => {});
+        system.testSubscribeToEvent('TestEvent', () => {});
       }).toThrow('System must be added to world before subscribing to events');
     });
   });
@@ -133,10 +146,10 @@ describe('System Events Integration', () => {
     });
 
     test('should throw error when dispatching before added to world', () => {
-      const system = new EventDispatchingSystem();
-      
+      const system = new EventListeningSystem();
+
       expect(() => {
-        system.dispatchEvent(new TestEvent('test'));
+        system.testDispatchEvent(new TestEvent('test'));
       }).toThrow('System must be added to world before dispatching events');
     });
   });
@@ -165,13 +178,13 @@ describe('System Events Integration', () => {
       world.addSystem(system);
       
       // Subscribe and get listener ID
-      const listenerId = system.subscribeToEvent('ManualTest', () => {});
-      
+      const listenerId = system.testSubscribeToEvent('ManualTest', () => {});
+
       // Verify subscription exists
       expect(world.eventBus.hasListeners('ManualTest')).toBe(true);
-      
+
       // Unsubscribe manually
-      const result = system.unsubscribeFromEvent(listenerId);
+      const result = system.testUnsubscribeFromEvent(listenerId);
       expect(result).toBe(true);
       
       // Verify subscription is removed
@@ -246,11 +259,11 @@ describe('System Events Integration', () => {
         onAddedToWorld(world: World): void {
           super.onAddedToWorld(world);
           
-          this.subscribeToEvent('HighPriority', (event: any) => {
+          this.subscribeToEvent('HighPriority', (_event: any) => {
             this.processedEvents.push('high');
           }, { priority: EventPriority.High });
-          
-          this.subscribeToEvent('LowPriority', (event: any) => {
+
+          this.subscribeToEvent('LowPriority', (_event: any) => {
             this.processedEvents.push('low');
           }, { priority: EventPriority.Low });
         }
@@ -305,3 +318,4 @@ describe('System Events Integration', () => {
     });
   });
 });
+

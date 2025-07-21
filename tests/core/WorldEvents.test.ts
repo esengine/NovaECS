@@ -1,20 +1,9 @@
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { World } from '../../src/core/World';
 import { Entity } from '../../src/core/Entity';
 import { Component } from '../../src/core/Component';
 import { System } from '../../src/core/System';
-import { 
-  EntityCreatedEvent, 
-  EntityDestroyedEvent,
-  ComponentAddedEvent,
-  ComponentRemovedEvent,
-  SystemAddedEvent,
-  SystemRemovedEvent,
-  WorldPausedEvent,
-  WorldResumedEvent,
-  WorldUpdateStartEvent,
-  WorldUpdateEndEvent
-} from '../../src/core/Event';
+
 
 class TestComponent extends Component {
   constructor(public value: number = 0) {
@@ -29,7 +18,7 @@ class TestSystem extends System {
     super([TestComponent]);
   }
 
-  update(entities: Entity[], _deltaTime: number): void {
+  update(_entities: Entity[], _deltaTime: number): void {
     this.updateCalled = true;
   }
 }
@@ -48,13 +37,13 @@ describe('World Events Integration', () => {
   describe('Entity lifecycle events', () => {
     test('should dispatch EntityCreatedEvent when entity is created', async () => {
       const listener = vi.fn();
-      world.eventBus.onType(EntityCreatedEvent, listener);
-      
+      world.eventBus.on('EntityCreated', listener);
+
       const entity = world.createEntity();
-      
+
       // Wait for event to be processed
       await new Promise(resolve => setTimeout(resolve, 10));
-      
+
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -66,16 +55,16 @@ describe('World Events Integration', () => {
 
     test('should dispatch EntityDestroyedEvent when entity is removed', async () => {
       const listener = vi.fn();
-      world.eventBus.onType(EntityDestroyedEvent, listener);
-      
+      world.eventBus.on('EntityDestroyed', listener);
+
       const entity = world.createEntity();
       const entityId = entity.id;
-      
+
       world.removeEntity(entity);
-      
+
       // Wait for event to be processed
       await new Promise(resolve => setTimeout(resolve, 10));
-      
+
       expect(listener).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'EntityDestroyed',
@@ -88,14 +77,14 @@ describe('World Events Integration', () => {
   describe('Component lifecycle events', () => {
     test('should dispatch ComponentAddedEvent when component is added', async () => {
       const listener = vi.fn();
-      world.eventBus.onType(ComponentAddedEvent, listener);
-      
+      world.eventBus.on('ComponentAdded', listener);
+
       const entity = world.createEntity();
       entity.addComponent(new TestComponent(42));
-      
+
       // Wait for event to be processed
       await new Promise(resolve => setTimeout(resolve, 10));
-      
+
       expect(listener).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'ComponentAdded',
@@ -107,15 +96,15 @@ describe('World Events Integration', () => {
 
     test('should dispatch ComponentRemovedEvent when component is removed', async () => {
       const listener = vi.fn();
-      world.eventBus.onType(ComponentRemovedEvent, listener);
-      
+      world.eventBus.on('ComponentRemoved', listener);
+
       const entity = world.createEntity();
       entity.addComponent(new TestComponent(42));
       entity.removeComponent(TestComponent);
-      
+
       // Wait for event to be processed
       await new Promise(resolve => setTimeout(resolve, 10));
-      
+
       expect(listener).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'ComponentRemoved',
@@ -129,14 +118,14 @@ describe('World Events Integration', () => {
   describe('System lifecycle events', () => {
     test('should dispatch SystemAddedEvent when system is added', async () => {
       const listener = vi.fn();
-      world.eventBus.onType(SystemAddedEvent, listener);
-      
+      world.eventBus.on('SystemAdded', listener);
+
       const system = new TestSystem();
       world.addSystem(system);
-      
+
       // Wait for event to be processed
       await new Promise(resolve => setTimeout(resolve, 10));
-      
+
       expect(listener).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'SystemAdded',
@@ -147,15 +136,15 @@ describe('World Events Integration', () => {
 
     test('should dispatch SystemRemovedEvent when system is removed', async () => {
       const listener = vi.fn();
-      world.eventBus.onType(SystemRemovedEvent, listener);
-      
+      world.eventBus.on('SystemRemoved', listener);
+
       const system = new TestSystem();
       world.addSystem(system);
       world.removeSystem(system);
-      
+
       // Wait for event to be processed
       await new Promise(resolve => setTimeout(resolve, 10));
-      
+
       expect(listener).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'SystemRemoved',
@@ -168,13 +157,13 @@ describe('World Events Integration', () => {
   describe('World lifecycle events', () => {
     test('should dispatch WorldPausedEvent when world is paused', async () => {
       const listener = vi.fn();
-      world.eventBus.onType(WorldPausedEvent, listener);
-      
+      world.eventBus.on('WorldPaused', listener);
+
       world.paused = true;
-      
+
       // Wait for event to be processed
       await new Promise(resolve => setTimeout(resolve, 10));
-      
+
       expect(listener).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'WorldPaused'
@@ -184,14 +173,14 @@ describe('World Events Integration', () => {
 
     test('should dispatch WorldResumedEvent when world is resumed', async () => {
       const listener = vi.fn();
-      world.eventBus.onType(WorldResumedEvent, listener);
-      
+      world.eventBus.on('WorldResumed', listener);
+
       world.paused = true;
       world.paused = false;
-      
+
       // Wait for event to be processed
       await new Promise(resolve => setTimeout(resolve, 10));
-      
+
       expect(listener).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'WorldResumed'
@@ -202,9 +191,9 @@ describe('World Events Integration', () => {
     test('should dispatch WorldUpdateStartEvent and WorldUpdateEndEvent', async () => {
       const startListener = vi.fn();
       const endListener = vi.fn();
-      
-      world.eventBus.onType(WorldUpdateStartEvent, startListener);
-      world.eventBus.onType(WorldUpdateEndEvent, endListener);
+
+      world.eventBus.on('WorldUpdateStart', startListener);
+      world.eventBus.on('WorldUpdateEnd', endListener);
       
       world.update(16);
       
@@ -292,3 +281,4 @@ describe('World Events Integration', () => {
     });
   });
 });
+
