@@ -94,6 +94,14 @@ function gameLoop(deltaTime: number) {
 setInterval(() => gameLoop(16), 16);
 ```
 
+## Related Libraries | 相关库
+
+### Math Library | 数学库
+
+For deterministic fixed-point mathematics (recommended for multiplayer games), see [@esengine/nova-ecs-math](https://github.com/esengine/nova-ecs-math).
+
+对于确定性定点数学运算（推荐用于多人游戏），请参考 [@esengine/nova-ecs-math](https://github.com/esengine/nova-ecs-math)。
+
 ## Event System | 事件系统
 
 NovaECS provides a powerful event system that supports loose coupling communication between systems.

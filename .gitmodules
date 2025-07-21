@@ -1,0 +1,3 @@
+[submodule "thirdparty/nova-ecs-math"]
+	path = thirdparty/nova-ecs-math
+	url = https://github.com/esengine/nova-ecs-math.git
