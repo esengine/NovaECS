@@ -77,7 +77,7 @@ export class PluginSandbox {
 
     try {
       // Check if method exists
-      const methodFn = (plugin as any)[method];
+      const methodFn = (plugin as unknown as Record<string, unknown>)[method];
       if (typeof methodFn !== 'function') {
         return {
           success: false,
@@ -96,7 +96,7 @@ export class PluginSandbox {
 
       // Execute with timeout
       const result = await this._executeWithTimeout(
-        () => methodFn.apply(plugin, args),
+        () => (methodFn as (...args: unknown[]) => unknown).apply(plugin, args),
         this._config.executionTimeout
       );
 
@@ -197,7 +197,8 @@ export class PluginSandbox {
         const [objectName, methodName] = globalName.split('.');
         if (typeof require !== 'undefined') {
           try {
-            const obj = require(objectName);
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const obj = require(objectName) as Record<string, unknown>;
             if (obj && methodName in obj) {
               obj[methodName] = originalValue;
             }
@@ -206,7 +207,7 @@ export class PluginSandbox {
           }
         }
       } else {
-        (globalThis as any)[globalName] = originalValue;
+        (globalThis as unknown as Record<string, unknown>)[globalName] = originalValue;
       }
     }
 
@@ -240,14 +241,14 @@ export class PluginSandbox {
    */
   isSafeToExecute(plugin: ECSPlugin, method: string): boolean {
     try {
-      const methodFn = (plugin as any)[method];
-      
+      const methodFn = (plugin as unknown as Record<string, unknown>)[method];
+
       if (typeof methodFn !== 'function') {
         return false;
       }
 
       // Check method source for dangerous patterns
-      const methodSource = methodFn.toString();
+      const methodSource = (methodFn as { toString(): string }).toString();
       
       const dangerousPatterns = [
         /eval\s*\(/,

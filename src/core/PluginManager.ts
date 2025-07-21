@@ -338,7 +338,7 @@ export class PluginManager {
 
       // 重新安装插件，恢复配置
       if (newPlugin.onWorldCreate && this._world) {
-        newPlugin.onWorldCreate(this._world);
+        await newPlugin.onWorldCreate(this._world);
       }
 
       if (newPlugin.install) {

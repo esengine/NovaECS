@@ -117,12 +117,14 @@ export class PluginPerformanceAnalyzer {
       metrics.lastUpdate = Date.now();
 
       // Update samples
-      const samples = this._samples.get(pluginName)!;
-      samples.push(duration);
+      const samples = this._samples.get(pluginName);
+      if (samples) {
+        samples.push(duration);
 
-      // Keep only the most recent samples
-      if (samples.length > this._config.maxSamples) {
-        samples.shift();
+        // Keep only the most recent samples
+        if (samples.length > this._config.maxSamples) {
+          samples.shift();
+        }
       }
     }
 
