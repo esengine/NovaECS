@@ -7,6 +7,8 @@ import type {
   PluginRegistry
 } from '../utils/PluginTypes';
 import { PluginState, PluginPriority } from '../utils/PluginTypes';
+import { PluginPerformanceAnalyzer, PluginPerformanceConfig } from './PluginPerformanceAnalyzer';
+import { PluginSandbox, PluginSandboxConfig } from './PluginSandbox';
 
 /**
  * Plugin instance information
@@ -44,15 +46,33 @@ export class PluginManager {
   private readonly _world: World;
   private readonly _registry: PluginRegistry;
   private _updateOrder: string[] = [];
+  private _performanceAnalyzer: PluginPerformanceAnalyzer | undefined;
+  private _sandbox: PluginSandbox | undefined;
 
   /**
    * Create a new plugin manager
    * 创建新的插件管理器
    * @param world The world instance | 世界实例
+   * @param performanceConfig Performance analyzer configuration | 性能分析器配置
+   * @param sandboxConfig Sandbox configuration | 沙箱配置
    */
-  constructor(world: World) {
+  constructor(
+    world: World,
+    performanceConfig?: PluginPerformanceConfig,
+    sandboxConfig?: PluginSandboxConfig
+  ) {
     this._world = world;
     this._registry = new DefaultPluginRegistry();
+
+    // Initialize performance analyzer if config provided
+    if (performanceConfig) {
+      this._performanceAnalyzer = new PluginPerformanceAnalyzer(performanceConfig);
+    }
+
+    // Initialize sandbox if config provided
+    if (sandboxConfig) {
+      this._sandbox = new PluginSandbox(sandboxConfig);
+    }
   }
 
   /**
@@ -258,7 +278,21 @@ export class PluginManager {
       const instance = this._plugins.get(pluginName);
       if (instance?.state === PluginState.Installed && instance.plugin.update) {
         try {
-          await instance.plugin.update(deltaTime);
+          // Start performance measurement if analyzer is available
+          const stopMeasure = this._performanceAnalyzer?.startMeasure(pluginName);
+
+          // Execute plugin update in sandbox if available
+          if (this._sandbox) {
+            const result = await this._sandbox.execute(instance.plugin, 'update', deltaTime);
+            if (!result.success) {
+              throw new Error(result.error || 'Sandbox execution failed');
+            }
+          } else {
+            await instance.plugin.update(deltaTime);
+          }
+
+          // Stop performance measurement
+          stopMeasure?.();
         } catch (error) {
           console.error(`Error updating plugin ${pluginName}:`, error);
           instance.state = PluginState.Error;
@@ -266,6 +300,126 @@ export class PluginManager {
         }
       }
     }
+  }
+
+  /**
+   * Hot reload a plugin during development
+   * 开发期间热重载插件
+   * @param pluginName Name of the plugin to reload | 要重载的插件名称
+   * @param newPlugin New plugin instance | 新的插件实例
+   * @returns Success status | 成功状态
+   */
+  async hotReload(pluginName: string, newPlugin: ECSPlugin): Promise<boolean> {
+    try {
+      const oldInstance = this._plugins.get(pluginName);
+      if (!oldInstance) {
+        console.warn(`Plugin ${pluginName} not found for hot reload`);
+        return false;
+      }
+
+      // 保存当前状态
+      const oldConfig = oldInstance.plugin.getConfig?.() || {};
+      const oldState = oldInstance.state;
+
+      // 只有已安装的插件才能热重载
+      if (oldState !== PluginState.Installed) {
+        console.warn(`Plugin ${pluginName} is not installed, cannot hot reload`);
+        return false;
+      }
+
+      // 卸载旧插件但不移除依赖关系
+      if (oldInstance.plugin.uninstall) {
+        await oldInstance.plugin.uninstall(this._world);
+      }
+      oldInstance.state = PluginState.Uninstalled;
+
+      // 更新插件实例
+      oldInstance.plugin = newPlugin;
+
+      // 重新安装插件，恢复配置
+      if (newPlugin.onWorldCreate && this._world) {
+        newPlugin.onWorldCreate(this._world);
+      }
+
+      if (newPlugin.install) {
+        await newPlugin.install(this._world);
+      }
+      oldInstance.state = PluginState.Installed;
+
+      // 恢复配置
+      if (newPlugin.setConfig && Object.keys(oldConfig).length > 0) {
+        newPlugin.setConfig(oldConfig);
+      }
+
+      console.log(`Plugin ${pluginName} hot reloaded successfully`);
+      return true;
+    } catch (error) {
+      console.error(`Hot reload failed for ${pluginName}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Enable performance monitoring
+   * 启用性能监控
+   * @param config Performance analyzer configuration | 性能分析器配置
+   */
+  enablePerformanceMonitoring(config?: Partial<PluginPerformanceConfig>): void {
+    if (!this._performanceAnalyzer) {
+      this._performanceAnalyzer = new PluginPerformanceAnalyzer(config);
+    } else if (config) {
+      this._performanceAnalyzer.updateConfig(config);
+    }
+  }
+
+  /**
+   * Disable performance monitoring
+   * 禁用性能监控
+   */
+  disablePerformanceMonitoring(): void {
+    if (this._performanceAnalyzer) {
+      this._performanceAnalyzer.dispose();
+      this._performanceAnalyzer = undefined;
+    }
+  }
+
+  /**
+   * Get performance analyzer
+   * 获取性能分析器
+   * @returns Performance analyzer instance or undefined | 性能分析器实例或undefined
+   */
+  getPerformanceAnalyzer(): PluginPerformanceAnalyzer | undefined {
+    return this._performanceAnalyzer;
+  }
+
+  /**
+   * Enable sandbox mode
+   * 启用沙箱模式
+   * @param config Sandbox configuration | 沙箱配置
+   */
+  enableSandbox(config?: Partial<PluginSandboxConfig>): void {
+    if (!this._sandbox) {
+      this._sandbox = new PluginSandbox(config);
+    } else if (config) {
+      this._sandbox.updateConfig(config);
+    }
+  }
+
+  /**
+   * Disable sandbox mode
+   * 禁用沙箱模式
+   */
+  disableSandbox(): void {
+    this._sandbox = undefined;
+  }
+
+  /**
+   * Get sandbox instance
+   * 获取沙箱实例
+   * @returns Sandbox instance or undefined | 沙箱实例或undefined
+   */
+  getSandbox(): PluginSandbox | undefined {
+    return this._sandbox;
   }
 
   /**

@@ -319,4 +319,87 @@ describe('PluginManager', () => {
     registry.unregister('TestPlugin');
     expect(registry.has('TestPlugin')).toBe(false);
   });
+
+  describe('Hot Reload', () => {
+    test('should hot reload installed plugin', async () => {
+      const oldPlugin = new TestPlugin();
+      await pluginManager.install(oldPlugin);
+
+      expect(pluginManager.getState('TestPlugin')).toBe(PluginState.Installed);
+
+      // Create new plugin version
+      const newPlugin = new TestPlugin();
+      newPlugin.setConfig({ newFeature: true });
+
+      const result = await pluginManager.hotReload('TestPlugin', newPlugin);
+
+      expect(result).toBe(true);
+      expect(pluginManager.getState('TestPlugin')).toBe(PluginState.Installed);
+
+      // Verify it's the new plugin instance
+      const currentPlugin = pluginManager.get('TestPlugin');
+      expect(currentPlugin).toBe(newPlugin);
+    });
+
+    test('should fail to hot reload non-existent plugin', async () => {
+      const newPlugin = new TestPlugin();
+
+      const result = await pluginManager.hotReload('NonExistent', newPlugin);
+
+      expect(result).toBe(false);
+    });
+
+    test('should fail to hot reload uninstalled plugin', async () => {
+      const plugin = new TestPlugin();
+      await pluginManager.install(plugin);
+      await pluginManager.uninstall('TestPlugin');
+
+      const newPlugin = new TestPlugin();
+      const result = await pluginManager.hotReload('TestPlugin', newPlugin);
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('Performance Monitoring', () => {
+    test('should enable performance monitoring', () => {
+      pluginManager.enablePerformanceMonitoring({
+        enabled: true,
+        warningThreshold: 10
+      });
+
+      const analyzer = pluginManager.getPerformanceAnalyzer();
+      expect(analyzer).toBeDefined();
+      expect(analyzer!.getConfig().warningThreshold).toBe(10);
+    });
+
+    test('should disable performance monitoring', () => {
+      pluginManager.enablePerformanceMonitoring();
+      expect(pluginManager.getPerformanceAnalyzer()).toBeDefined();
+
+      pluginManager.disablePerformanceMonitoring();
+      expect(pluginManager.getPerformanceAnalyzer()).toBeUndefined();
+    });
+  });
+
+  describe('Sandbox Mode', () => {
+    test('should enable sandbox mode', () => {
+      pluginManager.enableSandbox({
+        allowEval: false,
+        executionTimeout: 1000
+      });
+
+      const sandbox = pluginManager.getSandbox();
+      expect(sandbox).toBeDefined();
+      expect(sandbox!.getConfig().executionTimeout).toBe(1000);
+    });
+
+    test('should disable sandbox mode', () => {
+      pluginManager.enableSandbox();
+      expect(pluginManager.getSandbox()).toBeDefined();
+
+      pluginManager.disableSandbox();
+      expect(pluginManager.getSandbox()).toBeUndefined();
+    });
+  });
 });

@@ -77,6 +77,8 @@ export {
 // Plugin System
 export { PluginManager } from './core/PluginManager';
 export { BasePlugin } from './core/BasePlugin';
+export { PluginPerformanceAnalyzer } from './core/PluginPerformanceAnalyzer';
+export { PluginSandbox } from './core/PluginSandbox';
 export { PluginUtils, PluginDecorators } from './utils/PluginUtils';
 export type {
   ECSPlugin,
@@ -88,6 +90,14 @@ export type {
   PluginManagerEvents,
   PluginRegistry
 } from './utils/PluginTypes';
+export type {
+  PluginPerformanceMetrics,
+  PluginPerformanceConfig
+} from './core/PluginPerformanceAnalyzer';
+export type {
+  PluginSandboxConfig,
+  SandboxExecutionResult
+} from './core/PluginSandbox';
 export {
   PluginLifecyclePhase,
   PluginPriority,
