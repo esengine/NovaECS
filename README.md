@@ -29,6 +29,8 @@ Next-generation Entity Component System (ECS) game framework built with TypeScri
   **事件系统**: 类型安全的事件总线，支持优先级和延迟处理
 - 🔌 **Plugin System**: Extensible plugin architecture with dependency management and lifecycle hooks
   **插件系统**: 可扩展的插件架构，支持依赖管理和生命周期钩子
+- ⚛️ **Physics Integration**: Modular physics system with Box2D support for deterministic 2D physics simulation
+  **物理集成**: 模块化物理系统，支持Box2D确定性2D物理模拟
 
 ## Installation | 安装
 
@@ -101,6 +103,17 @@ setInterval(() => gameLoop(16), 16);
 For deterministic fixed-point mathematics (recommended for multiplayer games), see [@esengine/nova-ecs-math](https://github.com/esengine/nova-ecs-math).
 
 对于确定性定点数学运算（推荐用于多人游戏），请参考 [@esengine/nova-ecs-math](https://github.com/esengine/nova-ecs-math)。
+
+### Physics Libraries | 物理库
+
+NovaECS provides a modular physics system with pluggable physics engines:
+
+NovaECS 提供了模块化的物理系统，支持可插拔的物理引擎：
+
+- **[@esengine/nova-ecs-physics-core](./thirdparty/nova-ecs-physics-core)** - Physics engine abstraction layer
+  **物理引擎抽象层** - 提供统一的物理接口和组件
+- **[@esengine/nova-ecs-physics-box2d](./thirdparty/nova-ecs-physics-box2d)** - Box2D physics engine implementation
+  **Box2D物理引擎实现** - 基于Box2D WASM的高性能2D物理模拟
 
 ## Event System | 事件系统
 

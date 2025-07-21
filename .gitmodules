@@ -1,3 +1,9 @@
 [submodule "thirdparty/nova-ecs-math"]
 	path = thirdparty/nova-ecs-math
 	url = https://github.com/esengine/nova-ecs-math.git
+[submodule "thirdparty/nova-ecs-physics-core"]
+	path = thirdparty/nova-ecs-physics-core
+	url = https://github.com/esengine/nnova-ecs-physics-core.git
+[submodule "thirdparty/nova-ecs-physics-box2d"]
+	path = thirdparty/nova-ecs-physics-box2d
+	url = https://github.com/esengine/nova-ecs-physics-box2d.git
