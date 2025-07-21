@@ -110,9 +110,9 @@ NovaECS provides a modular physics system with pluggable physics engines:
 
 NovaECS 提供了模块化的物理系统，支持可插拔的物理引擎：
 
-- **[@esengine/nova-ecs-physics-core](./thirdparty/nova-ecs-physics-core)** - Physics engine abstraction layer
+- **[@esengine/nova-ecs-physics-core](https://github.com/esengine/nova-ecs-physics-core)** - Physics engine abstraction layer
   **物理引擎抽象层** - 提供统一的物理接口和组件
-- **[@esengine/nova-ecs-physics-box2d](./thirdparty/nova-ecs-physics-box2d)** - Box2D physics engine implementation
+- **[@esengine/nova-ecs-physics-box2d](https://github.com/esengine/nova-ecs-physics-box2d)** - Box2D physics engine implementation
   **Box2D物理引擎实现** - 基于Box2D WASM的高性能2D物理模拟
 
 ## Event System | 事件系统
