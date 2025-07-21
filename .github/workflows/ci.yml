@@ -70,4 +70,4 @@ jobs:
         test -f dist/nova-ecs.esm.js
         test -f dist/nova-ecs.umd.js
         test -f dist/nova-ecs.cjs.js
-        test -f dist/index.d.ts
+        test -f dist/nova-ecs.d.ts
