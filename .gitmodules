@@ -7,3 +7,9 @@
 [submodule "thirdparty/nova-ecs-physics-box2d"]
 	path = thirdparty/nova-ecs-physics-box2d
 	url = https://github.com/esengine/nova-ecs-physics-box2d.git
+[submodule "thirdparty/nova-ecs-render-canvas"]
+	path = thirdparty/nova-ecs-render-canvas
+	url = https://github.com/esengine/nova-ecs-render-canvas.git
+[submodule "thirdparty/nova-ecs-render-core"]
+	path = thirdparty/nova-ecs-render-core
+	url = https://github.com/esengine/nova-ecs-render-core.git

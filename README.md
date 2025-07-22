@@ -104,6 +104,17 @@ For deterministic fixed-point mathematics (recommended for multiplayer games), s
 
 对于确定性定点数学运算（推荐用于多人游戏），请参考 [@esengine/nova-ecs-math](https://github.com/esengine/nova-ecs-math)。
 
+### Rendering Libraries | 渲染库
+
+NovaECS provides a modular rendering system with support for multiple rendering backends:
+
+NovaECS 提供了模块化的渲染系统，支持多种渲染后端：
+
+- **[@esengine/nova-ecs-render-core](https://github.com/esengine/nova-ecs-render-core)** - Rendering engine abstraction layer
+  **渲染引擎抽象层** - 提供统一的渲染接口和组件系统
+- **[@esengine/nova-ecs-render-canvas](https://github.com/esengine/nova-ecs-render-canvas)** - HTML5 Canvas 2D renderer implementation
+  **HTML5 Canvas 2D渲染器实现** - 基于Canvas 2D API的高性能2D渲染器
+
 ### Physics Libraries | 物理库
 
 NovaECS provides a modular physics system with pluggable physics engines:
