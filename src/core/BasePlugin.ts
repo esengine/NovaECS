@@ -115,7 +115,6 @@ export abstract class BasePlugin implements ECSPlugin {
    */
   onWorldCreate?(world: World): void | Promise<void> {
     this._world = world;
-    this.log('World created');
   }
 
   /**
