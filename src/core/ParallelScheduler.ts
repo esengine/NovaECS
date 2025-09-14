@@ -1,4 +1,5 @@
 import type { System } from './System';
+import type { ComponentType } from '../utils/Types';
 import { AccessType } from '../utils/AccessType';
 
 /**
@@ -158,8 +159,8 @@ export class ParallelScheduler {
    * Get system component access map
    * 获取系统组件访问映射
    */
-  private getSystemComponentAccess(system: System): Map<new (...args: unknown[]) => unknown, AccessType> {
-    const accessMap = new Map<new (...args: unknown[]) => unknown, AccessType>();
+  private getSystemComponentAccess(system: System): Map<ComponentType, AccessType> {
+    const accessMap = new Map<ComponentType, AccessType>();
 
     // Use explicit component access if defined
     if (system.componentAccess && system.componentAccess.length > 0) {

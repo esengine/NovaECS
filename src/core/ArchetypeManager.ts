@@ -1,6 +1,6 @@
 import { Archetype } from './Archetype';
 import type { Component } from './Component';
-import type { ComponentType, ComponentTypeId, EntityId } from '../utils/Types';
+import type { ComponentType, EntityId } from '../utils/Types';
 import type { ArchetypeId, QuerySignature } from '../utils/ArchetypeTypes';
 
 /**
@@ -91,10 +91,21 @@ export class ArchetypeManager {
       return undefined;
     }
 
-    const components = record.archetype.removeEntity(entityId);
+    const result = record.archetype.removeEntity(entityId);
+    if (!result) {
+      return undefined;
+    }
+
+    // Update swapped entity index if swap-remove occurred
+    if (result.swappedEntity) {
+      const swappedRecord = this._entityToArchetype.get(result.swappedEntity.entityId);
+      if (swappedRecord) {
+        swappedRecord.index = result.swappedEntity.newIndex;
+      }
+    }
+
     this._entityToArchetype.delete(entityId);
-    
-    return components;
+    return result.components;
   }
 
   /**

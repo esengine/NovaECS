@@ -444,4 +444,31 @@ describe('ArchetypeManager', () => {
     const newStats = manager.getStatistics();
     expect(newStats.totalEntities).toBe(entityCount / 2);
   });
+
+  test('should maintain consistent indices after swap-remove operations', () => {
+    // Add 3 entities to same archetype
+    manager.addEntity(1, new Map<ComponentType, Component>([[TestComponentType, new TestComponent(1)]]));
+    manager.addEntity(2, new Map<ComponentType, Component>([[TestComponentType, new TestComponent(2)]]));
+    manager.addEntity(3, new Map<ComponentType, Component>([[TestComponentType, new TestComponent(3)]]));
+
+    // Verify initial state
+    expect(manager.getEntityComponent(1, TestComponentType)?.value).toBe(1);
+    expect(manager.getEntityComponent(2, TestComponentType)?.value).toBe(2);
+    expect(manager.getEntityComponent(3, TestComponentType)?.value).toBe(3);
+
+    // Remove middle entity (entity 2) - this should trigger swap-remove
+    const removedComponents = manager.removeEntity(2);
+    expect(removedComponents?.get(TestComponentType)?.value).toBe(2);
+
+    // After swap-remove, entity 3 should be moved to position 1
+    // and we should still be able to access it correctly
+    expect(manager.getEntityComponent(1, TestComponentType)?.value).toBe(1);
+    expect(manager.getEntityComponent(3, TestComponentType)?.value).toBe(3);
+    expect(manager.getEntityComponent(2, TestComponentType)).toBeUndefined();
+
+    // Verify archetype state
+    const archetype = manager.getEntityArchetype(1);
+    expect(archetype?.entityIds).toEqual([1, 3]);
+    expect(archetype?.entityCount).toBe(2);
+  });
 });

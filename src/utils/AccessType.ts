@@ -11,13 +11,15 @@ export enum AccessType {
   ReadWrite = 'readwrite'
 }
 
+import type { ComponentType } from './Types';
+
 /**
  * Component access descriptor
  * 组件访问描述符
  */
 export interface ComponentAccess {
   /** Component type 组件类型 */
-  componentType: new (...args: unknown[]) => unknown;
+  componentType: ComponentType;
   /** Access type 访问类型 */
   accessType: AccessType;
 }

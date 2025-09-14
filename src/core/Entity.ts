@@ -1,5 +1,5 @@
 import type { Component } from './Component';
-import type { ComponentConstructor, ComponentType, ComponentTypeId, EntityId } from '../utils/Types';
+import type { ComponentConstructor, ComponentType, EntityId } from '../utils/Types';
 import { getComponentType } from './ComponentRegistry';
 
 /**

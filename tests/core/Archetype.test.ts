@@ -136,18 +136,18 @@ describe('Archetype', () => {
     archetype.addEntity(entityId, components);
     expect(archetype.entityCount).toBe(1);
 
-    const removedComponents = archetype.removeEntity(entityId);
+    const result = archetype.removeEntity(entityId);
 
     expect(archetype.entityCount).toBe(0);
     expect(archetype.entityIds).toEqual([]);
-    expect(removedComponents).toBeDefined();
-    expect(removedComponents!.get(TestComponentType)).toBe(testComponent);
-    expect(removedComponents!.get(AnotherComponentType)).toBe(anotherComponent);
+    expect(result).toBeDefined();
+    expect(result!.components.get(TestComponentType)).toBe(testComponent);
+    expect(result!.components.get(AnotherComponentType)).toBe(anotherComponent);
   });
 
   test('should handle removing non-existent entity', () => {
-    const removedComponents = archetype.removeEntity(999);
-    expect(removedComponents).toBeUndefined();
+    const result = archetype.removeEntity(999);
+    expect(result).toBeUndefined();
   });
 
   test('should handle swap-remove correctly', () => {
@@ -295,9 +295,53 @@ describe('Archetype', () => {
 
   test('should handle archetype with single component', () => {
     const singleArchetype = new Archetype([TestComponent]);
-    
+
     expect(singleArchetype.componentTypes.size).toBe(1);
     expect(singleArchetype.hasComponent(TestComponent)).toBe(true);
     expect(singleArchetype.hasComponent(AnotherComponent)).toBe(false);
+  });
+
+  test('should return swapped entity info when swap-remove occurs', () => {
+    // Add 3 entities
+    const components1 = new Map<ComponentType, Component>([[TestComponentType, new TestComponent(1)]]);
+    const components2 = new Map<ComponentType, Component>([[TestComponentType, new TestComponent(2)]]);
+    const components3 = new Map<ComponentType, Component>([[TestComponentType, new TestComponent(3)]]);
+
+    archetype.addEntity(1, components1);
+    archetype.addEntity(2, components2);
+    archetype.addEntity(3, components3);
+
+    expect(archetype.entityIds).toEqual([1, 2, 3]);
+
+    // Remove middle entity (should cause swap with last entity)
+    const result = archetype.removeEntity(2);
+
+    expect(result).toBeDefined();
+    expect(result!.components.get(TestComponentType)).toBeInstanceOf(TestComponent);
+    expect((result!.components.get(TestComponentType) as TestComponent).value).toBe(2);
+
+    // Should return swapped entity info
+    expect(result!.swappedEntity).toBeDefined();
+    expect(result!.swappedEntity!.entityId).toBe(3);
+    expect(result!.swappedEntity!.newIndex).toBe(1);
+
+    // Entity 3 should now be at index 1
+    expect(archetype.entityIds).toEqual([1, 3]);
+  });
+
+  test('should not return swapped entity info when removing last entity', () => {
+    // Add 2 entities
+    const components1 = new Map<ComponentType, Component>([[TestComponentType, new TestComponent(1)]]);
+    const components2 = new Map<ComponentType, Component>([[TestComponentType, new TestComponent(2)]]);
+
+    archetype.addEntity(1, components1);
+    archetype.addEntity(2, components2);
+
+    // Remove last entity (no swap needed)
+    const result = archetype.removeEntity(2);
+
+    expect(result).toBeDefined();
+    expect(result!.swappedEntity).toBeUndefined();
+    expect(archetype.entityIds).toEqual([1]);
   });
 });

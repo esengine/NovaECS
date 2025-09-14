@@ -133,7 +133,10 @@ export class Archetype {
    * Remove entity from archetype
    * 从原型移除实体
    */
-  removeEntity(entityId: EntityId): Map<ComponentType, Component> | undefined {
+  removeEntity(entityId: EntityId): {
+    components: Map<ComponentType, Component>;
+    swappedEntity?: { entityId: EntityId; newIndex: number }
+  } | undefined {
     const entityIndex = this._entityIndexMap.get(entityId);
     if (entityIndex === undefined) {
       return undefined;
@@ -151,12 +154,16 @@ export class Archetype {
 
     // Remove from all storages using swap-remove for O(1) performance
     const lastIndex = this._entityCount - 1;
-    
+    let swappedEntity: { entityId: EntityId; newIndex: number } | undefined;
+
     if (entityIndex !== lastIndex) {
       // Swap with last entity
       const lastEntity = this._entities[lastIndex];
       this._entities[entityIndex] = lastEntity;
       this._entityIndexMap.set(lastEntity.entityId, entityIndex);
+
+      // Record swapped entity info for ArchetypeManager to update
+      swappedEntity = { entityId: lastEntity.entityId, newIndex: entityIndex };
 
       // Swap components
       for (const storage of this._componentStorages.values()) {
@@ -167,13 +174,18 @@ export class Archetype {
     // Remove last elements
     this._entities.pop();
     this._entityIndexMap.delete(entityId);
-    
+
     for (const storage of this._componentStorages.values()) {
       storage.components.pop();
     }
 
     this._entityCount--;
-    return components;
+
+    if (swappedEntity) {
+      return { components, swappedEntity };
+    } else {
+      return { components };
+    }
   }
 
   /**
