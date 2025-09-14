@@ -26,7 +26,7 @@ export {
   typeFromId,
   __resetRegistry
 } from './core/ComponentRegistry';
-export type { ComponentCtor, ComponentType } from './core/ComponentRegistry';
+export type { ComponentType } from './core/ComponentRegistry';
 
 // Storage System
 export { SparseSetStore } from './core/SparseSetStore';

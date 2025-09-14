@@ -10,7 +10,7 @@
 
 // Re-export entity types and functions from Types
 // 从Types重新导出实体类型和函数
-export type { Entity, EntityId } from '../utils/Types';
+export type { Entity } from '../utils/Types';
 export { makeEntity, indexOf, genOf, isValidEntity } from '../utils/Types';
 
 // Entity constants
