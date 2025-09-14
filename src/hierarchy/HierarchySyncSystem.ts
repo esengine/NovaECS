@@ -42,20 +42,40 @@ export const HierarchySyncSystem = system('HierarchySync', (ctx) => {
     if (Ctor !== Parent) return;
     const p = (ev.value as Parent).value;
 
-    // 无父或父死亡 → 绑定到根(0)
-    if (!p || !world.isAlive(p)) {
-      idx.link(ev.e, 0);
-      return;
-    }
-    // 防循环
-    if (idx.wouldCreateCycle(ev.e, p)) {
-      // 直接拒绝并回退为根；也可以选择抛错
+    // 边界情况1：自指 - 实体不能成为自己的父级
+    if (p === ev.e) {
+      console.warn(`[HierarchySync] Entity ${ev.e} attempted to parent itself, setting to root`);
       const cmd = world.cmd();
       cmd.add(ev.e, Parent, { value: 0 });
       world.flush(cmd);
       idx.link(ev.e, 0);
       return;
     }
+
+    // 边界情况2：无父或父死亡 → 绑定到根(0)
+    if (!p || p === 0 || !world.isAlive(p)) {
+      if (p && p !== 0 && !world.isAlive(p)) {
+        console.warn(`[HierarchySync] Entity ${ev.e} parent ${p} is not alive, setting to root`);
+      }
+      idx.link(ev.e, 0);
+      return;
+    }
+
+    // 边界情况：跨World检测（未来扩展）
+    // TODO: 如果支持多World，在此处添加parent属于同一World的断言
+    // if (parent.worldId !== ev.e.worldId) throw new Error('Cross-world parenting not supported');
+
+    // 边界情况3：防循环
+    if (idx.wouldCreateCycle(ev.e, p)) {
+      console.warn(`[HierarchySync] Entity ${ev.e} parent ${p} would create cycle, setting to root`);
+      const cmd = world.cmd();
+      cmd.add(ev.e, Parent, { value: 0 });
+      world.flush(cmd);
+      idx.link(ev.e, 0);
+      return;
+    }
+
+    // 正常情况：建立父子关系
     idx.link(ev.e, p);
   });
 
@@ -82,7 +102,10 @@ export const HierarchySyncSystem = system('HierarchySync', (ctx) => {
 
   if (toDetach.length || toDestroy.length) {
     const cmd = world.cmd();
-    for (const { child } of toDetach) cmd.add(child, Parent, { value: 0 });
+    for (const { child } of toDetach) {
+      cmd.add(child, Parent, { value: 0 });
+      idx.link(child, 0); // 立即更新索引
+    }
     for (const c of toDestroy) cmd.destroy(c);
     world.flush(cmd);
   }

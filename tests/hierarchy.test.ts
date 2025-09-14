@@ -305,5 +305,86 @@ describe('Hierarchy System', () => {
       expect((index as ChildrenIndex).size()).toBe(0);
       expect(policy.onParentDestroyed).toBe('detachToRoot');
     });
+
+    test('should handle self-parenting edge case', () => {
+      const entity = world.createEntity();
+      world.addComponent(entity, LocalTransform, { x: 0, y: 0 });
+
+      // Attempt self-parenting - should be rejected and set to root
+      world.addComponent(entity, Parent, { value: entity });
+
+      // Run the system
+      const ctx = { world };
+      HierarchySyncSystem.fn(ctx);
+
+      const index = world.getResource(ChildrenIndex as any) as ChildrenIndex;
+      expect(index.parentOfEntity(entity)).toBe(0); // Should be root
+      expect(index.childrenOf(entity)).toHaveLength(0); // Should have no children
+    });
+
+    test('should handle invalid parent entity', () => {
+      const child = world.createEntity();
+      const invalidParent = 999; // Non-existent entity
+
+      world.addComponent(child, LocalTransform, { x: 0, y: 0 });
+      world.addComponent(child, Parent, { value: invalidParent });
+
+      // Run the system
+      const ctx = { world };
+      HierarchySyncSystem.fn(ctx);
+
+      const index = world.getResource(ChildrenIndex as any) as ChildrenIndex;
+      expect(index.parentOfEntity(child)).toBe(0); // Should be root
+    });
+
+    test('should handle dead parent entity', () => {
+      const parent = world.createEntity();
+      const child = world.createEntity();
+
+      world.addComponent(parent, LocalTransform, { x: 0, y: 0 });
+      world.addComponent(child, LocalTransform, { x: 0, y: 0 });
+      world.addComponent(child, Parent, { value: parent });
+
+      // First run - establish relationship
+      const ctx = { world };
+      HierarchySyncSystem.fn(ctx);
+
+      let index = world.getResource(ChildrenIndex as any) as ChildrenIndex;
+      expect(index.parentOfEntity(child)).toBe(parent);
+
+      // Kill the parent
+      world.destroyEntity(parent);
+
+      // Second run - should detect dead parent and set child to root
+      HierarchySyncSystem.fn(ctx);
+
+      index = world.getResource(ChildrenIndex as any) as ChildrenIndex;
+      expect(index.parentOfEntity(child)).toBe(0); // Should be root
+    });
+
+    test('should prevent cycle creation', () => {
+      const grandParent = world.createEntity();
+      const parent = world.createEntity();
+      const child = world.createEntity();
+
+      world.addComponent(grandParent, LocalTransform, { x: 0, y: 0 });
+      world.addComponent(parent, LocalTransform, { x: 0, y: 0 });
+      world.addComponent(child, LocalTransform, { x: 0, y: 0 });
+
+      // Establish grandParent -> parent -> child
+      world.addComponent(parent, Parent, { value: grandParent });
+      world.addComponent(child, Parent, { value: parent });
+
+      const ctx = { world };
+      HierarchySyncSystem.fn(ctx);
+
+      // Now try to make grandParent a child of child (would create cycle)
+      world.addComponent(grandParent, Parent, { value: child });
+
+      HierarchySyncSystem.fn(ctx);
+
+      const index = world.getResource(ChildrenIndex as any) as ChildrenIndex;
+      expect(index.parentOfEntity(grandParent)).toBe(0); // Should be root, not child
+    });
   });
 });
