@@ -12,6 +12,12 @@ import type { Component } from '../core/Component';
 export type EntityId = number;
 
 /**
+ * Component type identifier
+ * 组件类型标识符
+ */
+export type ComponentTypeId = number;
+
+/**
  * Component constructor type
  * 组件构造函数类型
  */
@@ -19,10 +25,17 @@ export type EntityId = number;
 export type ComponentConstructor<T extends Component = Component> = new (...args: any[]) => T;
 
 /**
- * Component class type
- * 组件类类型
+ * Component type definition with stable type ID
+ * 包含稳定类型ID的组件类型定义
  */
-export type ComponentType<T extends Component = Component> = ComponentConstructor<T>;
+export interface ComponentType<T extends Component = Component> {
+  /** Stable numeric type identifier 稳定的数字类型标识符 */
+  readonly typeId: ComponentTypeId;
+  /** Component constructor 组件构造函数 */
+  readonly ctor: ComponentConstructor<T>;
+  /** Component type name (for debugging) 组件类型名称（用于调试） */
+  readonly name: string;
+}
 
 /**
  * Query filter function type

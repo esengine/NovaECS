@@ -8,6 +8,7 @@
 export { Entity } from './core/Entity';
 export { Component } from './core/Component';
 export { System } from './core/System';
+export { ComponentRegistry, RegisterComponent, registerComponent, getComponentType } from './core/ComponentRegistry';
 export { World } from './core/World';
 export { ParallelScheduler } from './core/ParallelScheduler';
 export { Archetype } from './core/Archetype';
@@ -35,6 +36,7 @@ export { EventScheduler } from './core/EventScheduler';
 export { ComponentPool, ComponentPoolManager } from './core/ComponentPool';
 
 export * from './utils/Types';
+export type { ComponentTypeId } from './utils/Types';
 export * from './utils/AccessType';
 export * from './utils/ArchetypeTypes';
 export * from './utils/EventTypes';

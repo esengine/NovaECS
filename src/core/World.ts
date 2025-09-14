@@ -1,7 +1,7 @@
 import { Entity, type IWorldForEntity } from './Entity';
 import type { System } from './System';
 import type { Component } from './Component';
-import type { ComponentType, EntityId, QueryFilter } from '../utils/Types';
+import type { ComponentType, ComponentTypeId, EntityId, QueryFilter } from '../utils/Types';
 import { ArchetypeManager } from './ArchetypeManager';
 import { ParallelScheduler, type ExecutionGroup } from './ParallelScheduler';
 import { EventBus } from './EventBus';

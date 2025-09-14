@@ -1,6 +1,6 @@
 import { Archetype } from './Archetype';
 import type { Component } from './Component';
-import type { ComponentType, EntityId } from '../utils/Types';
+import type { ComponentType, ComponentTypeId, EntityId } from '../utils/Types';
 import type { ArchetypeId, QuerySignature } from '../utils/ArchetypeTypes';
 
 /**

@@ -1,5 +1,6 @@
 import type { Component } from './Component';
-import type { ComponentConstructor, ComponentType, EntityId } from '../utils/Types';
+import type { ComponentConstructor, ComponentType, ComponentTypeId, EntityId } from '../utils/Types';
+import { getComponentType } from './ComponentRegistry';
 
 /**
  * Interface for World methods that Entity needs
@@ -80,18 +81,33 @@ export class Entity {
   }
 
   /**
-   * Add component to entity
-   * 向实体添加组件
+   * Add component to entity (by instance)
+   * 向实体添加组件（通过实例）
    */
   addComponent<T extends Component>(component: T): this {
     const constructor = component.constructor as ComponentConstructor<T>;
-    this._world.addComponentToEntity(this._id, constructor, component);
+    const componentType = getComponentType(constructor);
+    this._world.addComponentToEntity(this._id, componentType, component);
     return this;
   }
 
   /**
-   * Remove component from entity
-   * 从实体移除组件
+   * Add component to entity (by type and data)
+   * 向实体添加组件（通过类型和数据）
+   */
+  addComponentByType<T extends Component>(
+    componentType: ComponentType<T>,
+    data: Partial<T> = {}
+  ): this {
+    const component = new componentType.ctor() as T;
+    Object.assign(component, data);
+    this._world.addComponentToEntity(this._id, componentType, component);
+    return this;
+  }
+
+  /**
+   * Remove component from entity (by type)
+   * 从实体移除组件（通过类型）
    * @param componentType The component type to remove 要移除的组件类型
    * @returns This entity instance for method chaining 实体实例，用于方法链式调用
    */
@@ -101,8 +117,20 @@ export class Entity {
   }
 
   /**
-   * Get component from entity
-   * 从实体获取组件
+   * Remove component from entity (by constructor)
+   * 从实体移除组件（通过构造函数）
+   * @param constructor The component constructor to remove 要移除的组件构造函数
+   * @returns This entity instance for method chaining 实体实例，用于方法链式调用
+   */
+  removeComponentByConstructor<T extends Component>(constructor: ComponentConstructor<T>): this {
+    const componentType = getComponentType(constructor);
+    this._world.removeComponentFromEntity(this._id, componentType);
+    return this;
+  }
+
+  /**
+   * Get component from entity (by type)
+   * 从实体获取组件（通过类型）
    * @param componentType The component type to retrieve 要获取的组件类型
    * @returns The component instance if found, undefined otherwise 如果找到则返回组件实例，否则返回undefined
    */
@@ -111,12 +139,34 @@ export class Entity {
   }
 
   /**
-   * Check if entity has component
-   * 检查实体是否拥有组件
+   * Get component from entity (by constructor)
+   * 从实体获取组件（通过构造函数）
+   * @param constructor The component constructor to retrieve 要获取的组件构造函数
+   * @returns The component instance if found, undefined otherwise 如果找到则返回组件实例，否则返回undefined
+   */
+  getComponentByConstructor<T extends Component>(constructor: ComponentConstructor<T>): T | undefined {
+    const componentType = getComponentType(constructor);
+    return this._world.getEntityComponent(this._id, componentType);
+  }
+
+  /**
+   * Check if entity has component (by type)
+   * 检查实体是否拥有组件（通过类型）
    * @param componentType The component type to check for 要检查的组件类型
    * @returns True if entity has the component 如果实体拥有该组件则返回true
    */
   hasComponent<T extends Component>(componentType: ComponentType<T>): boolean {
+    return this._world.entityHasComponent(this._id, componentType);
+  }
+
+  /**
+   * Check if entity has component (by constructor)
+   * 检查实体是否拥有组件（通过构造函数）
+   * @param constructor The component constructor to check for 要检查的组件构造函数
+   * @returns True if entity has the component 如果实体拥有该组件则返回true
+   */
+  hasComponentByConstructor<T extends Component>(constructor: ComponentConstructor<T>): boolean {
+    const componentType = getComponentType(constructor);
     return this._world.entityHasComponent(this._id, componentType);
   }
 
