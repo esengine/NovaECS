@@ -1,11 +1,10 @@
 import type { Component } from './Component';
 import type { ComponentType, EntityId } from '../utils/Types';
-import type { 
-  ArchetypeId, 
-  ComponentStorage, 
-  EntityRecord, 
+import type {
+  ArchetypeId,
+  ComponentStorage,
   ArchetypeEdge,
-  QuerySignature 
+  QuerySignature
 } from '../utils/ArchetypeTypes';
 
 /**
@@ -21,7 +20,7 @@ export class Archetype {
   private readonly _id: ArchetypeId;
   private readonly _componentTypes: Set<ComponentType>;
   private readonly _componentStorages = new Map<ComponentType, ComponentStorage>();
-  private readonly _entities: EntityRecord[] = [];
+  private readonly _entityIds: EntityId[] = [];
   private readonly _entityIndexMap = new Map<EntityId, number>();
   private readonly _edges = new Map<ComponentType, ArchetypeEdge>();
   private _entityCount = 0;
@@ -69,7 +68,7 @@ export class Archetype {
    * 获取此原型中的所有实体ID
    */
   get entityIds(): EntityId[] {
-    return this._entities.map(record => record.entityId);
+    return [...this._entityIds];
   }
 
   /**
@@ -112,9 +111,9 @@ export class Archetype {
    */
   addEntity(entityId: EntityId, components: Map<ComponentType, Component>): number {
     const archetypeIndex = this._entityCount;
-    
-    // Add entity record
-    this._entities.push({ entityId, archetypeIndex });
+
+    // Add entity ID
+    this._entityIds.push(entityId);
     this._entityIndexMap.set(entityId, archetypeIndex);
 
     // Add components to storages
@@ -158,12 +157,12 @@ export class Archetype {
 
     if (entityIndex !== lastIndex) {
       // Swap with last entity
-      const lastEntity = this._entities[lastIndex];
-      this._entities[entityIndex] = lastEntity;
-      this._entityIndexMap.set(lastEntity.entityId, entityIndex);
+      const lastEntityId = this._entityIds[lastIndex];
+      this._entityIds[entityIndex] = lastEntityId;
+      this._entityIndexMap.set(lastEntityId, entityIndex);
 
       // Record swapped entity info for ArchetypeManager to update
-      swappedEntity = { entityId: lastEntity.entityId, newIndex: entityIndex };
+      swappedEntity = { entityId: lastEntityId, newIndex: entityIndex };
 
       // Swap components
       for (const storage of this._componentStorages.values()) {
@@ -172,7 +171,7 @@ export class Archetype {
     }
 
     // Remove last elements
-    this._entities.pop();
+    this._entityIds.pop();
     this._entityIndexMap.delete(entityId);
 
     for (const storage of this._componentStorages.values()) {
@@ -241,7 +240,7 @@ export class Archetype {
    */
   forEach(callback: (entityId: EntityId, index: number, components: Map<ComponentType, Component>) => void): void {
     for (let i = 0; i < this._entityCount; i++) {
-      const entityId = this._entities[i].entityId;
+      const entityId = this._entityIds[i];
       const components = this.getComponentsAtIndex(i);
       callback(entityId, i, components);
     }
