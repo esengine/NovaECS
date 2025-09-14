@@ -314,18 +314,86 @@ describe('Archetype', () => {
   });
 
   test('should handle archetype edges', () => {
+    const typeId = ThirdComponentType.typeId;
     archetype.addEdge(ThirdComponentType, 'target-archetype-id', true);
 
-    const edge = archetype.getEdge(ThirdComponentType);
-    expect(edge).toBeDefined();
-    expect(edge!.targetArchetypeId).toBe('target-archetype-id');
-    expect(edge!.componentType).toBe(ThirdComponentType);
-    expect(edge!.isAddition).toBe(true);
+    expect(archetype.getAddEdge(typeId)).toBe('target-archetype-id');
+    expect(archetype.getRemoveEdge(typeId)).toBeUndefined();
   });
 
   test('should return undefined for non-existent edge', () => {
-    const edge = archetype.getEdge(ThirdComponentType);
-    expect(edge).toBeUndefined();
+    const typeId = ThirdComponentType.typeId;
+    expect(archetype.getAddEdge(typeId)).toBeUndefined();
+    expect(archetype.getRemoveEdge(typeId)).toBeUndefined();
+  });
+
+  test('should handle edge pairs for same component type', () => {
+    const typeId = ThirdComponentType.typeId;
+
+    // Add both add and remove edges for the same component type
+    archetype.addEdge(ThirdComponentType, 'add-target-id', true);
+    archetype.addEdge(ThirdComponentType, 'remove-target-id', false);
+
+    // Test edge pair access
+    const edgePair = archetype.getEdgePair(typeId);
+    expect(edgePair).toBeDefined();
+    expect(edgePair!.add).toBe('add-target-id');
+    expect(edgePair!.remove).toBe('remove-target-id');
+
+    // Test individual edge access
+    expect(archetype.getAddEdge(typeId)).toBe('add-target-id');
+    expect(archetype.getRemoveEdge(typeId)).toBe('remove-target-id');
+
+  });
+
+  test('should overwrite edges of same type correctly', () => {
+    const typeId = ThirdComponentType.typeId;
+
+    // Add initial edges
+    archetype.addEdge(ThirdComponentType, 'initial-add', true);
+    archetype.addEdge(ThirdComponentType, 'initial-remove', false);
+
+    // Verify initial state
+    expect(archetype.getAddEdge(typeId)).toBe('initial-add');
+    expect(archetype.getRemoveEdge(typeId)).toBe('initial-remove');
+
+    // Overwrite add edge
+    archetype.addEdge(ThirdComponentType, 'new-add', true);
+    expect(archetype.getAddEdge(typeId)).toBe('new-add');
+    expect(archetype.getRemoveEdge(typeId)).toBe('initial-remove'); // Should remain unchanged
+
+    // Overwrite remove edge
+    archetype.addEdge(ThirdComponentType, 'new-remove', false);
+    expect(archetype.getAddEdge(typeId)).toBe('new-add'); // Should remain unchanged
+    expect(archetype.getRemoveEdge(typeId)).toBe('new-remove');
+  });
+
+  test('should return undefined for non-existent edge pairs', () => {
+    const typeId = ThirdComponentType.typeId;
+
+    expect(archetype.getEdgePair(typeId)).toBeUndefined();
+    expect(archetype.getAddEdge(typeId)).toBeUndefined();
+    expect(archetype.getRemoveEdge(typeId)).toBeUndefined();
+  });
+
+  test('should handle partial edge pairs', () => {
+    const typeId = ThirdComponentType.typeId;
+
+    // Add only add edge
+    archetype.addEdge(ThirdComponentType, 'only-add', true);
+
+    const edgePair1 = archetype.getEdgePair(typeId);
+    expect(edgePair1).toBeDefined();
+    expect(edgePair1!.add).toBe('only-add');
+    expect(edgePair1!.remove).toBeUndefined();
+
+    // Clear and add only remove edge
+    archetype.addEdge(ThirdComponentType, 'only-remove', false);
+
+    const edgePair2 = archetype.getEdgePair(typeId);
+    expect(edgePair2).toBeDefined();
+    expect(edgePair2!.add).toBe('only-add'); // Previous add should still be there
+    expect(edgePair2!.remove).toBe('only-remove');
   });
 
   test('should detect transition possibilities', () => {

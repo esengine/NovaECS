@@ -312,15 +312,9 @@ describe('ArchetypeManager', () => {
     const archetype2 = manager.getOrCreateArchetype([TestComponentType, AnotherComponentType]);
 
     // Check if edges are built
-    const edge = archetype1.getEdge(AnotherComponentType);
-    expect(edge).toBeDefined();
-    expect(edge!.targetArchetypeId).toBe(archetype2.id);
-    expect(edge!.isAddition).toBe(true);
-
-    const reverseEdge = archetype2.getEdge(AnotherComponentType);
-    expect(reverseEdge).toBeDefined();
-    expect(reverseEdge!.targetArchetypeId).toBe(archetype1.id);
-    expect(reverseEdge!.isAddition).toBe(false);
+    const typeId = AnotherComponentType.typeId;
+    expect(archetype1.getAddEdge(typeId)).toBe(archetype2.id);
+    expect(archetype2.getRemoveEdge(typeId)).toBe(archetype1.id);
   });
 
   test('should handle complex entity movements', () => {

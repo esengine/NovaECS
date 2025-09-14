@@ -3,7 +3,6 @@ import type { ComponentType, ComponentTypeId, EntityId } from '../utils/Types';
 import type {
   ArchetypeId,
   ComponentStorage,
-  ArchetypeEdge,
   QuerySignature
 } from '../utils/ArchetypeTypes';
 
@@ -23,7 +22,7 @@ export class Archetype {
   private readonly _componentStorages = new Map<ComponentType, ComponentStorage>();
   private readonly _entityIds: EntityId[] = [];
   private readonly _entityIndexMap = new Map<EntityId, number>();
-  private readonly _edges = new Map<ComponentType, ArchetypeEdge>();
+  private readonly _edgePairs = new Map<ComponentTypeId, { add?: ArchetypeId; remove?: ArchetypeId }>();
   private _entityCount = 0;
 
   constructor(componentTypes: ComponentType[]) {
@@ -266,20 +265,44 @@ export class Archetype {
    * 添加组件转换的原型边
    */
   addEdge(componentType: ComponentType, targetArchetypeId: ArchetypeId, isAddition: boolean): void {
-    this._edges.set(componentType, {
-      targetArchetypeId,
-      componentType,
-      isAddition
-    });
+    const typeId = componentType.typeId;
+    const edgePair = this._edgePairs.get(typeId) || {};
+
+    if (isAddition) {
+      edgePair.add = targetArchetypeId;
+    } else {
+      edgePair.remove = targetArchetypeId;
+    }
+
+    this._edgePairs.set(typeId, edgePair);
   }
 
   /**
-   * Get archetype edge for component transition
-   * 获取组件转换的原型边
+   * Get archetype edge pair for component transitions
+   * 获取组件转换的原型边对
    */
-  getEdge(componentType: ComponentType): ArchetypeEdge | undefined {
-    return this._edges.get(componentType);
+  getEdgePair(componentTypeId: ComponentTypeId): { add?: ArchetypeId; remove?: ArchetypeId } | undefined {
+    return this._edgePairs.get(componentTypeId);
   }
+
+  /**
+   * Get add edge for component type
+   * 获取组件类型的添加边
+   */
+  getAddEdge(componentTypeId: ComponentTypeId): ArchetypeId | undefined {
+    const edgePair = this._edgePairs.get(componentTypeId);
+    return edgePair?.add;
+  }
+
+  /**
+   * Get remove edge for component type
+   * 获取组件类型的移除边
+   */
+  getRemoveEdge(componentTypeId: ComponentTypeId): ArchetypeId | undefined {
+    const edgePair = this._edgePairs.get(componentTypeId);
+    return edgePair?.remove;
+  }
+
 
   /**
    * Create unique archetype ID from component types
