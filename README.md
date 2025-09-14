@@ -25,6 +25,8 @@ Pure data-oriented Entity Component System (ECS) framework built with TypeScript
   **系统调度**: 依赖解析，拓扑排序
 - 🎮 **Game Loop Ready**: Complete execution stages (startup, preUpdate, update, postUpdate, cleanup)
   **游戏循环**: 完整执行阶段（启动、预更新、更新、后更新、清理）
+- ⏰ **Fixed Timestep**: Stable simulation with accumulator pattern for physics and deterministic gameplay
+  **固定时间步**: 使用累加器模式的稳定模拟，用于物理和确定性游戏玩法
 - 🌐 **Multi-Platform**: Support for Browser, Node.js, and other JavaScript environments
   **多平台**: 支持浏览器、Node.js等JavaScript环境
 - 📦 **Modular**: Multiple build formats including ES/UMD/CommonJS
@@ -238,6 +240,41 @@ const currentFrame = world.frame;
 
 // Check if component changed in specific frame 检查组件是否在特定帧变更
 const changed = world.isChanged(entity, Position, currentFrame - 1);
+```
+
+### Fixed Timestep Simulation | 固定时间步模拟
+
+For deterministic physics and gameplay, use FixedTimestepScheduler:
+用于确定性物理和游戏玩法，使用FixedTimestepScheduler：
+
+```typescript
+import { FixedTimestepScheduler } from '@esengine/nova-ecs/core/FixedTimestepScheduler';
+
+const world = new World();
+const scheduler = new Scheduler();
+const fixedScheduler = new FixedTimestepScheduler(world, scheduler, {
+  fixedDt: 1/60,          // 60 FPS固定时间步长
+  maxSubSteps: 6,         // 最多6次子步数防止死亡螺旋
+  smoothFactor: 0.1,      // 10%时间平滑
+  clampDt: 0.25,          // 最大帧时间夹紧到0.25秒
+});
+
+// 游戏主循环（浏览器或原生环境） | Game main loop (browser or native)
+let lastTime = performance.now();
+function gameLoop(now: number) {
+  const frameDt = (now - lastTime) / 1000;
+  lastTime = now;
+
+  fixedScheduler.tick(frameDt, (alpha) => {
+    // 使用alpha进行渲染插值 | Use alpha for render interpolation
+    // 例如：渲染位置 = lerp(prevPos, currPos, alpha)
+    // e.g.: renderPos = lerp(prevPos, currPos, alpha)
+    renderWithInterpolation(alpha);
+  });
+
+  requestAnimationFrame(gameLoop);
+}
+requestAnimationFrame(gameLoop);
 ```
 
 ## System Builder API | 系统构建器API
