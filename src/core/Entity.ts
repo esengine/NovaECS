@@ -99,7 +99,7 @@ export class Entity {
     componentType: ComponentType<T>,
     data: Partial<T> = {}
   ): this {
-    const component = new componentType.ctor() as T;
+    const component = new componentType.ctor();
     Object.assign(component, data);
     this._world.addComponentToEntity(this._id, componentType, component);
     return this;

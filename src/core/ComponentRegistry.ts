@@ -111,7 +111,7 @@ export class ComponentRegistry {
  * Decorator to register component type
  * 注册组件类型的装饰器
  */
-export function RegisterComponent(name?: string) {
+export function RegisterComponent(name?: string): <T extends Component>(ctor: ComponentConstructor<T>) => ComponentConstructor<T> {
   return function<T extends Component>(ctor: ComponentConstructor<T>) {
     ComponentRegistry.getInstance().register(ctor, name);
     return ctor;
