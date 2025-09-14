@@ -6,6 +6,7 @@
 import { World } from './World';
 import { ComponentType, ComponentCtor, getComponentType } from './ComponentRegistry';
 import { Entity } from '../utils/Types';
+import { forEachArchetype } from './QueryArchetypeAdapter';
 // import type { IComponentStore } from './SparseSetStore';
 
 
@@ -18,6 +19,7 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
   private withoutTypes: ComponentType<unknown>[] = [];
   private requireTags: string[] = [];
   private forbidTags: string[] = [];
+  private useArchetype = true; // 默认使用archetype优化
 
   constructor(private world: World, required: ComponentType<unknown>[]) {
     this.required = required;
@@ -43,12 +45,66 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
   }
 
   /**
+   * Control whether to use archetype optimization (default: true)
+   * 控制是否使用archetype优化（默认：true）
+   */
+  useArchetypeOptimization(enabled: boolean): Query<ReqTuple> {
+    this.useArchetype = enabled;
+    return this;
+  }
+
+  /**
    * Iterate over matching entities with their components
    * 遍历匹配的实体及其组件
    */
   forEach(callback: (entity: Entity, ...components: ReqTuple) => void): void {
     if (this.required.length === 0) return;
 
+    // Choose archetype or sparse store path
+    if (this.useArchetype && this.requireTags.length === 0 && this.forbidTags.length === 0) {
+      // Use archetype optimization when no tag filters are needed
+      this.forEachArchetype(callback);
+    } else {
+      // Fall back to sparse store iteration
+      this.forEachSparseStore(callback);
+    }
+  }
+
+  /**
+   * Archetype-optimized iteration
+   * 原型优化迭代
+   */
+  private forEachArchetype(callback: (entity: Entity, ...components: ReqTuple) => void): void {
+    // Convert ComponentType to ComponentCtor for adapter
+    const requiredCtors = this.required.map(type => type.ctor);
+    const withoutCtors = this.withoutTypes.map(type => type.ctor);
+
+    this.world._enterIteration();
+    try {
+      forEachArchetype(this.world, requiredCtors, withoutCtors, (entity: Entity, ...components: unknown[]) => {
+        // Apply tag filters if any
+        if (this.requireTags.length > 0) {
+          const okReq = this.requireTags.every(n => this.world.hasTag(entity, n));
+          if (!okReq) return;
+        }
+
+        if (this.forbidTags.length > 0) {
+          const bad = this.forbidTags.some(n => this.world.hasTag(entity, n));
+          if (bad) return;
+        }
+
+        callback(entity, ...components as ReqTuple);
+      });
+    } finally {
+      this.world._leaveIteration();
+    }
+  }
+
+  /**
+   * Legacy sparse store iteration
+   * 传统稀疏存储迭代
+   */
+  private forEachSparseStore(callback: (entity: Entity, ...components: ReqTuple) => void): void {
     // Select smallest store as anchor point for optimization
     // 选择最小存储作为锚点进行优化
     let anchorType = this.required[0];

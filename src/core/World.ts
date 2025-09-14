@@ -109,6 +109,14 @@ export class World {
   }
 
   /**
+   * Get archetype index (for advanced queries)
+   * 获取原型索引（用于高级查询）
+   */
+  getArchetypeIndex(): ArchetypeIndex {
+    return this.arch;
+  }
+
+  /**
    * Migrate entity to appropriate archetype based on signature
    * 根据签名将实体迁移到适当的原型
    */
