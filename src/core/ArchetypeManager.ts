@@ -234,8 +234,22 @@ export class ArchetypeManager {
    * 使用高级过滤查询原型
    */
   queryArchetypesAdvanced(query: QuerySignature): Archetype[] {
-    return Array.from(this._archetypes.values())
+    // Create cache key using stable typeIds in A:...|N:...|Y:... format
+    const cacheKey = this.createAdvancedQueryCacheKey(query);
+
+    // Check cache first
+    let matchingArchetypes = this._queryCache.get(cacheKey);
+    if (matchingArchetypes) {
+      return matchingArchetypes;
+    }
+
+    // Find matching archetypes
+    matchingArchetypes = Array.from(this._archetypes.values())
       .filter(archetype => archetype.matchesQuery(query));
+
+    // Cache result
+    this._queryCache.set(cacheKey, matchingArchetypes);
+    return matchingArchetypes;
   }
 
   /**
@@ -331,6 +345,34 @@ export class ArchetypeManager {
   private createArchetypeId(componentTypes: ComponentType[]): ArchetypeId {
     const typeIds = componentTypes.map(type => type.typeId).join('|');
     return `archetype:${typeIds}`;
+  }
+
+  /**
+   * Create cache key for advanced query using A:...|N:...|Y:... format
+   * 为高级查询创建缓存键，使用A:...|N:...|Y:...格式
+   */
+  private createAdvancedQueryCacheKey(query: QuerySignature): string {
+    const parts: string[] = [];
+
+    // Required components (A: for "All")
+    if (query.required.size > 0) {
+      const sortedRequired = Array.from(query.required).sort((a, b) => a - b);
+      parts.push(`A:${sortedRequired.join(',')}`);
+    }
+
+    // Excluded components (N: for "None/Not")
+    if (query.excluded && query.excluded.size > 0) {
+      const sortedExcluded = Array.from(query.excluded).sort((a, b) => a - b);
+      parts.push(`N:${sortedExcluded.join(',')}`);
+    }
+
+    // Optional components (Y: for "anY")
+    if (query.optional && query.optional.size > 0) {
+      const sortedOptional = Array.from(query.optional).sort((a, b) => a - b);
+      parts.push(`Y:${sortedOptional.join(',')}`);
+    }
+
+    return parts.join('|');
   }
 
   /**
