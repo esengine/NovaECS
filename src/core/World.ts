@@ -11,6 +11,8 @@ import { Query } from './Query';
 import { CommandBuffer } from './CommandBuffer';
 import { EventChannel } from '../events/EventChannel';
 import { AddedEvent, RemovedEvent, Added, Removed } from '../events/Types';
+import { TagStore } from '../tag/TagStore';
+import { tagId, getAllTags } from '../tag/TagRegistry';
 
 /**
  * Component base interface (placeholder)
@@ -27,6 +29,7 @@ export class World {
   private stores = new Map<number, IComponentStore<unknown>>();
   private _iterating = 0;
   private resources = new Map<new() => unknown, unknown>();
+  private tags = new TagStore();
 
   /**
    * Current frame number (starts from 1); incremented by beginFrame()
@@ -377,5 +380,60 @@ export class World {
       out.push({ typeId, size: store.size() });
     }
     return out;
+  }
+
+  // ================== Tag System ==================
+  // 标签系统
+
+  /**
+   * Add tag to entity
+   * 为实体添加标签
+   */
+  addTag(e: Entity, name: string): void {
+    this.tags.add(e, tagId(name));
+  }
+
+  /**
+   * Remove tag from entity
+   * 从实体移除标签
+   */
+  removeTag(e: Entity, name: string): void {
+    this.tags.remove(e, tagId(name));
+  }
+
+  /**
+   * Check if entity has tag
+   * 检查实体是否具有标签
+   */
+  hasTag(e: Entity, name: string): boolean {
+    return this.tags.has(e, tagId(name));
+  }
+
+  /**
+   * Get all tag names for an entity
+   * 获取实体的所有标签名称
+   */
+  getEntityTags(e: Entity): string[] {
+    const tagIds = this.tags.getEntityTags(e);
+    const allTags = getAllTags();
+    const tagIdToName = new Map(allTags.map(({ name, id }) => [id, name]));
+
+    return tagIds.map(id => tagIdToName.get(id)).filter(name => name !== undefined) as string[];
+  }
+
+  /**
+   * Remove all tags from entity
+   * 移除实体的所有标签
+   */
+  clearEntityTags(e: Entity): void {
+    this.tags.clearEntity(e);
+  }
+
+  /**
+   * Get entities that have specific tag
+   * 获取具有特定标签的实体
+   */
+  getEntitiesWithTag(name: string): Entity[] {
+    return this.tags.getEntitiesWithTag(tagId(name));
   }
 }

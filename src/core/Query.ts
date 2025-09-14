@@ -16,6 +16,8 @@ import { Entity } from '../utils/Types';
 export class Query<ReqTuple extends unknown[] = unknown[]> {
   private required: ComponentType<unknown>[];
   private withoutTypes: ComponentType<unknown>[] = [];
+  private requireTags: string[] = [];
+  private forbidTags: string[] = [];
 
   constructor(private world: World, required: ComponentType<unknown>[]) {
     this.required = required;
@@ -27,6 +29,16 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
    */
   without<T>(...ctors: ComponentCtor<T>[]): Query<ReqTuple> {
     this.withoutTypes.push(...ctors.map(getComponentType));
+    return this;
+  }
+
+  /**
+   * Filter by tags: require all specified tags and forbid any of the forbidden tags
+   * 标签过滤：要求所有指定标签并禁止任何被禁止的标签
+   */
+  where(requireAll: string[] = [], forbidAny: string[] = []): Query<ReqTuple> {
+    this.requireTags = requireAll;
+    this.forbidTags = forbidAny;
     return this;
   }
 
@@ -77,6 +89,13 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
           const store = this.world.getStore(type);
           if (store && store.has(entity)) return; // Excluded by without filter
         }
+
+        // Apply tag filters
+        // 应用标签过滤器
+        const okReq = this.requireTags.every(n => this.world.hasTag(entity, n));
+        if (!okReq) return;
+        const bad = this.forbidTags.some(n => this.world.hasTag(entity, n));
+        if (bad) return;
 
         callback(entity, ...values as unknown as ReqTuple);
       });
