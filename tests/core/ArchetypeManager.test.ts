@@ -260,6 +260,40 @@ describe('ArchetypeManager', () => {
     expect(matchingArchetypes).not.toContain(archetype3);
   });
 
+  test('should handle advanced queries with undefined fields', () => {
+    // Create archetypes
+    manager.getOrCreateArchetype([TestComponentType]);
+    manager.getOrCreateArchetype([TestComponentType, AnotherComponentType]);
+    manager.getOrCreateArchetype([AnotherComponentType, ThirdComponentType]);
+
+    // Query with undefined required field
+    const query1 = {
+      excluded: new Set([ThirdComponentType.typeId])
+    } as any; // Cast to bypass TypeScript check
+
+    expect(() => manager.queryArchetypesAdvanced(query1)).not.toThrow();
+    const result1 = manager.queryArchetypesAdvanced(query1);
+    expect(result1).toHaveLength(2); // Should match archetypes without ThirdComponent
+
+    // Query with empty sets
+    const query2 = {
+      required: new Set(),
+      optional: new Set(),
+      excluded: new Set()
+    };
+
+    const result2 = manager.queryArchetypesAdvanced(query2);
+    expect(result2).toHaveLength(3); // Should match all archetypes
+
+    // Query with only optional field
+    const query3 = {
+      optional: new Set([TestComponentType.typeId])
+    } as any;
+
+    const result3 = manager.queryArchetypesAdvanced(query3);
+    expect(result3).toHaveLength(2); // Should match archetypes with TestComponent
+  });
+
   test('should provide statistics', () => {
     // Add some entities to create archetypes
     manager.addEntity(1, new Map<ComponentType, Component>([[TestComponentType, new TestComponent(1)]]));

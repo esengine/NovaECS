@@ -1,6 +1,6 @@
 import { Archetype } from './Archetype';
 import type { Component } from './Component';
-import type { ComponentType, EntityId } from '../utils/Types';
+import type { ComponentType, EntityId, ComponentTypeId } from '../utils/Types';
 import type { ArchetypeId, QuerySignature } from '../utils/ArchetypeTypes';
 
 /**
@@ -360,27 +360,56 @@ export class ArchetypeManager {
   }
 
   /**
+   * Normalize query signature with safe defaults
+   * 使用安全默认值归一化查询签名
+   */
+  private normalizeQuerySignature(query: QuerySignature): {
+    required: Set<ComponentTypeId>;
+    optional?: Set<ComponentTypeId>;
+    excluded?: Set<ComponentTypeId>;
+  } {
+    const result: {
+      required: Set<ComponentTypeId>;
+      optional?: Set<ComponentTypeId>;
+      excluded?: Set<ComponentTypeId>;
+    } = {
+      required: query.required || new Set<ComponentTypeId>()
+    };
+
+    if (query.optional?.size) {
+      result.optional = query.optional;
+    }
+
+    if (query.excluded?.size) {
+      result.excluded = query.excluded;
+    }
+
+    return result;
+  }
+
+  /**
    * Create cache key for advanced query using A:...|N:...|Y:... format
    * 为高级查询创建缓存键，使用A:...|N:...|Y:...格式
    */
   private createAdvancedQueryCacheKey(query: QuerySignature): string {
+    const normalized = this.normalizeQuerySignature(query);
     const parts: string[] = [];
 
     // Required components (A: for "All")
-    if (query.required.size > 0) {
-      const sortedRequired = Array.from(query.required).sort((a, b) => a - b);
+    if (normalized.required.size > 0) {
+      const sortedRequired = Array.from(normalized.required).sort((a, b) => a - b);
       parts.push(`A:${sortedRequired.join(',')}`);
     }
 
     // Excluded components (N: for "None/Not")
-    if (query.excluded && query.excluded.size > 0) {
-      const sortedExcluded = Array.from(query.excluded).sort((a, b) => a - b);
+    if (normalized.excluded && normalized.excluded.size > 0) {
+      const sortedExcluded = Array.from(normalized.excluded).sort((a, b) => a - b);
       parts.push(`N:${sortedExcluded.join(',')}`);
     }
 
     // Optional components (Y: for "anY")
-    if (query.optional && query.optional.size > 0) {
-      const sortedOptional = Array.from(query.optional).sort((a, b) => a - b);
+    if (normalized.optional && normalized.optional.size > 0) {
+      const sortedOptional = Array.from(normalized.optional).sort((a, b) => a - b);
       parts.push(`Y:${sortedOptional.join(',')}`);
     }
 
