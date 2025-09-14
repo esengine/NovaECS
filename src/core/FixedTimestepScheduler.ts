@@ -140,7 +140,7 @@ export class FixedTimestepScheduler {
    * Get debug information
    * 获取调试信息
    */
-  getDebugInfo() {
+  getDebugInfo(): { accumulator: number; smoothedDt: number; alpha: number; config: Required<FixedStepOpts> } {
     return {
       accumulator: this.accumulator,
       smoothedDt: this.smoothedDt,

@@ -7,8 +7,7 @@
  * Component constructor type
  * 组件构造函数类型
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ComponentCtor<T> = new (...args: any[]) => T;
+export type ComponentCtor<T = unknown> = new (...args: unknown[]) => T;
 
 /**
  * Component type with stable numeric ID and constructor
@@ -22,8 +21,8 @@ export interface ComponentType<T> {
 }
 
 let _nextTypeId = 1; // 0 reserved 0被预留
-const _idByCtor = new Map<Function, number>();
-const _ctorById = new Map<number, ComponentCtor<any>>();
+const _idByCtor = new Map<ComponentCtor<unknown>, number>();
+const _ctorById = new Map<number, ComponentCtor<unknown>>();
 
 /**
  * Register component with optional explicit ID for hot reload/toolchain stability
@@ -34,8 +33,10 @@ export function registerComponent<T>(
   explicitId?: number
 ): ComponentType<T> {
   if (_idByCtor.has(ctor)) {
-    const id = _idByCtor.get(ctor)!;
-    return { id, ctor };
+    const id = _idByCtor.get(ctor);
+    if (id !== undefined) {
+      return { id, ctor };
+    }
   }
 
   const id = explicitId ?? _nextTypeId++;
@@ -63,7 +64,7 @@ export function getComponentType<T>(ctor: ComponentCtor<T>): ComponentType<T> {
  * Get constructor by type ID (critical for bidirectional lookup)
  * 通过ID取回构造函数（正反向查询关键）
  */
-export function getCtorByTypeId<T = any>(id: number): ComponentCtor<T> | undefined {
+export function getCtorByTypeId<T = unknown>(id: number): ComponentCtor<T> | undefined {
   return _ctorById.get(id) as ComponentCtor<T> | undefined;
 }
 
@@ -71,9 +72,9 @@ export function getCtorByTypeId<T = any>(id: number): ComponentCtor<T> | undefin
  * Create component type from ID (shell type for command buffer paths that don't depend on ctor)
  * 通过ID拼出"壳类型"（用于命令缓冲等不依赖构造函数的路径）
  */
-export function typeFromId<T = any>(id: number): ComponentType<T> {
+export function typeFromId<T = unknown>(id: number): ComponentType<T> {
   const ctor = _ctorById.get(id) as ComponentCtor<T> | undefined;
-  return { id, ctor: ctor ?? (class {} as any) };
+  return { id, ctor: ctor ?? (class {} as ComponentCtor<T>) };
 }
 
 /**

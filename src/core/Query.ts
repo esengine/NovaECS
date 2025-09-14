@@ -6,18 +6,18 @@
 import { World } from './World';
 import { ComponentType, ComponentCtor, getComponentType } from './ComponentRegistry';
 import { Entity } from '../utils/Types';
-import type { IComponentStore } from './SparseSetStore';
+// import type { IComponentStore } from './SparseSetStore';
 
 
 /**
  * Query builder for component-based entity iteration
  * 基于组件的实体遍历查询构建器
  */
-export class Query<ReqTuple extends any[] = any[]> {
-  private required: ComponentType<any>[];
-  private withoutTypes: ComponentType<any>[] = [];
+export class Query<ReqTuple extends unknown[] = unknown[]> {
+  private required: ComponentType<unknown>[];
+  private withoutTypes: ComponentType<unknown>[] = [];
 
-  constructor(private world: World, required: ComponentType<any>[]) {
+  constructor(private world: World, required: ComponentType<unknown>[]) {
     this.required = required;
   }
 
@@ -40,11 +40,11 @@ export class Query<ReqTuple extends any[] = any[]> {
     // Select smallest store as anchor point for optimization
     // 选择最小存储作为锚点进行优化
     let anchorType = this.required[0];
-    let anchorStore = this.world.getStore(anchorType) as IComponentStore<any> | undefined;
+    let anchorStore = this.world.getStore(anchorType);
     let anchorSize = anchorStore?.size() ?? 0;
 
     for (let i = 1; i < this.required.length; i++) {
-      const store = this.world.getStore(this.required[i]) as IComponentStore<any> | undefined;
+      const store = this.world.getStore(this.required[i]);
       const size = store?.size() ?? 0;
       if (size < anchorSize) {
         anchorType = this.required[i];
@@ -60,10 +60,11 @@ export class Query<ReqTuple extends any[] = any[]> {
       anchorStore.forEach((entity, _anchorValue) => {
         // Check required components and collect instances
         // 检查必需组件并收集实例
-        const values: any[] = new Array(this.required.length);
+        const values: unknown[] = new Array(this.required.length);
         for (let i = 0; i < this.required.length; i++) {
           const type = this.required[i];
-          const store = this.world.getStore(type)!;
+          const store = this.world.getStore(type);
+          if (!store) return;
           const value = store.get(entity);
           if (value === undefined) return; // Missing required component, skip
           values[i] = value;

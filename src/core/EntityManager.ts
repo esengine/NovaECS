@@ -61,7 +61,7 @@ export class EntityManager {
    * 创建新实体
    */
   create(enabled = true): Entity {
-    const index = this.free.length > 0 ? this.free.pop()! : this.nextIndex++;
+    const index = this.free.length > 0 ? (this.free.pop() ?? this.nextIndex++) : this.nextIndex++;
     this.ensure(index);
 
     const generation = this.generations[index];

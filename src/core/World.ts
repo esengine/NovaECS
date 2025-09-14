@@ -22,7 +22,7 @@ export interface Component {}
  */
 export class World {
   private em = new EntityManager();
-  private stores = new Map<number, IComponentStore<any>>();
+  private stores = new Map<number, IComponentStore<unknown>>();
   private _iterating = 0;
 
   /**
@@ -92,7 +92,7 @@ export class World {
       store = new SparseSetStore<T>();
       this.stores.set(type.id, store);
     }
-    return store;
+    return store as IComponentStore<T>;
   }
 
   /**
@@ -170,7 +170,7 @@ export class World {
    * 获取类型的组件存储（供Query使用）
    */
   getStore<T>(type: ComponentType<T>): IComponentStore<T> | undefined {
-    return this.stores.get(type.id);
+    return this.stores.get(type.id) as IComponentStore<T> | undefined;
   }
 
   /**
@@ -180,7 +180,7 @@ export class World {
   query<T1>(c1: ComponentCtor<T1>): Query<[T1]>;
   query<T1, T2>(c1: ComponentCtor<T1>, c2: ComponentCtor<T2>): Query<[T1, T2]>;
   query<T1, T2, T3>(c1: ComponentCtor<T1>, c2: ComponentCtor<T2>, c3: ComponentCtor<T3>): Query<[T1, T2, T3]>;
-  query(...ctors: ComponentCtor<any>[]): Query<any> {
+  query(...ctors: ComponentCtor<unknown>[]): Query<unknown[]> {
     const types = ctors.map(getComponentType);
     return new Query(this, types);
   }

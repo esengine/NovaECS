@@ -62,7 +62,7 @@ export class Scheduler {
    * Add system or system builder to scheduler
    * 添加系统或系统构建器到调度器
    */
-  add(sysOrBuilder: SystemConfig | SystemBuilder) {
+  add(sysOrBuilder: SystemConfig | SystemBuilder): this {
     const sys = sysOrBuilder instanceof SystemBuilder ? sysOrBuilder.build() : sysOrBuilder;
     const stage = sys.stage ?? 'update';
     this.stages[stage].push(sys);
@@ -74,7 +74,7 @@ export class Scheduler {
    * Execute one tick of all systems
    * 执行一次所有系统的tick
    */
-  tick(world: World, dt: number, order: SystemStage[] = DEFAULT_ORDER) {
+  tick(world: World, dt: number, order: SystemStage[] = DEFAULT_ORDER): void {
     world.beginFrame();
 
     const plan = this.ensureBuilt(order);
@@ -123,7 +123,7 @@ export class Scheduler {
    * Build topological order for all stages
    * 为所有阶段构建拓扑顺序
    */
-  private ensureBuilt(order: SystemStage[]) {
+  private ensureBuilt(order: SystemStage[]): Record<SystemStage, SystemConfig[]> {
     if (this.builtOrder) return this.builtOrder;
 
     const out: Record<SystemStage, SystemConfig[]> = {
@@ -160,7 +160,7 @@ export class Scheduler {
       }
 
       /** Create dependency edge between nodes 在节点间创建依赖边 */
-      const link = (from: NodeId, to: NodeId) => {
+      const link = (from: NodeId, to: NodeId): void => {
         if (from === to) return;
         const a = getNode(from);
         const b = getNode(to);
@@ -193,10 +193,12 @@ export class Scheduler {
       }
 
       while (q.length) {
-        const n = q.shift()!;
+        const n = q.shift();
+        if (!n) break;
         orderList.push(n);
         for (const to of n.outEdges) {
-          const t = nodes.get(to)!;
+          const t = nodes.get(to);
+          if (!t) continue;
           t.inEdges.delete(n.id);
           if (t.inEdges.size === 0) q.push(t);
         }
@@ -208,7 +210,7 @@ export class Scheduler {
         throw new Error(`[Scheduler] 拓扑存在环：${cycleNames}`);
       }
 
-      out[stage] = orderList.filter(n => !n.isSet && n.sys).map(n => n.sys!);
+      out[stage] = orderList.filter(n => !n.isSet && n.sys).map(n => n.sys) as SystemConfig[];
     }
 
     this.builtOrder = out;
@@ -228,7 +230,7 @@ export class Scheduler {
  * Safely execute system condition predicate
  * 安全执行系统条件谓词
  */
-function safeRunIf(pred: (world: World) => boolean, world: World) {
+function safeRunIf(pred: (world: World) => boolean, world: World): boolean {
   try {
     return pred(world);
   } catch {

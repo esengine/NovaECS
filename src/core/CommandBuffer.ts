@@ -38,7 +38,7 @@ interface PendingPerEntity {
   /** Final enabled state (last write wins) 最终启用状态（最后写优先） */
   enable?: boolean;
   /** typeId -> component instance */
-  adds?: Map<TypeId, any>;
+  adds?: Map<TypeId, unknown>;
   /** typeId set */
   removes?: Set<TypeId>;
 }
@@ -106,7 +106,7 @@ export class CommandBuffer {
    */
   addInstance<T>(entity: Entity, instance: T): void {
     if (this.isDestroyed(entity)) return;
-    const ctor = (instance as any)?.constructor as ComponentCtor<T>;
+    const ctor = (instance as { constructor: ComponentCtor<T> })?.constructor;
     const type = getComponentType(ctor);
     this.queueAdd(entity, type.id, instance);
   }
@@ -117,10 +117,10 @@ export class CommandBuffer {
    * Will try to use constructor to instantiate and fill with init data
    * 会尝试用构造函数实例化并填充init数据
    */
-  addByTypeId(entity: Entity, typeId: number, init?: Record<string, any>): void {
+  addByTypeId(entity: Entity, typeId: number, init?: Record<string, unknown>): void {
     if (this.isDestroyed(entity)) return;
-    const Ctor = getCtorByTypeId<any>(typeId);
-    const instance = Ctor ? new Ctor() : ({} as any);
+    const Ctor = getCtorByTypeId(typeId);
+    const instance = Ctor ? new Ctor() : {};
     if (init) {
       Object.assign(instance, init);
     }
@@ -216,7 +216,7 @@ export class CommandBuffer {
     return !!this.pending.get(entity)?.destroy;
   }
 
-  private queueAdd(entity: Entity, typeId: number, instance: any): void {
+  private queueAdd(entity: Entity, typeId: number, instance: unknown): void {
     const pending = this.mut(entity);
     pending.removes?.delete(typeId);
     if (!pending.adds) {
