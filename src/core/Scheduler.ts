@@ -22,6 +22,7 @@ import { CommandBuffer } from './CommandBuffer';
 import type { SystemStage, SystemConfig, SystemContext } from './System';
 import { system, SystemBuilder } from './System';
 import { Profiler } from './Profiler';
+import { Recorder } from '../replay/Recorder';
 
 const DEFAULT_ORDER: SystemStage[] = ['startup', 'preUpdate', 'update', 'postUpdate', 'cleanup'];
 
@@ -127,6 +128,9 @@ export class Scheduler {
         }
       }
     }
+
+    // End frame recording
+    world.getResource(Recorder)?.endFrame();
   }
 
   /**

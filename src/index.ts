@@ -89,5 +89,8 @@ export * from './archetype';
 // Determinism System
 export * from './determinism';
 
+// Replay System
+export * from './replay';
+
 // Core Types
 export * from './utils/Types';

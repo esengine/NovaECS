@@ -16,6 +16,7 @@ import { tagId, getAllTags } from '../tag/TagRegistry';
 import { ChildrenIndex } from '../hierarchy/ChildrenIndex';
 import { Bitset } from '../signature/Bitset';
 import { ArchetypeIndex, Archetype } from '../archetype';
+import { Recorder } from '../replay/Recorder';
 
 /**
  * Component base interface (placeholder)
@@ -51,6 +52,7 @@ export class World {
    */
   beginFrame(): void {
     this.frame++;
+    this.getResource(Recorder)?.beginFrame();
   }
 
   /**
@@ -60,6 +62,7 @@ export class World {
   createEntity(enabled = true): Entity {
     const entity = this.em.create(enabled);
     this.migrate(entity); // Migrate to empty archetype
+    this.getResource(Recorder)?.onCreate(entity, enabled);
     return entity;
   }
 
@@ -85,6 +88,7 @@ export class World {
     // Clean up signature
     this.signatures.delete(e);
     this.em.destroy(e);
+    this.getResource(Recorder)?.onDestroy(e);
   }
 
   /**
@@ -182,6 +186,7 @@ export class World {
   setEnabled(entity: Entity, enabled: boolean): void {
     this.assertNotIterating();
     this.em.setEnabled(entity, enabled);
+    this.getResource(Recorder)?.onSetEnabled(entity, enabled);
   }
 
   /**
@@ -230,6 +235,11 @@ export class World {
         archetype.setComponent(e, type.id, c);
       }
     }
+
+    // Record component addition
+    if (!existed) {
+      this.getResource(Recorder)?.onAdd(e, type.id, c);
+    }
   }
 
   /**
@@ -257,6 +267,11 @@ export class World {
     // Migrate to new archetype if signature changed
     if (had) {
       this.migrate(e);
+    }
+
+    // Record component removal
+    if (had) {
+      this.getResource(Recorder)?.onRemove(e, type.id);
     }
   }
 
@@ -433,7 +448,7 @@ export class World {
    * Set a resource by key
    * 通过键设置资源
    */
-  setResource<T>(key: new()=>T, val: T): void {
+  setResource<T>(key: new(...args: any[])=>T, val: T): void {
     this.resources.set(key, val);
   }
 
@@ -441,7 +456,7 @@ export class World {
    * Get a resource by key
    * 通过键获取资源
    */
-  getResource<T>(key: new()=>T): T | undefined {
+  getResource<T>(key: new(...args: any[])=>T): T | undefined {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return this.resources.get(key) as T | undefined;
   }
@@ -450,13 +465,11 @@ export class World {
    * Get resource or create with factory if not exists
    * 获取资源，不存在则用工厂函数创建
    */
-  private getOrCreate<T>(key: new()=>T, fac: ()=>T): T {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
-    let v = this.getResource<T>(key as any);
+  private getOrCreate<T>(key: new(...args: any[])=>T, fac: ()=>T): T {
+    let v = this.getResource<T>(key);
     if (!v) {
       v = fac();
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
-      this.setResource(key as any, v);
+      this.setResource(key, v);
     }
     return v;
   }
