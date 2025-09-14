@@ -439,6 +439,31 @@ describe('ArchetypeManager', () => {
     expect(newStats.totalEntities).toBe(entityCount / 2);
   });
 
+  test('should use direct index access for component retrieval', () => {
+    // Add entities
+    const testComponent1 = new TestComponent(1);
+    const testComponent2 = new TestComponent(2);
+
+    manager.addEntity(1, new Map<ComponentType, Component>([[TestComponentType, testComponent1]]));
+    manager.addEntity(2, new Map<ComponentType, Component>([[TestComponentType, testComponent2]]));
+
+    // Verify component access returns correct instances
+    const retrieved1 = manager.getEntityComponent(1, TestComponentType);
+    const retrieved2 = manager.getEntityComponent(2, TestComponentType);
+
+    expect(retrieved1).toBe(testComponent1);
+    expect(retrieved2).toBe(testComponent2);
+    expect(retrieved1?.value).toBe(1);
+    expect(retrieved2?.value).toBe(2);
+
+    // Test after swap-remove to ensure index correctness
+    manager.removeEntity(1); // This should cause entity 2 to move to index 0
+
+    const retrievedAfterRemove = manager.getEntityComponent(2, TestComponentType);
+    expect(retrievedAfterRemove).toBe(testComponent2);
+    expect(retrievedAfterRemove?.value).toBe(2);
+  });
+
   test('should maintain consistent indices after swap-remove operations', () => {
     // Add 3 entities to same archetype
     manager.addEntity(1, new Map<ComponentType, Component>([[TestComponentType, new TestComponent(1)]]));

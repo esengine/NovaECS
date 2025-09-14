@@ -211,12 +211,24 @@ export class Archetype {
       return undefined;
     }
 
+    return this.getComponentAt(entityIndex, componentType);
+  }
+
+  /**
+   * Get component at specific index (O(1) direct access)
+   * 获取特定索引处的组件（O(1)直接访问）
+   */
+  getComponentAt<T extends Component>(index: number, componentType: ComponentType<T>): T | undefined {
+    if (index < 0 || index >= this._entityCount) {
+      return undefined;
+    }
+
     const storage = this._componentStorages.get(componentType);
     if (!storage) {
       return undefined;
     }
 
-    return storage.components[entityIndex] as T;
+    return storage.components[index] as T;
   }
 
   /**

@@ -141,7 +141,7 @@ export class ArchetypeManager {
    * 从实体的原型获取组件
    */
   getEntityComponent<T extends Component>(
-    entityId: EntityId, 
+    entityId: EntityId,
     componentType: ComponentType<T>
   ): T | undefined {
     const record = this._entityToArchetype.get(entityId);
@@ -149,7 +149,8 @@ export class ArchetypeManager {
       return undefined;
     }
 
-    return record.archetype.getComponent(entityId, componentType);
+    // Use direct index access for O(1) performance
+    return record.archetype.getComponentAt(record.index, componentType);
   }
 
   /**

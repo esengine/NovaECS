@@ -107,6 +107,40 @@ describe('Archetype', () => {
     expect((retrievedComponent as TestComponent).value).toBe(42);
   });
 
+  test('should get component at specific index', () => {
+    const testComponent1 = new TestComponent(1);
+    const testComponent2 = new TestComponent(2);
+    const components1 = new Map<ComponentType, Component>([[TestComponentType, testComponent1]]);
+    const components2 = new Map<ComponentType, Component>([[TestComponentType, testComponent2]]);
+
+    archetype.addEntity(1, components1);
+    archetype.addEntity(2, components2);
+
+    // Test direct index access
+    const componentAt0 = archetype.getComponentAt(0, TestComponentType);
+    const componentAt1 = archetype.getComponentAt(1, TestComponentType);
+
+    expect(componentAt0).toBe(testComponent1);
+    expect((componentAt0 as TestComponent).value).toBe(1);
+    expect(componentAt1).toBe(testComponent2);
+    expect((componentAt1 as TestComponent).value).toBe(2);
+  });
+
+  test('should return undefined for invalid index in getComponentAt', () => {
+    const components = new Map<ComponentType, Component>([[TestComponentType, new TestComponent(1)]]);
+    archetype.addEntity(1, components);
+
+    expect(archetype.getComponentAt(-1, TestComponentType)).toBeUndefined();
+    expect(archetype.getComponentAt(999, TestComponentType)).toBeUndefined();
+  });
+
+  test('should return undefined for non-existent component type in getComponentAt', () => {
+    const components = new Map<ComponentType, Component>([[TestComponentType, new TestComponent(1)]]);
+    archetype.addEntity(1, components);
+
+    expect(archetype.getComponentAt(0, AnotherComponentType)).toBeUndefined();
+  });
+
   test('should return undefined for non-existent component', () => {
     const entityId: EntityId = 1;
     const components = new Map<ComponentType, Component>([
