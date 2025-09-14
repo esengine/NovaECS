@@ -20,6 +20,7 @@ import {
   setLocalTransform,
   setParent
 } from '../src/systems/TransformSystems';
+import { HierarchySyncSystem } from '../src/hierarchy/HierarchySyncSystem';
 import { mul, fromLocal, identity, transformPoint } from '../src/math/Mat3';
 
 describe('Transform System', () => {
@@ -39,7 +40,8 @@ describe('Transform System', () => {
     // Set up profiler for systems to work
     world.setResource(Profiler, new Profiler());
 
-    // Add transform systems
+    // Add hierarchy and transform systems
+    scheduler.add(HierarchySyncSystem);
     scheduler.add(TransformMarkDirtySystem);
     scheduler.add(TransformUpdateSystem);
   });

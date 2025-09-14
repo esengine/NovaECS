@@ -4,10 +4,12 @@
  */
 
 import { system } from '../core/System';
-import { getCtorByTypeId } from '../core/ComponentRegistry';
+import { getCtorByTypeId, getComponentType } from '../core/ComponentRegistry';
 import { Parent, LocalTransform, WorldTransform, DirtyTransform } from '../components/Transform';
 import { mul, fromLocal } from '../math/Mat3';
 import type { Entity } from '../utils/Types';
+import { ChildrenIndex } from "../hierarchy/ChildrenIndex";
+import { getOrCreateResource } from "../utils/ResourceHelpers";
 
 /**
  * System that marks transforms as dirty when structural changes occur
@@ -50,12 +52,11 @@ export const TransformUpdateSystem = system('TransformUpdate', (ctx) => {
   const { world } = ctx;
 
   const cmd = world.cmd();
+  const idx = getOrCreateResource(world, ChildrenIndex);
 
   // Find root entities: those without Parent or with dead Parent
   // 找到根实体：没有Parent或Parent已死的实体
   const roots: Entity[] = [];
-
-  // Check all entities with LocalTransform
   world.query(LocalTransform).forEach((e) => {
     const parent = world.getComponent(e, Parent);
     if (!parent || !world.isAlive(parent.value)) {
@@ -63,83 +64,42 @@ export const TransformUpdateSystem = system('TransformUpdate', (ctx) => {
     }
   });
 
-  const stack: Entity[] = [];
-
-  // Helper functions for accessing components
-  // 访问组件的辅助函数
-  const getLocal = (e: Entity) => world.getComponent(e, LocalTransform)!;
-  const getWorldTransform = (e: Entity) => {
-    let worldT = world.getComponent(e, WorldTransform);
-    if (!worldT) {
-      cmd.add(e, WorldTransform);
-      world.flush(cmd);
-      worldT = world.getComponent(e, WorldTransform)!;
-    }
-    return worldT;
+  const ensureWorld = (e: Entity): WorldTransform => {
+    const t = world.getEntityComponent(e, getComponentType(WorldTransform));
+    if (t) return t;
+    cmd.add(e, WorldTransform);
+    world.flush(cmd);
+    return world.getEntityComponent(e, getComponentType(WorldTransform))!;
   };
 
-  /**
-   * Recursively visit entities in the transform hierarchy
-   * 递归访问变换层级中的实体
-   * @param e Current entity 当前实体
-   * @param parentMat Parent's transformation matrix 父级的变换矩阵
-   * @param parentDirty Whether any ancestor is dirty 是否有祖先是脏的
-   */
   const visit = (e: Entity, parentMat: number[] | null, parentDirty: boolean): void => {
-    const hasDirty = world.hasComponent(e, DirtyTransform);
-    const isDirty = parentDirty || hasDirty;
+    const hasDirty = world.entityHasComponent(e, getComponentType(DirtyTransform));
+    const lt = world.getEntityComponent(e, getComponentType(LocalTransform))!;
+    const matLocal = fromLocal(lt.x, lt.y, lt.rot, lt.sx, lt.sy);
+    const mat = parentMat ? mul(parentMat, matLocal) : matLocal;
 
-    const localTransform = getLocal(e);
-    const localMatrix = fromLocal(
-      localTransform.x,
-      localTransform.y,
-      localTransform.rot,
-      localTransform.sx,
-      localTransform.sy
-    );
+    let shouldMarkDirty = parentDirty || hasDirty;
 
-    const worldMatrix = parentMat ? mul(parentMat, localMatrix) : localMatrix;
-
-    // Update world transform if this branch is dirty
-    // 如果此分支是脏的则更新世界变换
-    if (isDirty) {
-      const worldTransform = getWorldTransform(e);
-      worldTransform.m = worldMatrix;
+    if (shouldMarkDirty) {
+      ensureWorld(e).m = mat;
       world.markChanged(e, WorldTransform);
-
-      // Remove dirty marker after processing
-      // 处理后移除脏标记
       if (hasDirty) {
         cmd.remove(e, DirtyTransform);
       }
     }
 
-    // Find children and continue recursion
-    // 找到子节点并继续递归
-    // Note: This is O(N) scan. For optimization, maintain Children{list: Entity[]} component
-    // 注意：这是O(N)扫描。为了优化，可以维护Children{list: Entity[]}组件
-    world.query(Parent, LocalTransform).forEach((child, parentComp) => {
-      if (parentComp.value === e) {
-        stack.push(child);
-      }
-    });
-
-    // Process children
-    // 处理子节点
-    while (stack.length > 0) {
-      const child = stack.pop()!;
-      visit(child, worldMatrix, isDirty);
+    // 直接用索引拿孩子（O(#children)）
+    const children = idx.childrenOf(e);
+    for (let i = 0; i < children.length; i++) {
+      visit(children[i], mat, shouldMarkDirty);
     }
   };
 
-  // Process all root entities
-  // 处理所有根实体
-  for (const root of roots) {
-    visit(root, null, true);
+  for (const r of roots) {
+    visit(r, null, true);
   }
-
   world.flush(cmd);
-}).stage('update').after('TransformMarkDirty').build();
+}).stage('update').after('HierarchySync').build();
 
 /**
  * Convenience function to set local transform values

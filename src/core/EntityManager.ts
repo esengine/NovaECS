@@ -18,7 +18,7 @@ export class EntityManager {
   private alive: Uint8Array;
   private enabled: Uint8Array;
   private free: number[] = [];
-  private nextIndex = 0;
+  private nextIndex = 1;
   private _aliveCount = 0;
 
   /**
