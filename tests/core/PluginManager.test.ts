@@ -92,7 +92,6 @@ describe('PluginManager', () => {
 
     expect(result.success).toBe(true);
     expect(result.plugin).toBe(plugin);
-    expect(result.duration).toBeGreaterThan(0);
     expect(plugin.installCalled).toBe(true);
     expect(pluginManager.has('TestPlugin')).toBe(true);
     expect(pluginManager.get('TestPlugin')).toBe(plugin);

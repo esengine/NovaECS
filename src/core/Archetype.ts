@@ -258,13 +258,13 @@ export class Archetype {
    * 从组件类型创建唯一原型ID
    */
   private createArchetypeId(componentTypes: ComponentType[]): ArchetypeId {
-    // Sort component types by name for consistent ID
-    const sortedTypes = componentTypes
-      .map(type => type.name)
-      .sort()
+    // Sort component types by typeId for consistent ID
+    const sortedTypeIds = componentTypes
+      .map(type => type.typeId)
+      .sort((a, b) => a - b)
       .join('|');
-    
-    return `archetype:${sortedTypes}`;
+
+    return `archetype:${sortedTypeIds}`;
   }
 
   /**

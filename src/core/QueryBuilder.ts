@@ -299,23 +299,23 @@ export class QueryBuilder implements IQueryBuilder {
     const parts: string[] = [];
     
     if (this._criteria.all?.length) {
-      parts.push(`all:${this._criteria.all.map(t => t.name).sort().join(',')}`);
+      parts.push(`all:${this._criteria.all.map(t => t.typeId).sort((a, b) => a - b).join(',')}`);
     }
     
     if (this._criteria.any?.length) {
-      parts.push(`any:${this._criteria.any.map(t => t.name).sort().join(',')}`);
+      parts.push(`any:${this._criteria.any.map(t => t.typeId).sort((a, b) => a - b).join(',')}`);
     }
     
     if (this._criteria.none?.length) {
-      parts.push(`none:${this._criteria.none.map(t => t.name).sort().join(',')}`);
+      parts.push(`none:${this._criteria.none.map(t => t.typeId).sort((a, b) => a - b).join(',')}`);
     }
     
     if (this._criteria.with?.length) {
-      parts.push(`with:${this._criteria.with.map(t => t.name).sort().join(',')}`);
+      parts.push(`with:${this._criteria.with.map(t => t.typeId).sort((a, b) => a - b).join(',')}`);
     }
     
     if (this._criteria.without?.length) {
-      parts.push(`without:${this._criteria.without.map(t => t.name).sort().join(',')}`);
+      parts.push(`without:${this._criteria.without.map(t => t.typeId).sort((a, b) => a - b).join(',')}`);
     }
     
     if (this._options.includeInactive) {

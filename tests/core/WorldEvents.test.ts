@@ -3,6 +3,8 @@ import { World } from '../../src/core/World';
 import { Entity } from '../../src/core/Entity';
 import { Component } from '../../src/core/Component';
 import { System } from '../../src/core/System';
+import { ComponentRegistry, registerComponent } from '../../src/core/ComponentRegistry';
+import type { ComponentType } from '../../src/utils/Types';
 
 
 class TestComponent extends Component {
@@ -14,8 +16,8 @@ class TestComponent extends Component {
 class TestSystem extends System {
   public updateCalled = false;
 
-  constructor() {
-    super([TestComponent]);
+  constructor(testComponentType: ComponentType) {
+    super([testComponentType]);
   }
 
   update(_entities: Entity[], _deltaTime: number): void {
@@ -25,9 +27,15 @@ class TestSystem extends System {
 
 describe('World Events Integration', () => {
   let world: World;
+  let registry: ComponentRegistry;
+  let TestComponentType: ComponentType<TestComponent>;
 
   beforeEach(() => {
+    registry = ComponentRegistry.getInstance();
+    registry.clear();
     world = new World();
+
+    TestComponentType = registerComponent(TestComponent, 'TestComponent');
   });
 
   afterEach(() => {
@@ -120,7 +128,7 @@ describe('World Events Integration', () => {
       const listener = vi.fn();
       world.eventBus.on('SystemAdded', listener);
 
-      const system = new TestSystem();
+      const system = new TestSystem(TestComponentType);
       world.addSystem(system);
 
       // Wait for event to be processed
@@ -138,7 +146,7 @@ describe('World Events Integration', () => {
       const listener = vi.fn();
       world.eventBus.on('SystemRemoved', listener);
 
-      const system = new TestSystem();
+      const system = new TestSystem(TestComponentType);
       world.addSystem(system);
       world.removeSystem(system);
 

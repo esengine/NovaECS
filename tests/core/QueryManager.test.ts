@@ -3,6 +3,9 @@ import { QueryManager } from '../../src/core/QueryManager';
 import { ArchetypeManager } from '../../src/core/ArchetypeManager';
 import { Entity } from '../../src/core/Entity';
 import { Component } from '../../src/core/Component';
+import { World } from '../../src/core/World';
+import { ComponentRegistry, registerComponent } from '../../src/core/ComponentRegistry';
+import type { ComponentType } from '../../src/utils/Types';
 import type { QueryCriteria, QueryOptions } from '../../src/utils/QueryTypes';
 
 // Test components
@@ -30,38 +33,59 @@ describe('QueryManager', () => {
   let queryManager: QueryManager;
   let archetypeManager: ArchetypeManager;
   let entities: Entity[];
+  let world: World;
+  let registry: ComponentRegistry;
+  let PositionComponentType: ComponentType<PositionComponent>;
+  let VelocityComponentType: ComponentType<VelocityComponent>;
+  let HealthComponentType: ComponentType<HealthComponent>;
+  let DeadComponentType: ComponentType<DeadComponent>;
 
   beforeEach(() => {
+    registry = ComponentRegistry.getInstance();
+    registry.clear();
+    world = new World();
     archetypeManager = new ArchetypeManager();
+
+    PositionComponentType = registerComponent(PositionComponent, 'Position');
+    VelocityComponentType = registerComponent(VelocityComponent, 'Velocity');
+    HealthComponentType = registerComponent(HealthComponent, 'Health');
+    DeadComponentType = registerComponent(DeadComponent, 'Dead');
+
     entities = [];
-    
+
     // Create test entities
-    const entity1 = new Entity(1);
+    const entity1 = world.createEntity();
     entity1.addComponent(new PositionComponent(10, 20));
     entity1.addComponent(new VelocityComponent(1, 0));
     entities.push(entity1);
 
-    const entity2 = new Entity(2);
+    const entity2 = world.createEntity();
     entity2.addComponent(new PositionComponent(30, 40));
     entity2.addComponent(new HealthComponent(80, 100));
     entities.push(entity2);
 
-    const entity3 = new Entity(3);
+    const entity3 = world.createEntity();
     entity3.addComponent(new VelocityComponent(0, 1));
     entity3.addComponent(new DeadComponent());
     entities.push(entity3);
 
-    const entity4 = new Entity(4);
+    const entity4 = world.createEntity();
     entity4.addComponent(new PositionComponent(50, 60));
     entity4.addComponent(new VelocityComponent(2, 2));
     entity4.addComponent(new HealthComponent(100, 100));
     entities.push(entity4);
 
-    // Add entities to archetype manager
+    // Add entities to archetype manager with registered ComponentTypes
     for (const entity of entities) {
       const components = new Map();
       for (const component of entity.getComponents()) {
-        components.set(component.constructor, component);
+        let componentType: ComponentType;
+        if (component instanceof PositionComponent) componentType = PositionComponentType;
+        else if (component instanceof VelocityComponent) componentType = VelocityComponentType;
+        else if (component instanceof HealthComponent) componentType = HealthComponentType;
+        else if (component instanceof DeadComponent) componentType = DeadComponentType;
+        else continue;
+        components.set(componentType, component);
       }
       archetypeManager.addEntity(entity.id, components);
     }
@@ -74,7 +98,7 @@ describe('QueryManager', () => {
 
   describe('Basic Queries', () => {
     test('should query entities with single component', () => {
-      const criteria: QueryCriteria = { all: [PositionComponent] };
+      const criteria: QueryCriteria = { all: [PositionComponentType] };
       const result = queryManager.query(criteria);
 
       expect(result.entities).toHaveLength(3);
@@ -84,7 +108,7 @@ describe('QueryManager', () => {
     });
 
     test('should query entities with multiple components (AND)', () => {
-      const criteria: QueryCriteria = { all: [PositionComponent, VelocityComponent] };
+      const criteria: QueryCriteria = { all: [PositionComponentType, VelocityComponentType] };
       const result = queryManager.query(criteria);
 
       expect(result.entities).toHaveLength(2);
@@ -92,7 +116,7 @@ describe('QueryManager', () => {
     });
 
     test('should query entities with any components (OR)', () => {
-      const criteria: QueryCriteria = { any: [HealthComponent, DeadComponent] };
+      const criteria: QueryCriteria = { any: [HealthComponentType, DeadComponentType] };
       const result = queryManager.query(criteria);
 
       expect(result.entities).toHaveLength(3);
@@ -101,8 +125,8 @@ describe('QueryManager', () => {
 
     test('should query entities without specific components', () => {
       const criteria: QueryCriteria = {
-        all: [PositionComponent],
-        none: [DeadComponent]
+        all: [PositionComponentType],
+        none: [DeadComponentType]
       };
       const result = queryManager.query(criteria);
 
@@ -112,8 +136,8 @@ describe('QueryManager', () => {
 
     test('should support with/without aliases', () => {
       const criteria: QueryCriteria = {
-        with: [PositionComponent],
-        without: [DeadComponent]
+        with: [PositionComponentType],
+        without: [DeadComponentType]
       };
       const result = queryManager.query(criteria);
 
@@ -125,9 +149,9 @@ describe('QueryManager', () => {
   describe('Complex Queries', () => {
     test('should combine all, any, and none criteria', () => {
       const criteria: QueryCriteria = {
-        all: [PositionComponent],
-        any: [VelocityComponent, HealthComponent],
-        none: [DeadComponent]
+        all: [PositionComponentType],
+        any: [VelocityComponentType, HealthComponentType],
+        none: [DeadComponentType]
       };
       const result = queryManager.query(criteria);
 
@@ -136,10 +160,10 @@ describe('QueryManager', () => {
     });
 
     test('should apply custom filter', () => {
-      const criteria: QueryCriteria = { all: [PositionComponent] };
+      const criteria: QueryCriteria = { all: [PositionComponentType] };
       const options: QueryOptions = {
         filter: (entity) => {
-          const pos = entity.getComponent(PositionComponent);
+          const pos = entity.getComponent(PositionComponentType);
           return pos ? pos.x > 20 : false;
         }
       };
@@ -150,11 +174,11 @@ describe('QueryManager', () => {
     });
 
     test('should apply sorting', () => {
-      const criteria: QueryCriteria = { all: [PositionComponent] };
+      const criteria: QueryCriteria = { all: [PositionComponentType] };
       const options: QueryOptions = {
         sort: (a, b) => {
-          const posA = a.getComponent(PositionComponent)!;
-          const posB = b.getComponent(PositionComponent)!;
+          const posA = a.getComponent(PositionComponentType)!;
+          const posB = b.getComponent(PositionComponentType)!;
           return posB.x - posA.x; // Descending by x
         }
       };
@@ -164,7 +188,7 @@ describe('QueryManager', () => {
     });
 
     test('should apply limit and offset', () => {
-      const criteria: QueryCriteria = { all: [PositionComponent] };
+      const criteria: QueryCriteria = { all: [PositionComponentType] };
       const options: QueryOptions = {
         limit: 2,
         offset: 1
@@ -178,7 +202,7 @@ describe('QueryManager', () => {
 
   describe('Caching', () => {
     test('should cache query results by default', () => {
-      const criteria: QueryCriteria = { all: [PositionComponent] };
+      const criteria: QueryCriteria = { all: [PositionComponentType] };
       
       // First query
       const result1 = queryManager.query(criteria);
@@ -191,7 +215,7 @@ describe('QueryManager', () => {
     });
 
     test('should respect useCache option', () => {
-      const criteria: QueryCriteria = { all: [PositionComponent] };
+      const criteria: QueryCriteria = { all: [PositionComponentType] };
       
       // First query with caching disabled
       const result1 = queryManager.query(criteria, { useCache: false });
@@ -203,7 +227,7 @@ describe('QueryManager', () => {
     });
 
     test('should clear cache', () => {
-      const criteria: QueryCriteria = { all: [PositionComponent] };
+      const criteria: QueryCriteria = { all: [PositionComponentType] };
       
       // First query
       queryManager.query(criteria);
@@ -217,14 +241,14 @@ describe('QueryManager', () => {
     });
 
     test('should invalidate cache on entity changes', () => {
-      const criteria: QueryCriteria = { all: [PositionComponent] };
+      const criteria: QueryCriteria = { all: [PositionComponentType] };
       
       // First query
       const result1 = queryManager.query(criteria);
       expect(result1.fromCache).toBe(false);
 
       // Simulate component change to invalidate cache
-      queryManager.onComponentChanged(PositionComponent);
+      queryManager.onComponentChanged(PositionComponentType);
 
       // Second query should not be from cache
       const result2 = queryManager.query(criteria);
@@ -237,16 +261,16 @@ describe('QueryManager', () => {
       const builder = queryManager.createBuilder();
       expect(builder).toBeDefined();
       
-      const entities = builder.with(PositionComponent).execute();
+      const entities = builder.with(PositionComponentType).execute();
       expect(entities).toHaveLength(3);
     });
 
     test('should execute complex query through builder', () => {
       const entities = queryManager.createBuilder()
-        .with(PositionComponent)
-        .without(DeadComponent)
+        .with(PositionComponentType)
+        .without(DeadComponentType)
         .filter(entity => {
-          const pos = entity.getComponent(PositionComponent);
+          const pos = entity.getComponent(PositionComponentType);
           return pos ? pos.x >= 30 : false;
         })
         .sort((a, b) => a.id - b.id)
@@ -259,12 +283,12 @@ describe('QueryManager', () => {
 
   describe('Performance Monitoring', () => {
     test('should track query statistics', () => {
-      const criteria: QueryCriteria = { all: [PositionComponent] };
+      const criteria: QueryCriteria = { all: [PositionComponentType] };
       
       // Execute some queries
       queryManager.query(criteria);
       queryManager.query(criteria); // This should be cached
-      queryManager.query({ all: [VelocityComponent] });
+      queryManager.query({ all: [VelocityComponentType] });
 
       const stats = queryManager.getStatistics();
       expect(stats.totalQueries).toBe(3);
@@ -275,7 +299,7 @@ describe('QueryManager', () => {
     test('should enable/disable performance monitoring', () => {
       queryManager.setPerformanceMonitoring(false);
       
-      const criteria: QueryCriteria = { all: [PositionComponent] };
+      const criteria: QueryCriteria = { all: [PositionComponentType] };
       queryManager.query(criteria);
 
       const stats = queryManager.getStatistics();
@@ -283,7 +307,7 @@ describe('QueryManager', () => {
     });
 
     test('should get cache statistics', () => {
-      const criteria: QueryCriteria = { all: [PositionComponent] };
+      const criteria: QueryCriteria = { all: [PositionComponentType] };
       queryManager.query(criteria);
 
       const cacheStats = queryManager.getCacheStatistics();
@@ -318,22 +342,22 @@ describe('QueryManager', () => {
       expect(result.entities).toHaveLength(4); // All entities
     });
 
-    test('should handle inactive entities', () => {
-      // Make entity inactive
-      entities[0].active = false;
+    test('should handle disabled entities', () => {
+      // Make entity disabled
+      entities[0].enabled = false;
 
-      const criteria: QueryCriteria = { all: [PositionComponent] };
+      const criteria: QueryCriteria = { all: [PositionComponentType] };
       const result = queryManager.query(criteria);
 
-      expect(result.entities).toHaveLength(2); // Should exclude inactive entity
+      expect(result.entities).toHaveLength(2); // Should exclude disabled entity
       expect(result.entities.map(e => e.id)).toEqual([2, 4]);
     });
 
-    test('should include inactive entities when requested', () => {
-      // Make entity inactive
-      entities[0].active = false;
+    test('should include disabled entities when requested', () => {
+      // Make entity disabled
+      entities[0].enabled = false;
 
-      const criteria: QueryCriteria = { all: [PositionComponent] };
+      const criteria: QueryCriteria = { all: [PositionComponentType] };
       const options: QueryOptions = { includeInactive: true };
       const result = queryManager.query(criteria, options);
 

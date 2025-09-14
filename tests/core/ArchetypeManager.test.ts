@@ -1,6 +1,7 @@
 import { describe, beforeEach, test, expect } from 'vitest';
 import { ArchetypeManager } from '../../src/core/ArchetypeManager';
 import { Component } from '../../src/core/Component';
+import { ComponentRegistry, registerComponent } from '../../src/core/ComponentRegistry';
 import type { ComponentType, EntityId } from '../../src/utils/Types';
 
 class TestComponent extends Component {
@@ -23,24 +24,34 @@ class ThirdComponent extends Component {
 
 describe('ArchetypeManager', () => {
   let manager: ArchetypeManager;
+  let registry: ComponentRegistry;
+  let TestComponentType: ComponentType<TestComponent>;
+  let AnotherComponentType: ComponentType<AnotherComponent>;
+  let ThirdComponentType: ComponentType<ThirdComponent>;
 
   beforeEach(() => {
+    registry = ComponentRegistry.getInstance();
+    registry.clear();
     manager = new ArchetypeManager();
+
+    TestComponentType = registerComponent(TestComponent, 'Test');
+    AnotherComponentType = registerComponent(AnotherComponent, 'Another');
+    ThirdComponentType = registerComponent(ThirdComponent, 'Third');
   });
 
   test('should create and retrieve archetypes', () => {
-    const componentTypes = [TestComponent, AnotherComponent];
+    const componentTypes = [TestComponentType, AnotherComponentType];
     const archetype = manager.getOrCreateArchetype(componentTypes);
 
     expect(archetype).toBeDefined();
     expect(archetype.componentTypes.size).toBe(2);
-    expect(archetype.componentTypes.has(TestComponent)).toBe(true);
-    expect(archetype.componentTypes.has(AnotherComponent)).toBe(true);
+    expect(archetype.componentTypes.has(TestComponentType)).toBe(true);
+    expect(archetype.componentTypes.has(AnotherComponentType)).toBe(true);
   });
 
   test('should return same archetype for same component types', () => {
-    const componentTypes1 = [TestComponent, AnotherComponent];
-    const componentTypes2 = [AnotherComponent, TestComponent]; // Different order
+    const componentTypes1 = [TestComponentType, AnotherComponentType];
+    const componentTypes2 = [AnotherComponentType, TestComponentType]; // Different order
 
     const archetype1 = manager.getOrCreateArchetype(componentTypes1);
     const archetype2 = manager.getOrCreateArchetype(componentTypes2);
@@ -49,7 +60,7 @@ describe('ArchetypeManager', () => {
   });
 
   test('should get archetype by ID', () => {
-    const componentTypes = [TestComponent];
+    const componentTypes = [TestComponentType];
     const archetype = manager.getOrCreateArchetype(componentTypes);
     const archetypeId = archetype.id;
 
@@ -63,9 +74,9 @@ describe('ArchetypeManager', () => {
   });
 
   test('should get all archetypes', () => {
-    const archetype1 = manager.getOrCreateArchetype([TestComponent]);
-    const archetype2 = manager.getOrCreateArchetype([AnotherComponent]);
-    const archetype3 = manager.getOrCreateArchetype([TestComponent, AnotherComponent]);
+    const archetype1 = manager.getOrCreateArchetype([TestComponentType]);
+    const archetype2 = manager.getOrCreateArchetype([AnotherComponentType]);
+    const archetype3 = manager.getOrCreateArchetype([TestComponentType, AnotherComponentType]);
 
     const allArchetypes = manager.getAllArchetypes();
     expect(allArchetypes).toHaveLength(3);
@@ -77,8 +88,8 @@ describe('ArchetypeManager', () => {
   test('should add entity to appropriate archetype', () => {
     const entityId: EntityId = 1;
     const components = new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(42)],
-      [AnotherComponent, new AnotherComponent('test')]
+      [TestComponentType, new TestComponent(42)],
+      [AnotherComponentType, new AnotherComponent('test')]
     ]);
 
     manager.addEntity(entityId, components);
@@ -94,20 +105,20 @@ describe('ArchetypeManager', () => {
     const testComponent = new TestComponent(42);
     const anotherComponent = new AnotherComponent('test');
     const components = new Map<ComponentType, Component>([
-      [TestComponent, testComponent],
-      [AnotherComponent, anotherComponent]
+      [TestComponentType, testComponent],
+      [AnotherComponentType, anotherComponent]
     ]);
 
     manager.addEntity(entityId, components);
-    
+
     const archetype = manager.getEntityArchetype(entityId);
     expect(archetype!.entityCount).toBe(1);
 
     const removedComponents = manager.removeEntity(entityId);
-    
+
     expect(removedComponents).toBeDefined();
-    expect(removedComponents!.get(TestComponent)).toBe(testComponent);
-    expect(removedComponents!.get(AnotherComponent)).toBe(anotherComponent);
+    expect(removedComponents!.get(TestComponentType)).toBe(testComponent);
+    expect(removedComponents!.get(AnotherComponentType)).toBe(anotherComponent);
     expect(archetype!.entityCount).toBe(0);
     expect(manager.getEntityArchetype(entityId)).toBeUndefined();
   });
@@ -120,15 +131,15 @@ describe('ArchetypeManager', () => {
   test('should move entity to new archetype', () => {
     const entityId: EntityId = 1;
     const originalComponents = new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(42)]
+      [TestComponentType, new TestComponent(42)]
     ]);
 
     manager.addEntity(entityId, originalComponents);
     const originalArchetype = manager.getEntityArchetype(entityId);
 
     const newComponents = new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(42)],
-      [AnotherComponent, new AnotherComponent('test')]
+      [TestComponentType, new TestComponent(42)],
+      [AnotherComponentType, new AnotherComponent('test')]
     ]);
 
     const success = manager.moveEntity(entityId, newComponents);
@@ -143,7 +154,7 @@ describe('ArchetypeManager', () => {
 
   test('should fail to move non-existent entity', () => {
     const newComponents = new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(42)]
+      [TestComponentType, new TestComponent(42)]
     ]);
 
     const success = manager.moveEntity(999, newComponents);
@@ -154,76 +165,76 @@ describe('ArchetypeManager', () => {
     const entityId: EntityId = 1;
     const testComponent = new TestComponent(42);
     const components = new Map<ComponentType, Component>([
-      [TestComponent, testComponent],
-      [AnotherComponent, new AnotherComponent('test')]
+      [TestComponentType, testComponent],
+      [AnotherComponentType, new AnotherComponent('test')]
     ]);
 
     manager.addEntity(entityId, components);
 
-    const retrievedComponent = manager.getEntityComponent(entityId, TestComponent);
+    const retrievedComponent = manager.getEntityComponent(entityId, TestComponentType);
     expect(retrievedComponent).toBe(testComponent);
     expect((retrievedComponent as TestComponent).value).toBe(42);
   });
 
   test('should return undefined for non-existent entity component', () => {
-    const component = manager.getEntityComponent(999, TestComponent);
+    const component = manager.getEntityComponent(999, TestComponentType);
     expect(component).toBeUndefined();
   });
 
   test('should query archetypes by component types', () => {
     // Create archetypes
-    manager.getOrCreateArchetype([TestComponent]);
-    manager.getOrCreateArchetype([AnotherComponent]);
-    manager.getOrCreateArchetype([TestComponent, AnotherComponent]);
-    manager.getOrCreateArchetype([TestComponent, ThirdComponent]);
+    manager.getOrCreateArchetype([TestComponentType]);
+    manager.getOrCreateArchetype([AnotherComponentType]);
+    manager.getOrCreateArchetype([TestComponentType, AnotherComponentType]);
+    manager.getOrCreateArchetype([TestComponentType, ThirdComponentType]);
 
     // Query for TestComponent
-    const archetypes = manager.queryArchetypes([TestComponent]);
+    const archetypes = manager.queryArchetypes([TestComponentType]);
     expect(archetypes).toHaveLength(3); // Should match 3 archetypes containing TestComponent
 
     // Query for TestComponent AND AnotherComponent
-    const archetypes2 = manager.queryArchetypes([TestComponent, AnotherComponent]);
+    const archetypes2 = manager.queryArchetypes([TestComponentType, AnotherComponentType]);
     expect(archetypes2).toHaveLength(1); // Should match only the archetype with both components
   });
 
   test('should cache query results', () => {
     // Create archetypes
-    manager.getOrCreateArchetype([TestComponent]);
-    manager.getOrCreateArchetype([TestComponent, AnotherComponent]);
+    manager.getOrCreateArchetype([TestComponentType]);
+    manager.getOrCreateArchetype([TestComponentType, AnotherComponentType]);
 
     // First query
-    const archetypes1 = manager.queryArchetypes([TestComponent]);
-    
+    const archetypes1 = manager.queryArchetypes([TestComponentType]);
+
     // Second query (should use cache)
-    const archetypes2 = manager.queryArchetypes([TestComponent]);
-    
+    const archetypes2 = manager.queryArchetypes([TestComponentType]);
+
     expect(archetypes1).toBe(archetypes2); // Should be the same array reference (cached)
   });
 
   test('should invalidate cache when new archetype is created', () => {
     // Initial query
-    const archetypes1 = manager.queryArchetypes([TestComponent]);
+    const archetypes1 = manager.queryArchetypes([TestComponentType]);
     expect(archetypes1).toHaveLength(0);
 
     // Create new archetype
-    manager.getOrCreateArchetype([TestComponent]);
+    manager.getOrCreateArchetype([TestComponentType]);
 
     // Query again (cache should be invalidated)
-    const archetypes2 = manager.queryArchetypes([TestComponent]);
+    const archetypes2 = manager.queryArchetypes([TestComponentType]);
     expect(archetypes2).toHaveLength(1);
   });
 
   test('should query entities by component types', () => {
     // Add entities
-    manager.addEntity(1, new Map<ComponentType, Component>([[TestComponent, new TestComponent(1)]]));
-    manager.addEntity(2, new Map<ComponentType, Component>([[AnotherComponent, new AnotherComponent('test')]]));
+    manager.addEntity(1, new Map<ComponentType, Component>([[TestComponentType, new TestComponent(1)]]));
+    manager.addEntity(2, new Map<ComponentType, Component>([[AnotherComponentType, new AnotherComponent('test')]]));
     manager.addEntity(3, new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(3)],
-      [AnotherComponent, new AnotherComponent('test3')]
+      [TestComponentType, new TestComponent(3)],
+      [AnotherComponentType, new AnotherComponent('test3')]
     ]));
 
     // Query for TestComponent
-    const entities = manager.queryEntities([TestComponent]);
+    const entities = manager.queryEntities([TestComponentType]);
     expect(entities).toHaveLength(2);
     expect(entities).toContain(1);
     expect(entities).toContain(3);
@@ -232,14 +243,14 @@ describe('ArchetypeManager', () => {
 
   test('should query archetypes with advanced filtering', () => {
     // Create archetypes
-    const archetype1 = manager.getOrCreateArchetype([TestComponent]);
-    const archetype2 = manager.getOrCreateArchetype([TestComponent, AnotherComponent]);
-    const archetype3 = manager.getOrCreateArchetype([AnotherComponent, ThirdComponent]);
+    const archetype1 = manager.getOrCreateArchetype([TestComponentType]);
+    const archetype2 = manager.getOrCreateArchetype([TestComponentType, AnotherComponentType]);
+    const archetype3 = manager.getOrCreateArchetype([AnotherComponentType, ThirdComponentType]);
 
     // Query with required and excluded components
     const query = {
-      required: new Set([TestComponent]),
-      excluded: new Set([ThirdComponent])
+      required: new Set([TestComponentType]),
+      excluded: new Set([ThirdComponentType])
     };
 
     const matchingArchetypes = manager.queryArchetypesAdvanced(query);
@@ -251,15 +262,15 @@ describe('ArchetypeManager', () => {
 
   test('should provide statistics', () => {
     // Add some entities to create archetypes
-    manager.addEntity(1, new Map<ComponentType, Component>([[TestComponent, new TestComponent(1)]]));
-    manager.addEntity(2, new Map<ComponentType, Component>([[TestComponent, new TestComponent(2)]]));
+    manager.addEntity(1, new Map<ComponentType, Component>([[TestComponentType, new TestComponent(1)]]));
+    manager.addEntity(2, new Map<ComponentType, Component>([[TestComponentType, new TestComponent(2)]]));
     manager.addEntity(3, new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(3)],
-      [AnotherComponent, new AnotherComponent('test')]
+      [TestComponentType, new TestComponent(3)],
+      [AnotherComponentType, new AnotherComponent('test')]
     ]));
 
     const stats = manager.getStatistics();
-    
+
     expect(stats.archetypeCount).toBe(2);
     expect(stats.totalEntities).toBe(3);
     expect(stats.averageEntitiesPerArchetype).toBe(1.5);
@@ -278,8 +289,8 @@ describe('ArchetypeManager', () => {
 
   test('should clear all data', () => {
     // Add some data
-    manager.addEntity(1, new Map<ComponentType, Component>([[TestComponent, new TestComponent(1)]]));
-    manager.addEntity(2, new Map<ComponentType, Component>([[AnotherComponent, new AnotherComponent('test')]]));
+    manager.addEntity(1, new Map<ComponentType, Component>([[TestComponentType, new TestComponent(1)]]));
+    manager.addEntity(2, new Map<ComponentType, Component>([[AnotherComponentType, new AnotherComponent('test')]]));
 
     expect(manager.getAllArchetypes()).toHaveLength(2);
 
@@ -289,24 +300,24 @@ describe('ArchetypeManager', () => {
     expect(manager.getAllArchetypes()).toHaveLength(0);
     expect(manager.getEntityArchetype(1)).toBeUndefined();
     expect(manager.getEntityArchetype(2)).toBeUndefined();
-    
+
     // Query cache should also be cleared
-    const archetypes = manager.queryArchetypes([TestComponent]);
+    const archetypes = manager.queryArchetypes([TestComponentType]);
     expect(archetypes).toHaveLength(0);
   });
 
   test('should build archetype edges correctly', () => {
     // Create related archetypes
-    const archetype1 = manager.getOrCreateArchetype([TestComponent]);
-    const archetype2 = manager.getOrCreateArchetype([TestComponent, AnotherComponent]);
+    const archetype1 = manager.getOrCreateArchetype([TestComponentType]);
+    const archetype2 = manager.getOrCreateArchetype([TestComponentType, AnotherComponentType]);
 
     // Check if edges are built
-    const edge = archetype1.getEdge(AnotherComponent);
+    const edge = archetype1.getEdge(AnotherComponentType);
     expect(edge).toBeDefined();
     expect(edge!.targetArchetypeId).toBe(archetype2.id);
     expect(edge!.isAddition).toBe(true);
 
-    const reverseEdge = archetype2.getEdge(AnotherComponent);
+    const reverseEdge = archetype2.getEdge(AnotherComponentType);
     expect(reverseEdge).toBeDefined();
     expect(reverseEdge!.targetArchetypeId).toBe(archetype1.id);
     expect(reverseEdge!.isAddition).toBe(false);
@@ -316,37 +327,37 @@ describe('ArchetypeManager', () => {
     const entityId: EntityId = 1;
 
     // Start with TestComponent only
-    manager.addEntity(entityId, new Map<ComponentType, Component>([[TestComponent, new TestComponent(1)]]));
+    manager.addEntity(entityId, new Map<ComponentType, Component>([[TestComponentType, new TestComponent(1)]]));
     let archetype = manager.getEntityArchetype(entityId);
     expect(archetype!.componentTypes.size).toBe(1);
 
     // Add AnotherComponent
     manager.moveEntity(entityId, new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(1)],
-      [AnotherComponent, new AnotherComponent('test')]
+      [TestComponentType, new TestComponent(1)],
+      [AnotherComponentType, new AnotherComponent('test')]
     ]));
     archetype = manager.getEntityArchetype(entityId);
     expect(archetype!.componentTypes.size).toBe(2);
 
     // Add ThirdComponent
     manager.moveEntity(entityId, new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(1)],
-      [AnotherComponent, new AnotherComponent('test')],
-      [ThirdComponent, new ThirdComponent(true)]
+      [TestComponentType, new TestComponent(1)],
+      [AnotherComponentType, new AnotherComponent('test')],
+      [ThirdComponentType, new ThirdComponent(true)]
     ]));
     archetype = manager.getEntityArchetype(entityId);
     expect(archetype!.componentTypes.size).toBe(3);
 
     // Remove AnotherComponent
     manager.moveEntity(entityId, new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(1)],
-      [ThirdComponent, new ThirdComponent(true)]
+      [TestComponentType, new TestComponent(1)],
+      [ThirdComponentType, new ThirdComponent(true)]
     ]));
     archetype = manager.getEntityArchetype(entityId);
     expect(archetype!.componentTypes.size).toBe(2);
-    expect(archetype!.hasComponent(TestComponent)).toBe(true);
-    expect(archetype!.hasComponent(ThirdComponent)).toBe(true);
-    expect(archetype!.hasComponent(AnotherComponent)).toBe(false);
+    expect(archetype!.hasComponent(TestComponentType)).toBe(true);
+    expect(archetype!.hasComponent(ThirdComponentType)).toBe(true);
+    expect(archetype!.hasComponent(AnotherComponentType)).toBe(false);
   });
 
   test('should handle concurrent entity operations', () => {
@@ -355,23 +366,23 @@ describe('ArchetypeManager', () => {
 
     // Add entities concurrently
     entities.forEach(id => {
-      manager.addEntity(id, new Map<ComponentType, Component>([[TestComponent, new TestComponent(id)]]));
+      manager.addEntity(id, new Map<ComponentType, Component>([[TestComponentType, new TestComponent(id)]]));
     });
 
-    expect(manager.queryEntities([TestComponent])).toHaveLength(5);
+    expect(manager.queryEntities([TestComponentType])).toHaveLength(5);
 
     // Move some entities to different archetypes
     manager.moveEntity(2, new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(2)],
-      [AnotherComponent, new AnotherComponent('test2')]
+      [TestComponentType, new TestComponent(2)],
+      [AnotherComponentType, new AnotherComponent('test2')]
     ]));
     manager.moveEntity(4, new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(4)],
-      [AnotherComponent, new AnotherComponent('test4')]
+      [TestComponentType, new TestComponent(4)],
+      [AnotherComponentType, new AnotherComponent('test4')]
     ]));
 
-    const singleComponentEntities = manager.queryEntities([TestComponent]);
-    const dualComponentEntities = manager.queryEntities([TestComponent, AnotherComponent]);
+    const singleComponentEntities = manager.queryEntities([TestComponentType]);
+    const dualComponentEntities = manager.queryEntities([TestComponentType, AnotherComponentType]);
 
     expect(singleComponentEntities).toHaveLength(5); // All entities have TestComponent
     expect(dualComponentEntities).toHaveLength(2); // Only entities 2 and 4 have both
@@ -381,22 +392,22 @@ describe('ArchetypeManager', () => {
     const entityId: EntityId = 1;
     const originalComponent = new TestComponent(42);
 
-    manager.addEntity(entityId, new Map<ComponentType, Component>([[TestComponent, originalComponent]]));
+    manager.addEntity(entityId, new Map<ComponentType, Component>([[TestComponentType, originalComponent]]));
 
     // Verify component is stored correctly
-    const retrievedComponent = manager.getEntityComponent(entityId, TestComponent);
+    const retrievedComponent = manager.getEntityComponent(entityId, TestComponentType);
     expect(retrievedComponent).toBe(originalComponent);
     expect((retrievedComponent as TestComponent).value).toBe(42);
 
     // Move entity and verify component is preserved
     const newComponent = new AnotherComponent('test');
     manager.moveEntity(entityId, new Map<ComponentType, Component>([
-      [TestComponent, originalComponent],
-      [AnotherComponent, newComponent]
+      [TestComponentType, originalComponent],
+      [AnotherComponentType, newComponent]
     ]));
 
-    const retrievedTestComponent = manager.getEntityComponent(entityId, TestComponent);
-    const retrievedAnotherComponent = manager.getEntityComponent(entityId, AnotherComponent);
+    const retrievedTestComponent = manager.getEntityComponent(entityId, TestComponentType);
+    const retrievedAnotherComponent = manager.getEntityComponent(entityId, AnotherComponentType);
 
     expect(retrievedTestComponent).toBe(originalComponent);
     expect(retrievedAnotherComponent).toBe(newComponent);
@@ -418,7 +429,7 @@ describe('ArchetypeManager', () => {
     const entityCount = 1000;
 
     for (let i = 1; i <= entityCount; i++) {
-      manager.addEntity(i, new Map<ComponentType, Component>([[TestComponent, new TestComponent(i)]]));
+      manager.addEntity(i, new Map<ComponentType, Component>([[TestComponentType, new TestComponent(i)]]));
     }
 
     const stats = manager.getStatistics();

@@ -5,6 +5,8 @@ import { Component } from '../../src/core/Component';
 import { System } from '../../src/core/System';
 import { Event, EntityCreatedEvent } from '../../src/core/Event';
 import { EventPriority } from '../../src/utils/EventTypes';
+import { ComponentRegistry, registerComponent } from '../../src/core/ComponentRegistry';
+import type { ComponentType } from '../../src/utils/Types';
 
 class TestComponent extends Component {
   constructor(public value: number = 0) {
@@ -22,8 +24,8 @@ class EventListeningSystem extends System {
   public receivedEvents: TestEvent[] = [];
   public receivedEntityEvents: EntityCreatedEvent[] = [];
 
-  constructor() {
-    super([TestComponent]);
+  constructor(requiredComponents: ComponentType[]) {
+    super(requiredComponents);
   }
 
   onAddedToWorld(world: World): void {
@@ -64,8 +66,8 @@ class EventListeningSystem extends System {
 class EventDispatchingSystem extends System {
   public eventsDispatched = 0;
 
-  constructor() {
-    super([TestComponent]);
+  constructor(testComponentType: ComponentType) {
+    super([testComponentType]);
   }
 
   update(entities: Entity[], _deltaTime: number): void {
@@ -78,9 +80,15 @@ class EventDispatchingSystem extends System {
 
 describe('System Events Integration', () => {
   let world: World;
+  let registry: ComponentRegistry;
+  let TestComponentType: ComponentType<TestComponent>;
 
   beforeEach(() => {
+    registry = ComponentRegistry.getInstance();
+    registry.clear();
     world = new World();
+
+    TestComponentType = registerComponent(TestComponent, 'Test');
   });
 
   afterEach(() => {
@@ -89,7 +97,7 @@ describe('System Events Integration', () => {
 
   describe('Event subscription', () => {
     test('should allow systems to subscribe to events', async () => {
-      const system = new EventListeningSystem();
+      const system = new EventListeningSystem([TestComponentType]);
       world.addSystem(system);
       
       // Dispatch a test event
@@ -100,7 +108,7 @@ describe('System Events Integration', () => {
     });
 
     test('should allow systems to subscribe to typed events', async () => {
-      const system = new EventListeningSystem();
+      const system = new EventListeningSystem([TestComponentType]);
       world.addSystem(system);
       
       // Create an entity (should trigger EntityCreatedEvent)
@@ -114,7 +122,7 @@ describe('System Events Integration', () => {
     });
 
     test('should throw error when subscribing before added to world', () => {
-      const system = new EventListeningSystem();
+      const system = new EventListeningSystem([TestComponentType]);
 
       expect(() => {
         system.testSubscribeToEvent('TestEvent', () => {});
@@ -124,8 +132,8 @@ describe('System Events Integration', () => {
 
   describe('Event dispatching', () => {
     test('should allow systems to dispatch events', async () => {
-      const listeningSystem = new EventListeningSystem();
-      const dispatchingSystem = new EventDispatchingSystem();
+      const listeningSystem = new EventListeningSystem([TestComponentType]);
+      const dispatchingSystem = new EventDispatchingSystem(TestComponentType);
       
       world.addSystem(listeningSystem);
       world.addSystem(dispatchingSystem);
@@ -146,7 +154,7 @@ describe('System Events Integration', () => {
     });
 
     test('should throw error when dispatching before added to world', () => {
-      const system = new EventListeningSystem();
+      const system = new EventListeningSystem([TestComponentType]);
 
       expect(() => {
         system.testDispatchEvent(new TestEvent('test'));
@@ -156,7 +164,7 @@ describe('System Events Integration', () => {
 
   describe('Event unsubscription', () => {
     test('should unsubscribe from events when system is removed', async () => {
-      const system = new EventListeningSystem();
+      const system = new EventListeningSystem([TestComponentType]);
       world.addSystem(system);
       
       // Verify subscription works
@@ -174,7 +182,7 @@ describe('System Events Integration', () => {
     });
 
     test('should allow manual unsubscription', async () => {
-      const system = new EventListeningSystem();
+      const system = new EventListeningSystem([TestComponentType]);
       world.addSystem(system);
       
       // Subscribe and get listener ID
@@ -195,8 +203,8 @@ describe('System Events Integration', () => {
   describe('System communication via events', () => {
     test('should enable communication between systems', async () => {
       class ProducerSystem extends System {
-        constructor() {
-          super([TestComponent]);
+        constructor(testComponentType: ComponentType) {
+          super([testComponentType]);
         }
 
         update(entities: Entity[], _deltaTime: number): void {
@@ -227,7 +235,7 @@ describe('System Events Integration', () => {
         }
       }
 
-      const producer = new ProducerSystem();
+      const producer = new ProducerSystem(TestComponentType);
       const consumer = new ConsumerSystem();
       
       world.addSystem(producer);

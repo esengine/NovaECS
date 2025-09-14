@@ -1,6 +1,8 @@
 import { Entity } from '../../src/core/Entity';
 import { Component } from '../../src/core/Component';
 import { World } from '../../src/core/World';
+import { ComponentRegistry, registerComponent } from '../../src/core/ComponentRegistry';
+import type { ComponentType } from '../../src/utils/Types';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 class TestComponent extends Component {
@@ -17,48 +19,59 @@ class AnotherComponent extends Component {
 
 describe('Entity', () => {
   let entity: Entity;
+  let world: World;
+  let registry: ComponentRegistry;
+  let TestComponentType: ComponentType<TestComponent>;
+  let AnotherComponentType: ComponentType<AnotherComponent>;
 
   beforeEach(() => {
-    entity = new Entity(1);
+    registry = ComponentRegistry.getInstance();
+    registry.clear();
+    world = new World();
+
+    TestComponentType = registerComponent(TestComponent, 'Test');
+    AnotherComponentType = registerComponent(AnotherComponent, 'Another');
+
+    entity = world.createEntity();
   });
 
   test('should initialize with correct id', () => {
     expect(entity.id).toBe(1);
   });
 
-  test('should be active by default', () => {
-    expect(entity.active).toBe(true);
+  test('should be enabled by default', () => {
+    expect(entity.enabled).toBe(true);
   });
 
-  test('should allow setting active state', () => {
-    entity.active = false;
-    expect(entity.active).toBe(false);
+  test('should allow setting enabled state', () => {
+    entity.enabled = false;
+    expect(entity.enabled).toBe(false);
   });
 
   test('should add component', () => {
     const component = new TestComponent(42);
     entity.addComponent(component);
-    
-    expect(entity.hasComponent(TestComponent)).toBe(true);
-    expect(entity.getComponent(TestComponent)).toBe(component);
+
+    expect(entity.hasComponent(TestComponentType)).toBe(true);
+    expect(entity.getComponent(TestComponentType)).toBe(component);
   });
 
   test('should remove component', () => {
     const component = new TestComponent(42);
     entity.addComponent(component);
-    entity.removeComponent(TestComponent);
-    
-    expect(entity.hasComponent(TestComponent)).toBe(false);
-    expect(entity.getComponent(TestComponent)).toBeUndefined();
+    entity.removeComponent(TestComponentType);
+
+    expect(entity.hasComponent(TestComponentType)).toBe(false);
+    expect(entity.getComponent(TestComponentType)).toBeUndefined();
   });
 
   test('should check for multiple components', () => {
     entity.addComponent(new TestComponent(42));
     entity.addComponent(new AnotherComponent('test'));
-    
-    expect(entity.hasComponents(TestComponent, AnotherComponent)).toBe(true);
-    expect(entity.hasComponents(TestComponent)).toBe(true);
-    expect(entity.hasComponents(AnotherComponent)).toBe(true);
+
+    expect(entity.hasComponents(TestComponentType, AnotherComponentType)).toBe(true);
+    expect(entity.hasComponents(TestComponentType)).toBe(true);
+    expect(entity.hasComponents(AnotherComponentType)).toBe(true);
   });
 
   test('should return all components', () => {
@@ -77,29 +90,30 @@ describe('Entity', () => {
   test('should return component types', () => {
     entity.addComponent(new TestComponent(42));
     entity.addComponent(new AnotherComponent('test'));
-    
+
     const types = entity.getComponentTypes();
     expect(types).toHaveLength(2);
     expect(types).toContain(TestComponent);
     expect(types).toContain(AnotherComponent);
   });
 
-  test('should clear all components', () => {
+  test('should remove all components individually', () => {
     entity.addComponent(new TestComponent(42));
     entity.addComponent(new AnotherComponent('test'));
-    
-    entity.clear();
-    
+
+    entity.removeComponent(TestComponentType);
+    entity.removeComponent(AnotherComponentType);
+
     expect(entity.getComponents()).toHaveLength(0);
-    expect(entity.hasComponent(TestComponent)).toBe(false);
-    expect(entity.hasComponent(AnotherComponent)).toBe(false);
+    expect(entity.hasComponent(TestComponentType)).toBe(false);
+    expect(entity.hasComponent(AnotherComponentType)).toBe(false);
   });
 
   test('should destroy entity', () => {
     entity.addComponent(new TestComponent(42));
     entity.destroy();
-    
-    expect(entity.active).toBe(false);
+
+    expect(entity.alive).toBe(false);
     expect(entity.getComponents()).toHaveLength(0);
   });
 
@@ -107,8 +121,7 @@ describe('Entity', () => {
     const result = entity
       .addComponent(new TestComponent(42))
       .addComponent(new AnotherComponent('test'))
-      .removeComponent(TestComponent)
-      .clear();
+      .removeComponent(TestComponentType);
 
     expect(result).toBe(entity);
   });
@@ -123,26 +136,26 @@ describe('Entity', () => {
     entity.addComponent(component);
     expect(component.onAdded).toHaveBeenCalled();
 
-    entity.removeComponent(TestComponent);
+    entity.removeComponent(TestComponentType);
     expect(component.onRemoved).toHaveBeenCalled();
   });
 
   test('should handle archetype storage with fallback', () => {
-    // Test fallback to traditional storage when no providers are set
-    expect(entity.hasComponent(TestComponent)).toBe(false);
+    // Test world-based storage (our entity is created through world)
+    expect(entity.hasComponent(TestComponentType)).toBe(false);
 
     entity.addComponent(new TestComponent(42));
-    expect(entity.hasComponent(TestComponent)).toBe(true);
+    expect(entity.hasComponent(TestComponentType)).toBe(true);
 
-    const component = entity.getComponent(TestComponent);
+    const component = entity.getComponent(TestComponentType);
     expect(component).toBeDefined();
     expect((component as TestComponent).value).toBe(42);
 
-    // Component should be accessible through traditional storage fallback
-    expect(entity.hasComponent(TestComponent)).toBe(true);
-    const fallbackComponent = entity.getComponent(TestComponent);
-    expect(fallbackComponent).toBeDefined();
-    expect((fallbackComponent as TestComponent).value).toBe(42);
+    // Component should be accessible through world's archetype storage
+    expect(entity.hasComponent(TestComponentType)).toBe(true);
+    const retrievedComponent = entity.getComponent(TestComponentType);
+    expect(retrievedComponent).toBeDefined();
+    expect((retrievedComponent as TestComponent).value).toBe(42);
   });
 
   test('should handle world-based component access', () => {
@@ -152,7 +165,7 @@ describe('Entity', () => {
     const component = new TestComponent(999);
     worldEntity.addComponent(component);
 
-    const retrievedComponent = worldEntity.getComponent(TestComponent);
+    const retrievedComponent = worldEntity.getComponent(TestComponentType);
     expect(retrievedComponent).toBe(component);
     expect(retrievedComponent?.value).toBe(999);
   });
@@ -165,14 +178,14 @@ describe('Entity', () => {
     worldEntity.addComponent(component);
 
     // Component should be accessible
-    expect(worldEntity.hasComponent(TestComponent)).toBe(true);
-    expect(worldEntity.getComponent(TestComponent)).toBe(component);
+    expect(worldEntity.hasComponent(TestComponentType)).toBe(true);
+    expect(worldEntity.getComponent(TestComponentType)).toBe(component);
 
-    worldEntity.removeComponent(TestComponent);
+    worldEntity.removeComponent(TestComponentType);
 
     // Component should be removed
-    expect(worldEntity.hasComponent(TestComponent)).toBe(false);
-    expect(worldEntity.getComponent(TestComponent)).toBeUndefined();
+    expect(worldEntity.hasComponent(TestComponentType)).toBe(false);
+    expect(worldEntity.getComponent(TestComponentType)).toBeUndefined();
   });
 
   test('should handle world-based archetype operations', () => {
@@ -184,15 +197,15 @@ describe('Entity', () => {
     worldEntity.addComponent(component);
 
     // Component should be accessible through archetype system
-    const retrievedComponent = worldEntity.getComponent(TestComponent);
+    const retrievedComponent = worldEntity.getComponent(TestComponentType);
     expect(retrievedComponent).toBe(component);
 
     // hasComponent should work with archetype system
-    expect(worldEntity.hasComponent(TestComponent)).toBe(true);
+    expect(worldEntity.hasComponent(TestComponentType)).toBe(true);
 
     // Remove component
-    worldEntity.removeComponent(TestComponent);
-    expect(worldEntity.hasComponent(TestComponent)).toBe(false);
+    worldEntity.removeComponent(TestComponentType);
+    expect(worldEntity.hasComponent(TestComponentType)).toBe(false);
   });
 
   test('should handle multiple components with world archetype storage', () => {
@@ -205,15 +218,16 @@ describe('Entity', () => {
     worldEntity.addComponent(component1);
     worldEntity.addComponent(component2);
 
-    expect(worldEntity.hasComponents(TestComponent)).toBe(true);
-    expect(worldEntity.hasComponents(TestComponent, AnotherComponent)).toBe(true);
+    expect(worldEntity.hasComponents(TestComponentType)).toBe(true);
+    expect(worldEntity.hasComponents(TestComponentType, AnotherComponentType)).toBe(true);
 
     // Add a third component class for testing
     class ThirdComponent extends Component {}
-    expect(worldEntity.hasComponents(TestComponent, AnotherComponent, ThirdComponent)).toBe(false);
+    const ThirdComponentType = registerComponent(ThirdComponent, 'Third');
+    expect(worldEntity.hasComponents(TestComponentType, AnotherComponentType, ThirdComponentType)).toBe(false);
 
-    expect(worldEntity.getComponent(TestComponent)).toBe(component1);
-    expect(worldEntity.getComponent(AnotherComponent)).toBe(component2);
+    expect(worldEntity.getComponent(TestComponentType)).toBe(component1);
+    expect(worldEntity.getComponent(AnotherComponentType)).toBe(component2);
   });
 
   test('should handle getComponents with world integration', () => {
@@ -234,7 +248,7 @@ describe('Entity', () => {
   });
 
   test('should fallback to traditional storage for getComponents', () => {
-    // Without archetype provider, should use traditional storage
+    // With world-based archetype storage
     const component = new TestComponent(42);
     entity.addComponent(component);
 
@@ -242,33 +256,22 @@ describe('Entity', () => {
     expect(components).toContain(component);
   });
 
-  test('should handle internal component storage access', () => {
-    const component = new TestComponent(42);
-    entity.addComponent(component);
-
-    const internalStorage = entity.getInternalComponentStorage();
-    expect(internalStorage.has(TestComponent)).toBe(true);
-    expect(internalStorage.get(TestComponent)).toBe(component);
-  });
 
   test('should handle world integration priority over traditional storage', () => {
-    // Add component to traditional storage (entity not in world)
-    const traditionalComponent = new TestComponent(42);
-    entity.addComponent(traditionalComponent);
-    expect(entity.hasComponent(TestComponent)).toBe(true);
-    expect(entity.getComponent(TestComponent)).toBe(traditionalComponent);
+    // Entity is already in world, so test world integration
+    const firstComponent = new TestComponent(42);
+    entity.addComponent(firstComponent);
+    expect(entity.hasComponent(TestComponentType)).toBe(true);
+    expect(entity.getComponent(TestComponentType)).toBe(firstComponent);
 
-    // Now add entity to world - should use archetype storage
-    const world = new World();
-    world.addEntity(entity);
+    // Update with a different component through world's archetype system
+    const updatedComponent = new TestComponent(999);
+    entity.removeComponent(TestComponentType);
+    entity.addComponent(updatedComponent);
 
-    // Add a different component through world's archetype system
-    const worldComponent = new TestComponent(999);
-    entity.addComponent(worldComponent);
-
-    // Should now use world's archetype storage
-    const component = entity.getComponent(TestComponent);
-    expect(component).toBe(worldComponent);
-    expect(component).not.toBe(traditionalComponent);
+    // Should now use the updated component
+    const component = entity.getComponent(TestComponentType);
+    expect(component).toBe(updatedComponent);
+    expect(component).not.toBe(firstComponent);
   });
 });

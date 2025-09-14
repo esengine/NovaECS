@@ -28,8 +28,8 @@ export class ArchetypeManager {
    * 获取或创建组件类型的原型
    */
   getOrCreateArchetype(componentTypes: ComponentType[]): Archetype {
-    // Sort component types for consistent archetype ID
-    const sortedTypes = [...componentTypes].sort((a, b) => a.name.localeCompare(b.name));
+    // Sort component types by typeId for consistent archetype ID
+    const sortedTypes = [...componentTypes].sort((a, b) => a.typeId - b.typeId);
     const archetypeId = this.createArchetypeId(sortedTypes);
     
     let archetype = this._archetypes.get(archetypeId);
@@ -329,8 +329,8 @@ export class ArchetypeManager {
    * 从排序的组件类型创建原型ID
    */
   private createArchetypeId(componentTypes: ComponentType[]): ArchetypeId {
-    const typeNames = componentTypes.map(type => type.name).join('|');
-    return `archetype:${typeNames}`;
+    const typeIds = componentTypes.map(type => type.typeId).join('|');
+    return `archetype:${typeIds}`;
   }
 
   /**

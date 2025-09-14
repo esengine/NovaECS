@@ -3,6 +3,8 @@ import { World } from '../../src/core/World';
 import { Entity } from '../../src/core/Entity';
 import { System } from '../../src/core/System';
 import { Component } from '../../src/core/Component';
+import { ComponentRegistry, registerComponent } from '../../src/core/ComponentRegistry';
+import type { ComponentType } from '../../src/utils/Types';
 
 class TestComponent extends Component {
   constructor(public value: number = 0) {
@@ -22,8 +24,8 @@ class TestSystem extends System {
   public preUpdateCalled = false;
   public postUpdateCalled = false;
 
-  constructor() {
-    super([TestComponent]);
+  constructor(testComponentType: ComponentType) {
+    super([testComponentType]);
   }
 
   update(entities: Entity[], _deltaTime: number): void {
@@ -42,9 +44,17 @@ class TestSystem extends System {
 
 describe('World', () => {
   let world: World;
+  let registry: ComponentRegistry;
+  let TestComponentType: ComponentType<TestComponent>;
+  let AnotherComponentType: ComponentType<AnotherComponent>;
 
   beforeEach(() => {
+    registry = ComponentRegistry.getInstance();
+    registry.clear();
     world = new World();
+
+    TestComponentType = registerComponent(TestComponent, 'TestComponent');
+    AnotherComponentType = registerComponent(AnotherComponent, 'AnotherComponent');
   });
 
   test('should create entities with incrementing IDs', () => {
@@ -68,7 +78,7 @@ describe('World', () => {
     
     expect(world.getEntity(entity.id)).toBeUndefined();
     expect(world.entities).not.toContain(entity);
-    expect(entity.active).toBe(false);
+    expect(entity.alive).toBe(false);
   });
 
   test('should remove entities by ID', () => {
@@ -88,7 +98,7 @@ describe('World', () => {
     entity2.addComponent(new TestComponent(2));
     entity3.addComponent(new AnotherComponent('test'));
     
-    const result = world.queryEntities(TestComponent);
+    const result = world.queryEntities(TestComponentType);
     
     expect(result).toHaveLength(2);
     expect(result).toContain(entity1);
@@ -104,7 +114,7 @@ describe('World', () => {
     entity1.addComponent(new AnotherComponent('test1'));
     entity2.addComponent(new TestComponent(2));
     
-    const result = world.queryEntities(TestComponent, AnotherComponent);
+    const result = world.queryEntities(TestComponentType, AnotherComponentType);
     
     expect(result).toHaveLength(1);
     expect(result).toContain(entity1);
@@ -118,7 +128,7 @@ describe('World', () => {
     entity2.addComponent(new TestComponent(5));
 
     const result = world.queryEntitiesWithFilter(entity => {
-      const comp = entity.getComponent(TestComponent);
+      const comp = entity.getComponent(TestComponentType);
       return comp ? comp.value > 7 : false;
     });
 
@@ -140,8 +150,8 @@ describe('World', () => {
 
     // Test fluent query API
     const result = world.query()
-      .with(TestComponent)
-      .without(AnotherComponent)
+      .with(TestComponentType)
+      .without(AnotherComponentType)
       .execute();
 
     expect(result).toHaveLength(1);
@@ -156,10 +166,10 @@ describe('World', () => {
     entity2.addComponent(new TestComponent(5));
 
     const result = world.queryWithCriteria(
-      { all: [TestComponent] },
+      { all: [TestComponentType] },
       {
         filter: entity => {
-          const comp = entity.getComponent(TestComponent);
+          const comp = entity.getComponent(TestComponentType);
           return comp ? comp.value > 7 : false;
         }
       }
@@ -176,8 +186,8 @@ describe('World', () => {
     entity.addComponent(new TestComponent(10));
 
     // Execute some queries
-    world.query().with(TestComponent).execute();
-    world.query().with(TestComponent).execute(); // Should be cached
+    world.query().with(TestComponentType).execute();
+    world.query().with(TestComponentType).execute(); // Should be cached
 
     const stats = world.getQueryStatistics();
     expect(stats.totalQueries).toBeGreaterThan(0);
@@ -188,7 +198,7 @@ describe('World', () => {
     entity.addComponent(new TestComponent(10));
 
     // Execute query to populate cache
-    world.query().with(TestComponent).execute();
+    world.query().with(TestComponentType).execute();
 
     // Clear cache
     world.clearQueryCache();
@@ -210,38 +220,38 @@ describe('World', () => {
   });
 
   test('should add and retrieve systems', () => {
-    const system = new TestSystem();
+    const system = new TestSystem(TestComponentType);
     world.addSystem(system);
-    
+
     expect(world.systems).toContain(system);
     expect(world.getSystem(TestSystem)).toBe(system);
   });
 
   test('should remove systems', () => {
-    const system = new TestSystem();
+    const system = new TestSystem(TestComponentType);
     world.addSystem(system);
     world.removeSystem(system);
-    
+
     expect(world.systems).not.toContain(system);
     expect(world.getSystem(TestSystem)).toBeUndefined();
   });
 
   test('should sort systems by priority', () => {
-    const system1 = new TestSystem();
-    const system2 = new TestSystem();
-    
+    const system1 = new TestSystem(TestComponentType);
+    const system2 = new TestSystem(TestComponentType);
+
     system1.priority = 5;
     system2.priority = 10;
-    
+
     world.addSystem(system1);
     world.addSystem(system2);
-    
+
     expect(world.systems[0]).toBe(system2);
     expect(world.systems[1]).toBe(system1);
   });
 
   test('should update systems with matching entities', async () => {
-    const system = new TestSystem();
+    const system = new TestSystem(TestComponentType);
     const entity = world.createEntity();
     entity.addComponent(new TestComponent(42));
 
@@ -258,22 +268,22 @@ describe('World', () => {
   });
 
   test('should not update disabled systems', () => {
-    const system = new TestSystem();
+    const system = new TestSystem(TestComponentType);
     system.enabled = false;
-    
+
     world.addSystem(system);
     world.update(16);
-    
+
     expect(system.updateCalled).toBe(false);
   });
 
   test('should not update when paused', () => {
-    const system = new TestSystem();
+    const system = new TestSystem(TestComponentType);
     world.addSystem(system);
     world.paused = true;
-    
+
     world.update(16);
-    
+
     expect(system.updateCalled).toBe(false);
   });
 
@@ -291,27 +301,27 @@ describe('World', () => {
 
   test('should clear all entities and systems', () => {
     const entity = world.createEntity();
-    const system = new TestSystem();
-    
+    const system = new TestSystem(TestComponentType);
+
     world.addSystem(system);
     world.clear();
-    
+
     expect(world.entities).toHaveLength(0);
     expect(world.systems).toHaveLength(0);
-    expect(entity.active).toBe(false);
+    expect(entity.alive).toBe(false);
   });
 
   test('should return correct counts', () => {
     world.createEntity();
     world.createEntity();
-    world.addSystem(new TestSystem());
+    world.addSystem(new TestSystem(TestComponentType));
 
     expect(world.getEntityCount()).toBe(2);
     expect(world.getSystemCount()).toBe(1);
   });
 
   test('should handle parallel execution by default', async () => {
-    const system = new TestSystem();
+    const system = new TestSystem(TestComponentType);
     world.addSystem(system);
 
     const entity = world.createEntity();
@@ -339,7 +349,7 @@ describe('World', () => {
       }
     }
 
-    const system = new LifecycleSystem();
+    const system = new LifecycleSystem(TestComponentType);
     const entity = world.createEntity();
     entity.addComponent(new TestComponent(42));
 
@@ -354,16 +364,15 @@ describe('World', () => {
   });
 
   test('should handle addEntity method', () => {
-    const entity = new Entity(999);
-    world.addEntity(entity);
+    const entity = world.createEntity();
 
-    expect(world.getEntity(999)).toBe(entity);
+    expect(world.getEntity(entity.id)).toBe(entity);
     expect(world.entities).toContain(entity);
   });
 
   test('should handle system removal by instance', () => {
-    const system1 = new TestSystem();
-    const system2 = new TestSystem();
+    const system1 = new TestSystem(TestComponentType);
+    const system2 = new TestSystem(TestComponentType);
 
     world.addSystem(system1);
     world.addSystem(system2);
@@ -378,7 +387,7 @@ describe('World', () => {
   });
 
   test('should handle system removal and cleanup', () => {
-    const system = new TestSystem();
+    const system = new TestSystem(TestComponentType);
     world.addSystem(system);
 
     expect(world.systems).toContain(system);
@@ -392,8 +401,8 @@ describe('World', () => {
 
   test('should handle entity destruction during update', async () => {
     class DestroyingSystem extends System {
-      constructor() {
-        super([TestComponent]);
+      constructor(testComponentType: ComponentType) {
+        super([testComponentType]);
       }
 
       update(entities: Entity[], _deltaTime: number): void {
@@ -403,7 +412,7 @@ describe('World', () => {
       }
     }
 
-    const system = new DestroyingSystem();
+    const system = new DestroyingSystem(TestComponentType);
     const entity1 = world.createEntity();
     const entity2 = world.createEntity();
 
@@ -421,7 +430,7 @@ describe('World', () => {
   });
 
   test('should handle paused state correctly', async () => {
-    const system = new TestSystem();
+    const system = new TestSystem(TestComponentType);
     world.addSystem(system);
 
     world.paused = false;
@@ -448,8 +457,8 @@ describe('World', () => {
     class SimpleSystem extends System {
       public updateCalled = false;
 
-      constructor() {
-        super([TestComponent]);
+      constructor(testComponentType: ComponentType) {
+        super([testComponentType]);
       }
 
       update(_entities: Entity[], _deltaTime: number): void {
@@ -457,7 +466,7 @@ describe('World', () => {
       }
     }
 
-    const system = new SimpleSystem();
+    const system = new SimpleSystem(TestComponentType);
     const entity = world.createEntity();
     entity.addComponent(new TestComponent(42));
 
@@ -471,8 +480,8 @@ describe('World', () => {
   });
 
   test('should provide scheduler statistics', () => {
-    const system1 = new TestSystem();
-    const system2 = new TestSystem();
+    const system1 = new TestSystem(TestComponentType);
+    const system2 = new TestSystem(TestComponentType);
 
     world.addSystem(system1);
     world.addSystem(system2);
@@ -484,7 +493,7 @@ describe('World', () => {
   });
 
   test('should provide execution groups for debugging', () => {
-    const system = new TestSystem();
+    const system = new TestSystem(TestComponentType);
     world.addSystem(system);
 
     const groups = world.getExecutionGroups();
@@ -499,9 +508,9 @@ describe('World', () => {
       public updateCalled = false;
       public updatedEntities: Entity[] = [];
 
-      constructor() {
-        super([TestComponent], [
-          { componentType: TestComponent as any, accessType: 'read' as any }
+      constructor(testComponentType: ComponentType) {
+        super([testComponentType], [
+          { componentType: testComponentType as any, accessType: 'read' as any }
         ]);
       }
 
@@ -515,9 +524,9 @@ describe('World', () => {
       public updateCalled = false;
       public updatedEntities: Entity[] = [];
 
-      constructor() {
-        super([TestComponent], [
-          { componentType: TestComponent as any, accessType: 'write' as any }
+      constructor(testComponentType: ComponentType) {
+        super([testComponentType], [
+          { componentType: testComponentType as any, accessType: 'write' as any }
         ]);
       }
 
@@ -527,8 +536,8 @@ describe('World', () => {
       }
     }
 
-    const readSystem = new ReadSystem();
-    const writeSystem = new WriteSystem();
+    const readSystem = new ReadSystem(TestComponentType);
+    const writeSystem = new WriteSystem(TestComponentType);
 
     world.addSystem(readSystem);
     world.addSystem(writeSystem);
@@ -580,14 +589,14 @@ describe('World', () => {
     entity3.addComponent(new AnotherComponent('test3'));
 
     // Query for entities with TestComponent
-    const testEntities = world.queryEntities(TestComponent);
+    const testEntities = world.queryEntities(TestComponentType);
     expect(testEntities).toHaveLength(2);
     expect(testEntities).toContain(entity1);
     expect(testEntities).toContain(entity2);
     expect(testEntities).not.toContain(entity3);
 
     // Query for entities with both components
-    const bothEntities = world.queryEntities(TestComponent, AnotherComponent);
+    const bothEntities = world.queryEntities(TestComponentType, AnotherComponentType);
     expect(bothEntities).toHaveLength(1);
     expect(bothEntities).toContain(entity2);
   });
@@ -608,30 +617,28 @@ describe('World', () => {
     expect(stats.archetypeCount).toBe(2);
 
     // Remove component (should migrate back)
-    entity.removeComponent(AnotherComponent);
+    entity.removeComponent(AnotherComponentType);
 
     // Verify archetype change
-    const finalEntities = world.queryEntities(TestComponent);
+    const finalEntities = world.queryEntities(TestComponentType);
     expect(finalEntities).toContain(entity);
 
-    const bothEntities = world.queryEntities(TestComponent, AnotherComponent);
+    const bothEntities = world.queryEntities(TestComponentType, AnotherComponentType);
     expect(bothEntities).not.toContain(entity);
   });
 
   test('should handle addEntity with archetype configuration', () => {
-    const externalEntity = new Entity(999);
+    const externalEntity = world.createEntity();
     externalEntity.addComponent(new TestComponent(999));
     externalEntity.addComponent(new AnotherComponent('external'));
 
-    world.addEntity(externalEntity);
-
     // Verify entity is properly configured for archetype storage
-    const component = externalEntity.getComponent(TestComponent);
+    const component = externalEntity.getComponent(TestComponentType);
     expect(component).toBeDefined();
     expect((component as TestComponent).value).toBe(999);
 
     // Verify entity appears in queries
-    const entities = world.queryEntities(TestComponent, AnotherComponent);
+    const entities = world.queryEntities(TestComponentType, AnotherComponentType);
     expect(entities).toContain(externalEntity);
   });
 
@@ -660,8 +667,8 @@ describe('World', () => {
     class ArchetypeTestSystem extends System {
       public processedEntities: Entity[] = [];
 
-      constructor() {
-        super([TestComponent]);
+      constructor(testComponentType: ComponentType) {
+        super([testComponentType]);
       }
 
       update(entities: Entity[], _deltaTime: number): void {
@@ -669,7 +676,7 @@ describe('World', () => {
       }
     }
 
-    const system = new ArchetypeTestSystem();
+    const system = new ArchetypeTestSystem(TestComponentType);
     world.addSystem(system);
 
     // Create entities in different archetypes
@@ -695,21 +702,21 @@ describe('World', () => {
 
   test('should handle scheduler statistics with archetype systems', () => {
     class ArchetypeSystem1 extends System {
-      constructor() {
-        super([TestComponent]);
+      constructor(testComponentType: ComponentType) {
+        super([testComponentType]);
       }
       update(_entities: Entity[], _deltaTime: number): void {}
     }
 
     class ArchetypeSystem2 extends System {
-      constructor() {
-        super([AnotherComponent]);
+      constructor(anotherComponentType: ComponentType) {
+        super([anotherComponentType]);
       }
       update(_entities: Entity[], _deltaTime: number): void {}
     }
 
-    world.addSystem(new ArchetypeSystem1());
-    world.addSystem(new ArchetypeSystem2());
+    world.addSystem(new ArchetypeSystem1(TestComponentType));
+    world.addSystem(new ArchetypeSystem2(AnotherComponentType));
 
     const stats = world.getSchedulerStatistics();
     expect(stats.totalSystems).toBe(2);

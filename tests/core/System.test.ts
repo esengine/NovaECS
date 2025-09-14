@@ -3,6 +3,8 @@ import { Entity } from '../../src/core/Entity';
 import { Component } from '../../src/core/Component';
 import { World } from '../../src/core/World';
 import { AccessType } from '../../src/utils/AccessType';
+import { ComponentRegistry, registerComponent } from '../../src/core/ComponentRegistry';
+import type { ComponentType } from '../../src/utils/Types';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 class TestComponent extends Component {
@@ -21,8 +23,8 @@ class TestSystem extends System {
   public updateCalled = false;
   public updatedEntities: Entity[] = [];
 
-  constructor() {
-    super([TestComponent]);
+  constructor(requiredComponents: ComponentType[]) {
+    super(requiredComponents);
   }
 
   update(entities: Entity[], _deltaTime: number): void {
@@ -34,14 +36,23 @@ class TestSystem extends System {
 describe('System', () => {
   let system: TestSystem;
   let world: World;
+  let registry: ComponentRegistry;
+  let TestComponentType: ComponentType<TestComponent>;
+  let AnotherComponentType: ComponentType<AnotherComponent>;
 
   beforeEach(() => {
-    system = new TestSystem();
+    registry = ComponentRegistry.getInstance();
+    registry.clear();
     world = new World();
+
+    TestComponentType = registerComponent(TestComponent, 'Test');
+    AnotherComponentType = registerComponent(AnotherComponent, 'Another');
+
+    system = new TestSystem([TestComponentType]);
   });
 
   test('should initialize with correct required components', () => {
-    expect(system.requiredComponents).toEqual([TestComponent]);
+    expect(system.requiredComponents).toEqual([TestComponentType]);
   });
 
   test('should be enabled by default', () => {
@@ -63,24 +74,24 @@ describe('System', () => {
   });
 
   test('should match entity with required components', () => {
-    const entity = new Entity(1);
+    const entity = world.createEntity();
     entity.addComponent(new TestComponent(42));
-    
+
     expect(system.matchesEntity(entity)).toBe(true);
   });
 
   test('should not match entity without required components', () => {
-    const entity = new Entity(1);
+    const entity = world.createEntity();
     entity.addComponent(new AnotherComponent('test'));
-    
+
     expect(system.matchesEntity(entity)).toBe(false);
   });
 
-  test('should not match inactive entity', () => {
-    const entity = new Entity(1);
+  test('should not match disabled entity', () => {
+    const entity = world.createEntity();
     entity.addComponent(new TestComponent(42));
-    entity.active = false;
-    
+    entity.enabled = false;
+
     expect(system.matchesEntity(entity)).toBe(false);
   });
 
@@ -96,12 +107,14 @@ describe('System', () => {
   });
 
   test('should call update with matching entities', () => {
-    const entities = [new Entity(1), new Entity(2)];
-    entities[0].addComponent(new TestComponent(1));
-    entities[1].addComponent(new TestComponent(2));
-    
+    const entity1 = world.createEntity();
+    const entity2 = world.createEntity();
+    entity1.addComponent(new TestComponent(1));
+    entity2.addComponent(new TestComponent(2));
+
+    const entities = [entity1, entity2];
     system.update(entities, 16);
-    
+
     expect(system.updateCalled).toBe(true);
     expect(system.updatedEntities).toEqual(entities);
   });
@@ -125,9 +138,9 @@ describe('System', () => {
     class ComponentAccessSystem extends System {
       constructor() {
         const componentAccess = [
-          { componentType: TestComponent as any, accessType: AccessType.Read }
+          { componentType: TestComponentType, accessType: AccessType.Read }
         ];
-        super([TestComponent], componentAccess);
+        super([TestComponentType], componentAccess);
       }
 
       update(_entities: Entity[], _deltaTime: number): void {
@@ -137,11 +150,11 @@ describe('System', () => {
 
     const system = new ComponentAccessSystem();
     expect(system.componentAccess).toHaveLength(1);
-    expect(system.componentAccess[0].componentType).toBe(TestComponent);
+    expect(system.componentAccess[0].componentType).toBe(TestComponentType);
     expect(system.componentAccess[0].accessType).toBe(AccessType.Read);
 
     // Test system with default empty componentAccess
-    const defaultSystem = new TestSystem();
+    const defaultSystem = new TestSystem([TestComponentType]);
     expect(defaultSystem.componentAccess).toEqual([]);
   });
 
@@ -150,7 +163,7 @@ describe('System', () => {
       public updateCalled = false;
 
       constructor() {
-        super([TestComponent, AnotherComponent]);
+        super([TestComponentType, AnotherComponentType]);
       }
 
       update(_entities: Entity[], _deltaTime: number): void {
@@ -159,9 +172,9 @@ describe('System', () => {
     }
 
     const system = new MultiComponentSystem();
-    const entity1 = new Entity(1);
-    const entity2 = new Entity(2);
-    const entity3 = new Entity(3);
+    const entity1 = world.createEntity();
+    const entity2 = world.createEntity();
+    const entity3 = world.createEntity();
 
     // Entity with only one component
     entity1.addComponent(new TestComponent(42));
@@ -192,18 +205,18 @@ describe('System', () => {
     }
 
     const system = new NoComponentSystem();
-    const entity = new Entity(1);
+    const entity = world.createEntity();
 
-    // Should match any active entity regardless of components
+    // Should match any enabled entity regardless of components
     expect(system.matchesEntity(entity)).toBe(true);
 
-    entity.active = false;
+    entity.enabled = false;
     expect(system.matchesEntity(entity)).toBe(false);
   });
 
   test('should handle priority comparison edge cases', () => {
-    const system1 = new TestSystem();
-    const system2 = new TestSystem();
+    const system1 = new TestSystem([TestComponentType]);
+    const system2 = new TestSystem([TestComponentType]);
 
     // Test negative priorities
     system1.priority = -5;
@@ -222,7 +235,7 @@ describe('System', () => {
   });
 
   test('should handle world reference correctly', () => {
-    const system = new TestSystem();
+    const system = new TestSystem([TestComponentType]);
 
     // Initially no world
     expect(system['world']).toBeUndefined();

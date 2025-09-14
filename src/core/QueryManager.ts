@@ -404,19 +404,19 @@ export class QueryManager implements IQueryManager {
     
     // Add criteria to signature
     if (criteria.all?.length) {
-      parts.push(`all:${criteria.all.map(t => t.name).sort().join(',')}`);
+      parts.push(`all:${criteria.all.map(t => t.typeId).sort((a, b) => a - b).join(',')}`);
     }
     if (criteria.with?.length) {
-      parts.push(`with:${criteria.with.map(t => t.name).sort().join(',')}`);
+      parts.push(`with:${criteria.with.map(t => t.typeId).sort((a, b) => a - b).join(',')}`);
     }
     if (criteria.any?.length) {
-      parts.push(`any:${criteria.any.map(t => t.name).sort().join(',')}`);
+      parts.push(`any:${criteria.any.map(t => t.typeId).sort((a, b) => a - b).join(',')}`);
     }
     if (criteria.none?.length) {
-      parts.push(`none:${criteria.none.map(t => t.name).sort().join(',')}`);
+      parts.push(`none:${criteria.none.map(t => t.typeId).sort((a, b) => a - b).join(',')}`);
     }
     if (criteria.without?.length) {
-      parts.push(`without:${criteria.without.map(t => t.name).sort().join(',')}`);
+      parts.push(`without:${criteria.without.map(t => t.typeId).sort((a, b) => a - b).join(',')}`);
     }
     
     // Add relevant options to signature

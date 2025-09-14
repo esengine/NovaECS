@@ -4,6 +4,12 @@ import type { Component } from '../core/Component';
 /**
  * Archetype ID for identifying unique component combinations
  * 用于标识唯一组件组合的原型ID
+ *
+ * Generated from sorted ComponentTypeId values for stability across environments
+ * 从排序的ComponentTypeId值生成，确保跨环境稳定性
+ *
+ * Format: "archetype:{typeId1}|{typeId2}|..."
+ * 格式："archetype:{typeId1}|{typeId2}|..."
  */
 export type ArchetypeId = string;
 

@@ -42,8 +42,15 @@ export default defineConfig({
     // Test timeout
     testTimeout: 10000,
 
-    // Reporter configuration
-    reporters: ['verbose']
+    // Reporter configuration - updated to avoid deprecated 'basic' reporter
+    reporters: [
+      [
+        'default',
+        {
+          summary: false
+        }
+      ]
+    ]
   },
 
   // Resolve configuration for better module resolution
