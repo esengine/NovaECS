@@ -1,5 +1,5 @@
 import type { Component } from './Component';
-import type { ComponentType, EntityId } from '../utils/Types';
+import type { ComponentType, ComponentTypeId, EntityId } from '../utils/Types';
 import type {
   ArchetypeId,
   ComponentStorage,
@@ -19,6 +19,7 @@ import type {
 export class Archetype {
   private readonly _id: ArchetypeId;
   private readonly _componentTypes: Set<ComponentType>;
+  private readonly _componentTypeIds: Set<ComponentTypeId>;
   private readonly _componentStorages = new Map<ComponentType, ComponentStorage>();
   private readonly _entityIds: EntityId[] = [];
   private readonly _entityIndexMap = new Map<EntityId, number>();
@@ -29,7 +30,8 @@ export class Archetype {
     // Create unique ID based on component types
     this._id = this.createArchetypeId(componentTypes);
     this._componentTypes = new Set(componentTypes);
-    
+    this._componentTypeIds = new Set(componentTypes.map(type => type.typeId));
+
     // Initialize component storages
     for (const componentType of componentTypes) {
       this._componentStorages.set(componentType, {
@@ -84,11 +86,10 @@ export class Archetype {
    * 使用稳定typeId检查原型是否匹配查询签名
    */
   matchesQuery(query: QuerySignature): boolean {
-    const thisTypeIds = new Set(Array.from(this._componentTypes).map(type => type.typeId));
-
-    // Check required components
-    for (const requiredTypeId of query.required) {
-      if (!thisTypeIds.has(requiredTypeId)) {
+    // Check required components - default to empty set if undefined
+    const required = query.required || new Set<ComponentTypeId>();
+    for (const requiredTypeId of required) {
+      if (!this._componentTypeIds.has(requiredTypeId)) {
         return false;
       }
     }
@@ -96,9 +97,23 @@ export class Archetype {
     // Check excluded components
     if (query.excluded) {
       for (const excludedTypeId of query.excluded) {
-        if (thisTypeIds.has(excludedTypeId)) {
+        if (this._componentTypeIds.has(excludedTypeId)) {
           return false;
         }
+      }
+    }
+
+    // Check optional components - if specified, at least one must be present
+    if (query.optional && query.optional.size > 0) {
+      let hasOptional = false;
+      for (const optionalTypeId of query.optional) {
+        if (this._componentTypeIds.has(optionalTypeId)) {
+          hasOptional = true;
+          break;
+        }
+      }
+      if (!hasOptional) {
+        return false;
       }
     }
 

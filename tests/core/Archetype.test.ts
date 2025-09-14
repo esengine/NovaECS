@@ -252,6 +252,67 @@ describe('Archetype', () => {
     expect(archetype.matchesQuery(query2)).toBe(false);
   });
 
+  test('should match query signature with optional components', () => {
+    // Archetype has TestComponentType and AnotherComponentType
+
+    // Query with optional components - should match if at least one optional is present
+    const query1 = {
+      required: new Set([TestComponentType.typeId]),
+      optional: new Set([AnotherComponentType.typeId])
+    };
+    expect(archetype.matchesQuery(query1)).toBe(true);
+
+    // Query with optional components - should fail if none of optional are present
+    const query2 = {
+      required: new Set([TestComponentType.typeId]),
+      optional: new Set([ThirdComponentType.typeId])
+    };
+    expect(archetype.matchesQuery(query2)).toBe(false);
+
+    // Query with multiple optional components - should match if at least one is present
+    const query3 = {
+      required: new Set([TestComponentType.typeId]),
+      optional: new Set([AnotherComponentType.typeId, ThirdComponentType.typeId])
+    };
+    expect(archetype.matchesQuery(query3)).toBe(true);
+
+    // Query with only optional components (no required) - should match if at least one optional is present
+    const query4 = {
+      required: new Set(),
+      optional: new Set([AnotherComponentType.typeId])
+    };
+    expect(archetype.matchesQuery(query4)).toBe(true);
+  });
+
+  test('should handle query with undefined required field', () => {
+    const query = {
+      excluded: new Set([ThirdComponentType.typeId])
+    } as any; // Cast to bypass TypeScript check for testing
+
+    expect(archetype.matchesQuery(query)).toBe(true);
+  });
+
+  test('should handle complex query with all fields', () => {
+    // Archetype has TestComponentType and AnotherComponentType
+
+    const query = {
+      required: new Set([TestComponentType.typeId]),
+      optional: new Set([AnotherComponentType.typeId]),
+      excluded: new Set([ThirdComponentType.typeId])
+    };
+
+    expect(archetype.matchesQuery(query)).toBe(true);
+
+    // Fail if excluded component is present in archetype
+    const query2 = {
+      required: new Set([TestComponentType.typeId]),
+      optional: new Set([AnotherComponentType.typeId]),
+      excluded: new Set([AnotherComponentType.typeId])
+    };
+
+    expect(archetype.matchesQuery(query2)).toBe(false);
+  });
+
   test('should handle archetype edges', () => {
     archetype.addEdge(ThirdComponentType, 'target-archetype-id', true);
 

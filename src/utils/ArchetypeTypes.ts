@@ -1,4 +1,4 @@
-import type { ComponentType, ComponentTypeId, EntityId } from './Types';
+import type { ComponentType, ComponentTypeId } from './Types';
 import type { Component } from '../core/Component';
 
 /**
@@ -22,17 +22,6 @@ export interface ComponentStorage {
   componentType: ComponentType;
   /** Dense array of components 组件的密集数组 */
   components: Component[];
-}
-
-/**
- * Entity index within an archetype
- * 实体在原型中的索引
- */
-export interface EntityRecord {
-  /** Entity ID 实体ID */
-  entityId: EntityId;
-  /** Index in archetype storage 在原型存储中的索引 */
-  archetypeIndex: number;
 }
 
 /**
