@@ -50,5 +50,9 @@ export { Scheduler } from './core/Scheduler';
 export { FixedTimestepScheduler } from './core/FixedTimestepScheduler';
 export type { FixedStepOpts } from './core/FixedTimestepScheduler';
 
+// Profiler
+export { Profiler } from './core/Profiler';
+export type { SysStat } from './core/Profiler';
+
 // Core Types
 export * from './utils/Types';

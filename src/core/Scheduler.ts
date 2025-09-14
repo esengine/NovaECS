@@ -21,6 +21,7 @@ import type { World } from './World';
 import { CommandBuffer } from './CommandBuffer';
 import type { SystemStage, SystemConfig, SystemContext } from './System';
 import { system, SystemBuilder } from './System';
+import { Profiler } from './Profiler';
 
 const DEFAULT_ORDER: SystemStage[] = ['startup', 'preUpdate', 'update', 'postUpdate', 'cleanup'];
 
@@ -101,7 +102,16 @@ export class Scheduler {
           frame: world.frame,
           deltaTime: dt
         };
+
+        // Profile system execution if profiler is available
+        const prof = world.getResource(Profiler);
+        const t0 = performance.now();
         sys.fn(ctx);
+        const t1 = performance.now();
+
+        if (prof) {
+          prof.record(sys.name, sys.stage ?? 'update', t1 - t0);
+        }
 
         if (sys.flushPolicy === 'afterEach' || sys.flushPolicy == null) {
           cmd.flush();
