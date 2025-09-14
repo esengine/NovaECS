@@ -14,6 +14,7 @@ import { AddedEvent, RemovedEvent, Added, Removed } from '../events/Types';
 import { TagStore } from '../tag/TagStore';
 import { tagId, getAllTags } from '../tag/TagRegistry';
 import { ChildrenIndex } from '../hierarchy/ChildrenIndex';
+import { Bitset } from '../signature/Bitset';
 
 /**
  * Component base interface (placeholder)
@@ -31,6 +32,7 @@ export class World {
   private _iterating = 0;
   private resources = new Map<new() => unknown, unknown>();
   private tags = new TagStore();
+  private signatures = new Map<Entity, Bitset>();
 
   /**
    * Current frame number (starts from 1); incremented by beginFrame()
@@ -64,6 +66,8 @@ export class World {
     this.assertNotIterating();
     // Remove all components first (triggers Removed events)
     this.removeAllComponents(e);
+    // Clean up signature
+    this.signatures.delete(e);
     this.em.destroy(e);
   }
 
@@ -73,6 +77,19 @@ export class World {
    */
   isAlive(entity: Entity): boolean {
     return this.em.isAlive(entity);
+  }
+
+  /**
+   * Get entity signature (component bitset)
+   * 获取实体签名（组件位集）
+   */
+  getSignature(e: Entity): Bitset {
+    let s = this.signatures.get(e);
+    if (!s) {
+      s = new Bitset(64); // Initial capacity for 64*32=2048 component types
+      this.signatures.set(e, s);
+    }
+    return s;
   }
 
   /**
@@ -116,6 +133,12 @@ export class World {
     store.add(e, c);
     store.markChanged(e, this.frame); // Addition counts as change 新增也算变更
 
+    // Update entity signature
+    if (!existed) {
+      const sig = this.getSignature(e);
+      sig.set(type.id);
+    }
+
     // Only emit Added event when component goes from non-existent to existent
     if (!existed) {
       const chan = this.getOrCreate(AddedEvent, () => new EventChannel<Added>()) as EventChannel<Added>;
@@ -133,6 +156,13 @@ export class World {
     const had = store.has(e);
     const old = had ? store.get(e) : undefined;
     store.remove(e);
+
+    // Update entity signature
+    if (had) {
+      const sig = this.getSignature(e);
+      sig.clear(type.id);
+    }
+
     if (had) {
       const chan = this.getOrCreate(RemovedEvent, () => new EventChannel<Removed>()) as EventChannel<Removed>;
       chan.emit({ e, typeId: type.id, old });

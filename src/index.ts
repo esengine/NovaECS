@@ -80,5 +80,8 @@ export * from './tag';
 // Hierarchy System
 export * from './hierarchy';
 
+// Signature System
+export * from './signature';
+
 // Core Types
 export * from './utils/Types';
