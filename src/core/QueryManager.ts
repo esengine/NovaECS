@@ -288,12 +288,12 @@ export class QueryManager implements IQueryManager {
       const entityIds = this._archetypeManager.queryEntities(allComponents);
       candidateEntities = entityIds
         .map(id => this._getEntities().find(e => e.id === id))
-        .filter((entity): entity is Entity => entity !== undefined && entity.active);
+        .filter((entity): entity is Entity => entity !== undefined && entity.enabled);
       
       archetypesChecked = this._archetypeManager.queryArchetypes(allComponents).length;
     } else {
       // No required components, start with all entities
-      candidateEntities = this._getEntities().filter(e => e.active);
+      candidateEntities = this._getEntities().filter(e => e.enabled);
     }
 
     // Apply exclusion filters
@@ -321,7 +321,7 @@ export class QueryManager implements IQueryManager {
     const allEntities = this._getEntities();
     
     return allEntities.filter(entity => {
-      if (!entity.active) return false;
+      if (!entity.enabled) return false;
       
       // Check required components (all/with)
       const requiredComponents = [

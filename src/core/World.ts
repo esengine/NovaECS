@@ -61,6 +61,7 @@ export class World implements IWorldForEntity {
   private readonly _systems: System[] = [];
   private _entityIdCounter = 0;
   private _paused = false;
+  private readonly _entityEnabledStates = new Map<EntityId, boolean>();
   private readonly _archetypeManager = new ArchetypeManager();
   private readonly _scheduler = new ParallelScheduler();
   private readonly _eventBus = new EventBus();
@@ -137,6 +138,7 @@ export class World implements IWorldForEntity {
     const entity = new Entity(entityId, this);
 
     this._entities.set(entity.id, entity);
+    this._entityEnabledStates.set(entity.id, true);
 
     // Notify plugins of entity creation
     void this._notifyPluginsEntityCreate(entity);
@@ -161,8 +163,12 @@ export class World implements IWorldForEntity {
       // Notify plugins of entity destruction
       void this._notifyPluginsEntityDestroy(entity);
 
-      entity.destroy();
+      // Clear entity state
       this._entities.delete(id);
+      this._entityEnabledStates.delete(id);
+
+      // Remove from archetype storage
+      this._archetypeManager.removeEntity(id);
 
       // Dispatch entity destroyed event
       void this._eventBus.dispatch(new EntityDestroyedEvent(id));
@@ -205,7 +211,7 @@ export class World implements IWorldForEntity {
     const entityIds = this._archetypeManager.queryEntities(componentTypes);
     return entityIds
       .map(id => this._entities.get(id))
-      .filter((entity): entity is Entity => entity !== undefined && entity.active);
+      .filter((entity): entity is Entity => entity !== undefined && this.isEnabled(entity.id));
   }
 
   /**
@@ -672,9 +678,9 @@ export class World implements IWorldForEntity {
   }
 
   private _cleanupDestroyedEntities(): void {
-    for (const [id, entity] of this._entities) {
-      if (!entity.active) {
-        this._entities.delete(id);
+    for (const id of this._entities.keys()) {
+      if (!this.isEnabled(id)) {
+        this.removeEntity(id);
       }
     }
   }
@@ -887,5 +893,44 @@ export class World implements IWorldForEntity {
    */
   getEntityComponents(entityId: EntityId): Component[] {
     return this._archetypeManager.getEntityComponents(entityId);
+  }
+
+  /**
+   * Check if entity is alive (exists in world)
+   * 检查实体是否存活（存在于世界中）
+   * @internal
+   */
+  isAlive(entityId: EntityId): boolean {
+    return this._entities.has(entityId);
+  }
+
+  /**
+   * Check if entity is enabled (participates in systems)
+   * 检查实体是否启用（参与系统）
+   * @internal
+   */
+  isEnabled(entityId: EntityId): boolean {
+    return this._entityEnabledStates.get(entityId) ?? false;
+  }
+
+  /**
+   * Set entity enabled state (participates in systems)
+   * 设置实体启用状态（参与系统）
+   * @internal
+   */
+  setEnabled(entityId: EntityId, enabled: boolean): void {
+    this._entityEnabledStates.set(entityId, enabled);
+
+    // Clear query cache when entity state changes
+    this._queryManager.clearCache();
+  }
+
+  /**
+   * Destroy entity completely (called by Entity)
+   * 完全销毁实体（由 Entity 调用）
+   * @internal
+   */
+  destroyEntity(entityId: EntityId): void {
+    this.removeEntity(entityId);
   }
 }

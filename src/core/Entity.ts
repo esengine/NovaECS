@@ -11,6 +11,10 @@ export interface IWorldForEntity {
   getEntityComponent<T extends Component>(entityId: EntityId, componentType: ComponentType<T>): T | undefined;
   entityHasComponent(entityId: EntityId, componentType: ComponentType): boolean;
   getEntityComponents(entityId: EntityId): Component[];
+  isAlive(entityId: EntityId): boolean;
+  isEnabled(entityId: EntityId): boolean;
+  setEnabled(entityId: EntityId, enabled: boolean): void;
+  destroyEntity(entityId: EntityId): void;
 }
 
 /**
@@ -32,7 +36,6 @@ export interface IWorldForEntity {
  */
 export class Entity {
   private readonly _id: EntityId;
-  private _active = true;
   private readonly _world: IWorldForEntity;
 
   /**
@@ -53,23 +56,28 @@ export class Entity {
   }
 
   /**
-   * Get entity active state
-   * 获取实体激活状态
+   * Check if entity is alive (exists in world)
+   * 检查实体是否存活（存在于世界中）
    */
-  get active(): boolean {
-    return this._active;
+  get alive(): boolean {
+    return this._world.isAlive(this._id);
   }
 
   /**
-   * Set entity active state
-   * 设置实体激活状态
+   * Get entity enabled state (participates in systems)
+   * 获取实体启用状态（是否参与系统）
    */
-  set active(value: boolean) {
-    this._active = value;
+  get enabled(): boolean {
+    return this._world.isEnabled(this._id);
   }
 
-
-
+  /**
+   * Set entity enabled state (participates in systems)
+   * 设置实体启用状态（是否参与系统）
+   */
+  set enabled(value: boolean) {
+    this._world.setEnabled(this._id, value);
+  }
 
   /**
    * Add component to entity
@@ -143,6 +151,6 @@ export class Entity {
    * 销毁实体并清理资源
    */
   destroy(): void {
-    this._active = false;
+    this._world.destroyEntity(this._id);
   }
 }

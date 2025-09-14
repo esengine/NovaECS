@@ -120,7 +120,7 @@ export abstract class System {
    * @returns True if entity matches system requirements 如果实体符合系统要求则返回true
    */
   matchesEntity(entity: Entity): boolean {
-    return entity.active && entity.hasComponents(...this.requiredComponents);
+    return entity.enabled && entity.hasComponents(...this.requiredComponents);
   }
 
   /**
