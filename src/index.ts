@@ -54,5 +54,9 @@ export type { FixedStepOpts } from './core/FixedTimestepScheduler';
 export { Profiler } from './core/Profiler';
 export type { SysStat } from './core/Profiler';
 
+// Inspector
+export { snapshot, printSnapshot, exportSnapshot, getComponentSummary, getSystemSummary } from './core/Inspector';
+export type { InspectorSnapshot, ComponentInfo } from './core/Inspector';
+
 // Core Types
 export * from './utils/Types';

@@ -358,4 +358,24 @@ export class World {
     }
     this.addComponentToEntity(e, type, component);
   }
+
+  /**
+   * Get number of alive entities
+   * 获取存活实体数量
+   */
+  aliveCount(): number {
+    return this.em.aliveCount();
+  }
+
+  /**
+   * Debug method: list all component stores with their sizes
+   * 调试方法：列出所有组件存储及其大小
+   */
+  debugListStores(): Array<{ typeId: number; size: number }> {
+    const out: Array<{ typeId: number; size: number }> = [];
+    for (const [typeId, store] of this.stores) {
+      out.push({ typeId, size: store.size() });
+    }
+    return out;
+  }
 }
