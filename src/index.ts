@@ -71,5 +71,8 @@ export { TransformMarkDirtySystem, TransformUpdateSystem, setLocalTransform, set
 // Math Utilities
 export { mul, fromLocal, identity, transformPoint } from './math/Mat3';
 
+// Serialization System
+export * from './serialize';
+
 // Core Types
 export * from './utils/Types';

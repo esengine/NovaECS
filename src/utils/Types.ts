@@ -57,7 +57,7 @@ export function isValidEntity(entity: Entity): boolean {
  * Component constructor type
  * 组件构造函数类型
  */
-export type ComponentCtor<T = Component> = new (...args: unknown[]) => T;
+export type ComponentCtor<T = Component> = new (...args: any[]) => T;
 
 /**
  * Component type identifier
