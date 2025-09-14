@@ -1,6 +1,7 @@
 import { describe, beforeEach, test, expect } from 'vitest';
 import { Archetype } from '../../src/core/Archetype';
 import { Component } from '../../src/core/Component';
+import { ComponentRegistry, registerComponent } from '../../src/core/ComponentRegistry';
 import type { ComponentType, EntityId } from '../../src/utils/Types';
 
 class TestComponent extends Component {
@@ -23,38 +24,48 @@ class ThirdComponent extends Component {
 
 describe('Archetype', () => {
   let archetype: Archetype;
-  const componentTypes: ComponentType[] = [TestComponent, AnotherComponent];
+  let registry: ComponentRegistry;
+  let TestComponentType: ComponentType<TestComponent>;
+  let AnotherComponentType: ComponentType<AnotherComponent>;
+  let ThirdComponentType: ComponentType<ThirdComponent>;
 
   beforeEach(() => {
-    archetype = new Archetype(componentTypes);
+    registry = ComponentRegistry.getInstance();
+    registry.clear();
+
+    TestComponentType = registerComponent(TestComponent, 'TestComponent');
+    AnotherComponentType = registerComponent(AnotherComponent, 'AnotherComponent');
+    ThirdComponentType = registerComponent(ThirdComponent, 'ThirdComponent');
+
+    archetype = new Archetype([TestComponentType, AnotherComponentType]);
   });
 
   test('should create archetype with component types', () => {
     expect(archetype.componentTypes.size).toBe(2);
-    expect(archetype.componentTypes.has(TestComponent)).toBe(true);
-    expect(archetype.componentTypes.has(AnotherComponent)).toBe(true);
+    expect(archetype.componentTypes.has(TestComponentType)).toBe(true);
+    expect(archetype.componentTypes.has(AnotherComponentType)).toBe(true);
     expect(archetype.entityCount).toBe(0);
   });
 
   test('should generate consistent archetype ID', () => {
-    const archetype1 = new Archetype([TestComponent, AnotherComponent]);
-    const archetype2 = new Archetype([AnotherComponent, TestComponent]); // Different order
-    
+    const archetype1 = new Archetype([TestComponentType, AnotherComponentType]);
+    const archetype2 = new Archetype([AnotherComponentType, TestComponentType]); // Different order
+
     // IDs should be the same regardless of order
     expect(archetype1.id).toBe(archetype2.id);
   });
 
   test('should check component existence', () => {
-    expect(archetype.hasComponent(TestComponent)).toBe(true);
-    expect(archetype.hasComponent(AnotherComponent)).toBe(true);
-    expect(archetype.hasComponent(ThirdComponent)).toBe(false);
+    expect(archetype.hasComponent(TestComponentType)).toBe(true);
+    expect(archetype.hasComponent(AnotherComponentType)).toBe(true);
+    expect(archetype.hasComponent(ThirdComponentType)).toBe(false);
   });
 
   test('should add entity with components', () => {
     const entityId: EntityId = 1;
     const components = new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(42)],
-      [AnotherComponent, new AnotherComponent('test')]
+      [TestComponentType, new TestComponent(42)],
+      [AnotherComponentType, new AnotherComponent('test')]
     ]);
 
     const index = archetype.addEntity(entityId, components);
@@ -66,12 +77,12 @@ describe('Archetype', () => {
 
   test('should add multiple entities', () => {
     const components1 = new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(1)],
-      [AnotherComponent, new AnotherComponent('first')]
+      [TestComponentType, new TestComponent(1)],
+      [AnotherComponentType, new AnotherComponent('first')]
     ]);
     const components2 = new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(2)],
-      [AnotherComponent, new AnotherComponent('second')]
+      [TestComponentType, new TestComponent(2)],
+      [AnotherComponentType, new AnotherComponent('second')]
     ]);
 
     archetype.addEntity(1, components1);
@@ -85,13 +96,13 @@ describe('Archetype', () => {
     const entityId: EntityId = 1;
     const testComponent = new TestComponent(42);
     const components = new Map<ComponentType, Component>([
-      [TestComponent, testComponent],
-      [AnotherComponent, new AnotherComponent('test')]
+      [TestComponentType, testComponent],
+      [AnotherComponentType, new AnotherComponent('test')]
     ]);
 
     archetype.addEntity(entityId, components);
 
-    const retrievedComponent = archetype.getComponent(entityId, TestComponent);
+    const retrievedComponent = archetype.getComponent(entityId, TestComponentType);
     expect(retrievedComponent).toBe(testComponent);
     expect((retrievedComponent as TestComponent).value).toBe(42);
   });
@@ -99,17 +110,17 @@ describe('Archetype', () => {
   test('should return undefined for non-existent component', () => {
     const entityId: EntityId = 1;
     const components = new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(42)]
+      [TestComponentType, new TestComponent(42)]
     ]);
 
     archetype.addEntity(entityId, components);
 
-    const component = archetype.getComponent(entityId, ThirdComponent);
+    const component = archetype.getComponent(entityId, ThirdComponentType);
     expect(component).toBeUndefined();
   });
 
   test('should return undefined for non-existent entity', () => {
-    const component = archetype.getComponent(999, TestComponent);
+    const component = archetype.getComponent(999, TestComponentType);
     expect(component).toBeUndefined();
   });
 
@@ -118,8 +129,8 @@ describe('Archetype', () => {
     const testComponent = new TestComponent(42);
     const anotherComponent = new AnotherComponent('test');
     const components = new Map<ComponentType, Component>([
-      [TestComponent, testComponent],
-      [AnotherComponent, anotherComponent]
+      [TestComponentType, testComponent],
+      [AnotherComponentType, anotherComponent]
     ]);
 
     archetype.addEntity(entityId, components);
@@ -130,8 +141,8 @@ describe('Archetype', () => {
     expect(archetype.entityCount).toBe(0);
     expect(archetype.entityIds).toEqual([]);
     expect(removedComponents).toBeDefined();
-    expect(removedComponents!.get(TestComponent)).toBe(testComponent);
-    expect(removedComponents!.get(AnotherComponent)).toBe(anotherComponent);
+    expect(removedComponents!.get(TestComponentType)).toBe(testComponent);
+    expect(removedComponents!.get(AnotherComponentType)).toBe(anotherComponent);
   });
 
   test('should handle removing non-existent entity', () => {
@@ -141,9 +152,9 @@ describe('Archetype', () => {
 
   test('should handle swap-remove correctly', () => {
     // Add multiple entities
-    const components1 = new Map<ComponentType, Component>([[TestComponent, new TestComponent(1)]]);
-    const components2 = new Map<ComponentType, Component>([[TestComponent, new TestComponent(2)]]);
-    const components3 = new Map<ComponentType, Component>([[TestComponent, new TestComponent(3)]]);
+    const components1 = new Map<ComponentType, Component>([[TestComponentType, new TestComponent(1)]]);
+    const components2 = new Map<ComponentType, Component>([[TestComponentType, new TestComponent(2)]]);
+    const components3 = new Map<ComponentType, Component>([[TestComponentType, new TestComponent(3)]]);
 
     archetype.addEntity(1, components1);
     archetype.addEntity(2, components2);
@@ -162,16 +173,16 @@ describe('Archetype', () => {
     const testComponent = new TestComponent(42);
     const anotherComponent = new AnotherComponent('test');
     const components = new Map<ComponentType, Component>([
-      [TestComponent, testComponent],
-      [AnotherComponent, anotherComponent]
+      [TestComponentType, testComponent],
+      [AnotherComponentType, anotherComponent]
     ]);
 
     archetype.addEntity(1, components);
 
     const componentsAtIndex = archetype.getComponentsAtIndex(0);
     expect(componentsAtIndex.size).toBe(2);
-    expect(componentsAtIndex.get(TestComponent)).toBe(testComponent);
-    expect(componentsAtIndex.get(AnotherComponent)).toBe(anotherComponent);
+    expect(componentsAtIndex.get(TestComponentType)).toBe(testComponent);
+    expect(componentsAtIndex.get(AnotherComponentType)).toBe(anotherComponent);
   });
 
   test('should return empty map for invalid index', () => {
@@ -181,12 +192,12 @@ describe('Archetype', () => {
 
   test('should iterate over entities with forEach', () => {
     const components1 = new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(1)],
-      [AnotherComponent, new AnotherComponent('first')]
+      [TestComponentType, new TestComponent(1)],
+      [AnotherComponentType, new AnotherComponent('first')]
     ]);
     const components2 = new Map<ComponentType, Component>([
-      [TestComponent, new TestComponent(2)],
-      [AnotherComponent, new AnotherComponent('second')]
+      [TestComponentType, new TestComponent(2)],
+      [AnotherComponentType, new AnotherComponent('second')]
     ]);
 
     archetype.addEntity(1, components1);
@@ -207,19 +218,19 @@ describe('Archetype', () => {
 
   test('should match query signature with required components', () => {
     const query = {
-      required: new Set([TestComponent])
+      required: new Set([TestComponentType.typeId])
     };
 
     expect(archetype.matchesQuery(query)).toBe(true);
 
     const query2 = {
-      required: new Set([TestComponent, AnotherComponent])
+      required: new Set([TestComponentType.typeId, AnotherComponentType.typeId])
     };
 
     expect(archetype.matchesQuery(query2)).toBe(true);
 
     const query3 = {
-      required: new Set([TestComponent, AnotherComponent, ThirdComponent])
+      required: new Set([TestComponentType.typeId, AnotherComponentType.typeId, ThirdComponentType.typeId])
     };
 
     expect(archetype.matchesQuery(query3)).toBe(false);
@@ -227,50 +238,50 @@ describe('Archetype', () => {
 
   test('should match query signature with excluded components', () => {
     const query = {
-      required: new Set([TestComponent]),
-      excluded: new Set([ThirdComponent])
+      required: new Set([TestComponentType.typeId]),
+      excluded: new Set([ThirdComponentType.typeId])
     };
 
     expect(archetype.matchesQuery(query)).toBe(true);
 
     const query2 = {
-      required: new Set([TestComponent]),
-      excluded: new Set([AnotherComponent])
+      required: new Set([TestComponentType.typeId]),
+      excluded: new Set([AnotherComponentType.typeId])
     };
 
     expect(archetype.matchesQuery(query2)).toBe(false);
   });
 
   test('should handle archetype edges', () => {
-    archetype.addEdge(ThirdComponent, 'target-archetype-id', true);
+    archetype.addEdge(ThirdComponentType, 'target-archetype-id', true);
 
-    const edge = archetype.getEdge(ThirdComponent);
+    const edge = archetype.getEdge(ThirdComponentType);
     expect(edge).toBeDefined();
     expect(edge!.targetArchetypeId).toBe('target-archetype-id');
-    expect(edge!.componentType).toBe(ThirdComponent);
+    expect(edge!.componentType).toBe(ThirdComponentType);
     expect(edge!.isAddition).toBe(true);
   });
 
   test('should return undefined for non-existent edge', () => {
-    const edge = archetype.getEdge(ThirdComponent);
+    const edge = archetype.getEdge(ThirdComponentType);
     expect(edge).toBeUndefined();
   });
 
   test('should detect transition possibilities', () => {
-    const targetArchetype = new Archetype([TestComponent, AnotherComponent, ThirdComponent]);
+    const targetArchetype = new Archetype([TestComponentType, AnotherComponentType, ThirdComponentType]);
 
     // Adding ThirdComponent
-    const transition1 = archetype.canTransitionTo(targetArchetype, ThirdComponent);
+    const transition1 = archetype.canTransitionTo(targetArchetype, ThirdComponentType);
     expect(transition1).toBe('add');
 
     // Removing AnotherComponent
-    const sourceArchetype = new Archetype([TestComponent]);
-    const transition2 = sourceArchetype.canTransitionTo(archetype, AnotherComponent);
+    const sourceArchetype = new Archetype([TestComponentType]);
+    const transition2 = sourceArchetype.canTransitionTo(archetype, AnotherComponentType);
     expect(transition2).toBe('add');
 
     // No valid transition
-    const unrelatedArchetype = new Archetype([ThirdComponent]);
-    const transition3 = archetype.canTransitionTo(unrelatedArchetype, TestComponent);
+    const unrelatedArchetype = new Archetype([ThirdComponentType]);
+    const transition3 = archetype.canTransitionTo(unrelatedArchetype, TestComponentType);
     expect(transition3).toBeNull();
   });
 

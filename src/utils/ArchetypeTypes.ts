@@ -1,4 +1,4 @@
-import type { ComponentType, EntityId } from './Types';
+import type { ComponentType, ComponentTypeId, EntityId } from './Types';
 import type { Component } from '../core/Component';
 
 /**
@@ -49,14 +49,15 @@ export interface ArchetypeEdge {
 }
 
 /**
- * Query signature for fast archetype matching
- * 用于快速原型匹配的查询签名
+ * Query signature for fast archetype matching using stable typeIds
+ * 使用稳定typeId进行快速原型匹配的查询签名
  */
 export interface QuerySignature {
-  /** Required component types 需要的组件类型 */
-  required: Set<ComponentType>;
-  /** Optional component types 可选的组件类型 */
-  optional?: Set<ComponentType>;
-  /** Excluded component types 排除的组件类型 */
-  excluded?: Set<ComponentType>;
+  /** Required component type IDs 需要的组件类型ID */
+  required: Set<ComponentTypeId>;
+  /** Optional component type IDs 可选的组件类型ID */
+  optional?: Set<ComponentTypeId>;
+  /** Excluded component type IDs 排除的组件类型ID */
+  excluded?: Set<ComponentTypeId>;
 }
+

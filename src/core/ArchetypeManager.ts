@@ -203,10 +203,10 @@ export class ArchetypeManager {
    * 查询匹配组件要求的原型
    */
   queryArchetypes(componentTypes: ComponentType[]): Archetype[] {
-    // Create cache key
+    // Create cache key using stable typeId instead of name
     const cacheKey = componentTypes
-      .map(type => type.name)
-      .sort()
+      .map(type => type.typeId)
+      .sort((a, b) => a - b)
       .join('|');
     
     // Check cache first
@@ -215,9 +215,9 @@ export class ArchetypeManager {
       return matchingArchetypes;
     }
 
-    // Create query signature
+    // Create query signature using stable typeIds
     const query: QuerySignature = {
-      required: new Set(componentTypes)
+      required: new Set(componentTypes.map(type => type.typeId))
     };
 
     // Find matching archetypes

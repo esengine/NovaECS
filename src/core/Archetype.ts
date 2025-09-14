@@ -81,21 +81,23 @@ export class Archetype {
   }
 
   /**
-   * Check if archetype matches query signature
-   * 检查原型是否匹配查询签名
+   * Check if archetype matches query signature using stable typeIds
+   * 使用稳定typeId检查原型是否匹配查询签名
    */
   matchesQuery(query: QuerySignature): boolean {
+    const thisTypeIds = new Set(Array.from(this._componentTypes).map(type => type.typeId));
+
     // Check required components
-    for (const required of query.required) {
-      if (!this._componentTypes.has(required)) {
+    for (const requiredTypeId of query.required) {
+      if (!thisTypeIds.has(requiredTypeId)) {
         return false;
       }
     }
 
     // Check excluded components
     if (query.excluded) {
-      for (const excluded of query.excluded) {
-        if (this._componentTypes.has(excluded)) {
+      for (const excludedTypeId of query.excluded) {
+        if (thisTypeIds.has(excludedTypeId)) {
           return false;
         }
       }

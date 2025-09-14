@@ -247,10 +247,10 @@ describe('ArchetypeManager', () => {
     const archetype2 = manager.getOrCreateArchetype([TestComponentType, AnotherComponentType]);
     const archetype3 = manager.getOrCreateArchetype([AnotherComponentType, ThirdComponentType]);
 
-    // Query with required and excluded components
+    // Query with required and excluded components using typeIds
     const query = {
-      required: new Set([TestComponentType]),
-      excluded: new Set([ThirdComponentType])
+      required: new Set([TestComponentType.typeId]),
+      excluded: new Set([ThirdComponentType.typeId])
     };
 
     const matchingArchetypes = manager.queryArchetypesAdvanced(query);
