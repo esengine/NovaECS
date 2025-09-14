@@ -134,10 +134,7 @@ export class World implements IWorldForEntity {
    */
   createEntity(): Entity {
     const entityId = ++this._entityIdCounter;
-    const entity = new Entity(entityId);
-
-    // Set the world reference so entity can use archetype storage
-    entity.setWorld(this);
+    const entity = new Entity(entityId, this);
 
     this._entities.set(entity.id, entity);
 
@@ -150,33 +147,6 @@ export class World implements IWorldForEntity {
     return entity;
   }
 
-  /**
-   * Add existing entity to world
-   * 将现有实体添加到世界
-   * @param entity The entity to add to the world 要添加到世界的实体
-   * @returns This world instance for method chaining 世界实例，用于方法链式调用
-   */
-  addEntity(entity: Entity): this {
-    // Get existing components BEFORE setting world reference
-    const components = entity.getComponents();
-
-    // Set the world reference so entity can use archetype storage
-    entity.setWorld(this);
-
-    // Move existing components to archetype storage
-    if (components.length > 0) {
-      const componentMap = new Map<ComponentType, Component>();
-      for (const component of components) {
-        componentMap.set(component.constructor as ComponentType, component);
-      }
-      this._archetypeManager.addEntity(entity.id, componentMap);
-      entity.clear(); // Clear traditional storage
-    }
-
-    this._entities.set(entity.id, entity);
-
-    return this;
-  }
 
   /**
    * Remove entity from world

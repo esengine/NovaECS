@@ -1,6 +1,5 @@
 import type { Component } from './Component';
 import type { ComponentConstructor, ComponentType, EntityId } from '../utils/Types';
-// No imports needed for basic serialization support
 
 /**
  * Interface for World methods that Entity needs
@@ -15,23 +14,13 @@ export interface IWorldForEntity {
 }
 
 /**
- * Callback for notifying when entity components change
- * 实体组件变化时的通知回调
- */
-export type EntityComponentChangeCallback = (
-  entityId: EntityId,
-  componentType: ComponentType,
-  component: Component | null,
-  isAddition: boolean
-) => void;
-
-/**
  * Entity represents a game object in the ECS architecture
  * 实体代表ECS架构中的游戏对象
  * 
  * @example
  * ```typescript
- * const entity = new Entity(1);
+ * const world = new World();
+ * const entity = world.createEntity();
  * entity.addComponent(new PositionComponent(10, 20));
  * entity.addComponent(new VelocityComponent(1, 0));
  * 
@@ -43,16 +32,16 @@ export type EntityComponentChangeCallback = (
  */
 export class Entity {
   private readonly _id: EntityId;
-  private readonly _components = new Map<ComponentConstructor, Component>();
   private _active = true;
-  private _world?: IWorldForEntity;
+  private readonly _world: IWorldForEntity;
 
   /**
-   * Create a new entity with unique identifier
-   * 创建具有唯一标识符的新实体
+   * Create a new entity with unique identifier and world reference
+   * 创建具有唯一标识符和世界引用的新实体
    */
-  constructor(id: EntityId) {
+  constructor(id: EntityId, world: IWorldForEntity) {
     this._id = id;
+    this._world = world;
   }
 
   /**
@@ -81,14 +70,6 @@ export class Entity {
 
 
 
-  /**
-   * Set the world this entity belongs to (internal use only)
-   * 设置此实体所属的世界（仅供内部使用）
-   * @internal
-   */
-  setWorld(world: IWorldForEntity): void {
-    this._world = world;
-  }
 
   /**
    * Add component to entity
@@ -96,19 +77,7 @@ export class Entity {
    */
   addComponent<T extends Component>(component: T): this {
     const constructor = component.constructor as ComponentConstructor<T>;
-
-    // If entity belongs to a world, use archetype storage
-    if (this._world) {
-      // Let the world handle archetype storage
-      this._world.addComponentToEntity(this._id, constructor, component);
-    } else {
-      // Fallback to traditional storage if not in a world
-      this._components.set(constructor, component);
-
-      // Call component lifecycle method
-      component.onAdded?.();
-    }
-
+    this._world.addComponentToEntity(this._id, constructor, component);
     return this;
   }
 
@@ -119,20 +88,7 @@ export class Entity {
    * @returns This entity instance for method chaining 实体实例，用于方法链式调用
    */
   removeComponent<T extends Component>(componentType: ComponentType<T>): this {
-    // If entity belongs to a world, use archetype storage
-    if (this._world) {
-      // Let the world handle archetype storage
-      this._world.removeComponentFromEntity(this._id, componentType);
-    } else {
-      // Fallback to traditional storage if not in a world
-      const component = this._components.get(componentType);
-      if (component) {
-        // Call component lifecycle method
-        component.onRemoved?.();
-        this._components.delete(componentType);
-      }
-    }
-
+    this._world.removeComponentFromEntity(this._id, componentType);
     return this;
   }
 
@@ -143,13 +99,7 @@ export class Entity {
    * @returns The component instance if found, undefined otherwise 如果找到则返回组件实例，否则返回undefined
    */
   getComponent<T extends Component>(componentType: ComponentType<T>): T | undefined {
-    // If entity belongs to a world, use archetype storage
-    if (this._world) {
-      return this._world.getEntityComponent(this._id, componentType);
-    }
-
-    // Fallback to traditional storage if not in a world
-    return this._components.get(componentType) as T | undefined;
+    return this._world.getEntityComponent(this._id, componentType);
   }
 
   /**
@@ -159,13 +109,7 @@ export class Entity {
    * @returns True if entity has the component 如果实体拥有该组件则返回true
    */
   hasComponent<T extends Component>(componentType: ComponentType<T>): boolean {
-    // If entity belongs to a world, use archetype storage
-    if (this._world) {
-      return this._world.entityHasComponent(this._id, componentType);
-    }
-
-    // Fallback to traditional storage if not in a world
-    return this._components.has(componentType);
+    return this._world.entityHasComponent(this._id, componentType);
   }
 
   /**
@@ -183,13 +127,7 @@ export class Entity {
    * 获取实体上的所有组件
    */
   getComponents(): Component[] {
-    // If entity belongs to a world, use archetype storage
-    if (this._world) {
-      return this._world.getEntityComponents(this._id);
-    }
-
-    // Fallback to traditional storage if not in a world
-    return Array.from(this._components.values());
+    return this._world.getEntityComponents(this._id);
   }
 
   /**
@@ -197,25 +135,7 @@ export class Entity {
    * 获取实体上的所有组件类型
    */
   getComponentTypes(): ComponentConstructor[] {
-    return Array.from(this._components.keys());
-  }
-
-  /**
-   * Remove all components from entity
-   * 移除实体的所有组件
-   */
-  clear(): this {
-    this._components.clear();
-    return this;
-  }
-
-  /**
-   * Get internal component storage (for World access)
-   * 获取内部组件存储（供World访问）
-   * @internal
-   */
-  getInternalComponentStorage(): Map<ComponentConstructor, Component> {
-    return this._components;
+    return this.getComponents().map(component => component.constructor as ComponentConstructor);
   }
 
   /**
@@ -223,7 +143,6 @@ export class Entity {
    * 销毁实体并清理资源
    */
   destroy(): void {
-    this._components.clear();
     this._active = false;
   }
 }
