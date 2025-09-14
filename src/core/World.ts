@@ -9,6 +9,8 @@ import { getComponentType, ComponentType, ComponentCtor } from './ComponentRegis
 import { SparseSetStore, IComponentStore } from './SparseSetStore';
 import { Query } from './Query';
 import { CommandBuffer } from './CommandBuffer';
+import { EventChannel } from '../events/EventChannel';
+import { AddedEvent, RemovedEvent, Added, Removed } from '../events/Types';
 
 /**
  * Component base interface (placeholder)
@@ -24,12 +26,15 @@ export class World {
   private em = new EntityManager();
   private stores = new Map<number, IComponentStore<unknown>>();
   private _iterating = 0;
+  private resources = new Map<new() => unknown, unknown>();
 
   /**
    * Current frame number (starts from 1); incremented by beginFrame()
    * 当前帧号（从1开始）；调用beginFrame()自增
    */
   frame = 1;
+
+  constructor() {}
 
   /**
    * Begin new frame (call at start of main loop)
@@ -51,10 +56,11 @@ export class World {
    * Destroy entity and remove all its components
    * 销毁实体并移除其所有组件
    */
-  destroyEntity(entity: Entity): void {
+  destroyEntity(e: Entity): void {
     this.assertNotIterating();
-    this.em.destroy(entity);
-    this.removeAllComponents(entity);
+    // Remove all components first (triggers Removed events)
+    this.removeAllComponents(e);
+    this.em.destroy(e);
   }
 
   /**
@@ -99,86 +105,100 @@ export class World {
    * Add component to entity
    * 向实体添加组件
    */
-  addComponentToEntity<T>(entity: Entity, type: ComponentType<T>, component: T): void {
+  addComponentToEntity<T>(e: Entity, type: ComponentType<T>, c: T): void {
     this.assertNotIterating();
     const store = this.storeOf(type);
-    store.add(entity, component);
-    store.markChanged(entity, this.frame); // Addition counts as change 新增也算变更
+    const existed = store.has(e);
+    store.add(e, c);
+    store.markChanged(e, this.frame); // Addition counts as change 新增也算变更
+
+    // Only emit Added event when component goes from non-existent to existent
+    if (!existed) {
+      const chan = this.getOrCreate(AddedEvent, () => new EventChannel<Added>()) as EventChannel<Added>;
+      chan.emit({ e, typeId: type.id, value: c });
+    }
   }
 
   /**
    * Remove component from entity
    * 从实体移除组件
    */
-  removeComponentFromEntity<T>(entity: Entity, type: ComponentType<T>): void {
+  removeComponentFromEntity<T>(e: Entity, type: ComponentType<T>): void {
     this.assertNotIterating();
-    this.storeOf(type).remove(entity);
+    const store = this.storeOf(type);
+    const had = store.has(e);
+    const old = had ? store.get(e) : undefined;
+    store.remove(e);
+    if (had) {
+      const chan = this.getOrCreate(RemovedEvent, () => new EventChannel<Removed>()) as EventChannel<Removed>;
+      chan.emit({ e, typeId: type.id, old });
+    }
   }
 
   /**
    * Add component to entity (convenience method)
    * 向实体添加组件（便捷方法）
    */
-  addComponent<T>(entity: Entity, ctor: ComponentCtor<T>, data?: Partial<T>): void {
+  addComponent<T>(e: Entity, ctor: ComponentCtor<T>, data?: Partial<T>): void {
     const type = getComponentType(ctor);
     const component = new ctor();
     if (data) {
       Object.assign(component as object, data);
     }
-    this.addComponentToEntity(entity, type, component);
+    this.addComponentToEntity(e, type, component);
   }
 
   /**
    * Remove component from entity (convenience method)
    * 从实体移除组件（便捷方法）
    */
-  removeComponent<T>(entity: Entity, ctor: ComponentCtor<T>): void {
+  removeComponent<T>(e: Entity, ctor: ComponentCtor<T>): void {
     const type = getComponentType(ctor);
-    this.removeComponentFromEntity(entity, type);
+    this.removeComponentFromEntity(e, type);
   }
 
   /**
    * Get component from entity (convenience method)
    * 从实体获取组件（便捷方法）
    */
-  getComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T | undefined {
+  getComponent<T>(e: Entity, ctor: ComponentCtor<T>): T | undefined {
     const type = getComponentType(ctor);
-    return this.storeOf(type).get(entity);
+    return this.storeOf(type).get(e);
   }
 
   /**
    * Check if entity has component (convenience method)
    * 检查实体是否有组件（便捷方法）
    */
-  hasComponent<T>(entity: Entity, ctor: ComponentCtor<T>): boolean {
+  hasComponent<T>(e: Entity, ctor: ComponentCtor<T>): boolean {
     const type = getComponentType(ctor);
-    return this.storeOf(type).has(entity);
+    return this.storeOf(type).has(e);
   }
 
   /**
    * Get component from entity
    * 从实体获取组件
    */
-  getEntityComponent<T>(entity: Entity, type: ComponentType<T>): T | undefined {
-    return this.storeOf(type).get(entity);
+  getEntityComponent<T>(e: Entity, type: ComponentType<T>): T | undefined {
+    return this.storeOf(type).get(e);
   }
 
   /**
    * Check if entity has component
    * 检查实体是否拥有组件
    */
-  entityHasComponent<T>(entity: Entity, type: ComponentType<T>): boolean {
-    return !!this.getStore(type)?.has(entity);
+  entityHasComponent<T>(e: Entity, type: ComponentType<T>): boolean {
+    return !!this.getStore(type)?.has(e);
   }
 
   /**
    * Get all components of entity
    * 获取实体的所有组件
    */
-  getEntityComponents(entity: Entity): Component[] {
+  getEntityComponents(e: Entity): Component[] {
     const components: Component[] = [];
     for (const [, store] of this.stores) {
-      const component = store.get(entity);
+      const component = store.get(e);
       if (component) {
         components.push(component as Component);
       }
@@ -190,9 +210,15 @@ export class World {
    * Remove all components from entity
    * 从实体移除所有组件
    */
-  private removeAllComponents(entity: Entity): void {
-    for (const [, store] of this.stores) {
-      store.remove(entity);
+  private removeAllComponents(e: Entity): void {
+    // Call removeComponentFromEntity for each existing component to trigger events
+    for (const [typeId, store] of this.stores) {
+      if (store.has(e)) {
+        // Construct a fake ComponentType with the typeId
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any
+        const fakeType: ComponentType<any> = { id: typeId, ctor: class {} as any };
+        this.removeComponentFromEntity(e, fakeType);
+      }
     }
   }
 
@@ -200,9 +226,9 @@ export class World {
    * Manually mark component as changed - call after modifying component fields in systems
    * 手动标记某组件"已被修改"——在系统里改了字段后调用
    */
-  markChanged<T>(entity: Entity, ctor: ComponentCtor<T>): void {
+  markChanged<T>(e: Entity, ctor: ComponentCtor<T>): void {
     const type = getComponentType(ctor);
-    this.getStore(type)?.markChanged(entity, this.frame);
+    this.getStore(type)?.markChanged(e, this.frame);
   }
 
   /**
@@ -268,11 +294,59 @@ export class World {
   }
 
   /**
+   * Set a resource by key
+   * 通过键设置资源
+   */
+  setResource<T>(key: new()=>T, val: T): void {
+    this.resources.set(key, val);
+  }
+
+  /**
+   * Get a resource by key
+   * 通过键获取资源
+   */
+  getResource<T>(key: new()=>T): T | undefined {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+    return this.resources.get(key) as T | undefined;
+  }
+
+  /**
+   * Get resource or create with factory if not exists
+   * 获取资源，不存在则用工厂函数创建
+   */
+  private getOrCreate<T>(key: new()=>T, fac: ()=>T): T {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+    let v = this.getResource<T>(key as any);
+    if (!v) {
+      v = fac();
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
+      this.setResource(key as any, v);
+    }
+    return v;
+  }
+
+  /**
+   * Get event channel for Added events
+   * 获取Added事件通道
+   */
+  getAddedChannel(): EventChannel<Added> {
+    return this.getOrCreate(AddedEvent, () => new EventChannel<Added>()) as EventChannel<Added>;
+  }
+
+  /**
+   * Get event channel for Removed events
+   * 获取Removed事件通道
+   */
+  getRemovedChannel(): EventChannel<Removed> {
+    return this.getOrCreate(RemovedEvent, () => new EventChannel<Removed>()) as EventChannel<Removed>;
+  }
+
+  /**
    * Convenience method: add component by constructor
    * 便捷方法：通过构造函数添加组件
    */
   add<T extends Component>(
-    entity: Entity,
+    e: Entity,
     ctor: ComponentCtor<T>,
     data?: Partial<T>
   ): void {
@@ -282,6 +356,6 @@ export class World {
     if (data) {
       Object.assign(component as object, data);
     }
-    this.addComponentToEntity(entity, type, component);
+    this.addComponentToEntity(e, type, component);
   }
 }

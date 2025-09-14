@@ -40,6 +40,9 @@ export { CommandBuffer } from './core/CommandBuffer';
 export { World } from './core/World';
 export type { Component } from './core/World';
 
+// Event System
+export * from './events';
+
 // System and Scheduler
 export { system, SystemBuilder } from './core/System';
 export type { SystemStage, SystemConfig, SystemContext } from './core/System';
