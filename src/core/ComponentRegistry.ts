@@ -3,11 +3,13 @@
  * 组件类型注册，支持双向映射（构造函数 ↔ ID）
  */
 
+import type { ComponentCtor } from '../utils/Types';
+
 /**
- * Component constructor type
- * 组件构造函数类型
+ * Re-export ComponentCtor for convenience
+ * 为方便使用重新导出ComponentCtor
  */
-export type ComponentCtor<T = unknown> = new (...args: unknown[]) => T;
+export type { ComponentCtor };
 
 /**
  * Component type with stable numeric ID and constructor
