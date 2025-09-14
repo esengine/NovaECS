@@ -78,7 +78,7 @@ export const TransformUpdateSystem = system('TransformUpdate', (ctx) => {
     const matLocal = fromLocal(lt.x, lt.y, lt.rot, lt.sx, lt.sy);
     const mat = parentMat ? mul(parentMat, matLocal) : matLocal;
 
-    let shouldMarkDirty = parentDirty || hasDirty;
+    const shouldMarkDirty = parentDirty || hasDirty;
 
     if (shouldMarkDirty) {
       ensureWorld(e).m = mat;
@@ -145,7 +145,7 @@ export function setParent(world: any, child: Entity, parent: Entity | null): voi
   } else {
     // Set or change parent
     // 设置或更改父级
-    let parentComp = world.getComponent(child, Parent);
+    const parentComp = world.getComponent(child, Parent);
     if (parentComp) {
       parentComp.value = parent;
       world.markChanged(child, Parent);

@@ -37,7 +37,7 @@ export class WorldSerializer {
         const serde = getSerde((c as any).constructor);
         return { typeId: t.id, data: serde.toJSON(c) };
       });
-      out.entities.push({ guid: (guid as Guid).value, comps });
+      out.entities.push({ guid: (guid).value, comps });
     });
     return out;
   }

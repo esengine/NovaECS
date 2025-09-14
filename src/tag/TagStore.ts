@@ -95,7 +95,7 @@ export class TagStore {
 
     for (const [entityIdx, set] of this.bits) {
       if (set.has(tagBit)) {
-        entities.push(entityIdx as Entity);
+        entities.push(entityIdx);
       }
     }
 

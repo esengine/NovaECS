@@ -13,7 +13,6 @@ import { EventChannel } from '../events/EventChannel';
 import { AddedEvent, RemovedEvent, Added, Removed } from '../events/Types';
 import { TagStore } from '../tag/TagStore';
 import { tagId, getAllTags } from '../tag/TagRegistry';
-import { ChildrenIndex } from '../hierarchy/ChildrenIndex';
 import { Bitset } from '../signature/Bitset';
 import { ArchetypeIndex, Archetype } from '../archetype';
 import { Recorder } from '../replay/Recorder';
@@ -586,7 +585,7 @@ export class World {
     const allTags = getAllTags();
     const tagIdToName = new Map(allTags.map(({ name, id }) => [id, name]));
 
-    return tagIds.map(id => tagIdToName.get(id)).filter(name => name !== undefined) as string[];
+    return tagIds.map(id => tagIdToName.get(id)).filter(name => name !== undefined);
   }
 
   /**
