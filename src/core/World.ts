@@ -116,6 +116,46 @@ export class World {
   }
 
   /**
+   * Add component to entity (convenience method)
+   * 向实体添加组件（便捷方法）
+   */
+  addComponent<T>(entity: Entity, ctor: ComponentCtor<T>, data?: Partial<T>): void {
+    const type = getComponentType(ctor);
+    const component = new ctor();
+    if (data) {
+      Object.assign(component as object, data);
+    }
+    this.addComponentToEntity(entity, type, component);
+  }
+
+  /**
+   * Remove component from entity (convenience method)
+   * 从实体移除组件（便捷方法）
+   */
+  removeComponent<T>(entity: Entity, ctor: ComponentCtor<T>): void {
+    const type = getComponentType(ctor);
+    this.removeComponentFromEntity(entity, type);
+  }
+
+  /**
+   * Get component from entity (convenience method)
+   * 从实体获取组件（便捷方法）
+   */
+  getComponent<T>(entity: Entity, ctor: ComponentCtor<T>): T | undefined {
+    const type = getComponentType(ctor);
+    return this.storeOf(type).get(entity);
+  }
+
+  /**
+   * Check if entity has component (convenience method)
+   * 检查实体是否有组件（便捷方法）
+   */
+  hasComponent<T>(entity: Entity, ctor: ComponentCtor<T>): boolean {
+    const type = getComponentType(ctor);
+    return this.storeOf(type).has(entity);
+  }
+
+  /**
    * Get component from entity
    * 从实体获取组件
    */

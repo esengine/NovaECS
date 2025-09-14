@@ -40,5 +40,12 @@ export { CommandBuffer } from './core/CommandBuffer';
 export { World } from './core/World';
 export type { Component } from './core/World';
 
+// System and Scheduler
+export { system, SystemBuilder } from './core/System';
+export type { SystemStage, SystemConfig, SystemContext } from './core/System';
+export { Scheduler } from './core/Scheduler';
+export { FixedTimestepScheduler } from './core/FixedTimestepScheduler';
+export type { FixedStepOpts } from './core/FixedTimestepScheduler';
+
 // Core Types
 export * from './utils/Types';
