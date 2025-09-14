@@ -58,5 +58,9 @@ export type { SysStat } from './core/Profiler';
 export { snapshot, printSnapshot, exportSnapshot, getComponentSummary, getSystemSummary } from './core/Inspector';
 export type { InspectorSnapshot, ComponentInfo } from './core/Inspector';
 
+// Debug Systems
+export { ProfilerDumpSystem, enableProfilerDump, disableProfilerDump, pauseProfilerDump, resumeProfilerDump, ProfilerDumpConfig_, DEFAULT_PROFILER_DUMP_CONFIG } from './systems/ProfilerDumpSystem';
+export type { ProfilerDumpConfig } from './systems/ProfilerDumpSystem';
+
 // Core Types
 export * from './utils/Types';
