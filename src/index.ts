@@ -62,5 +62,14 @@ export type { InspectorSnapshot, ComponentInfo } from './core/Inspector';
 export { ProfilerDumpSystem, enableProfilerDump, disableProfilerDump, pauseProfilerDump, resumeProfilerDump, ProfilerDumpConfig_, DEFAULT_PROFILER_DUMP_CONFIG } from './systems/ProfilerDumpSystem';
 export type { ProfilerDumpConfig } from './systems/ProfilerDumpSystem';
 
+// Transform Components
+export { Parent, LocalTransform, WorldTransform, DirtyTransform } from './components/Transform';
+
+// Transform Systems
+export { TransformMarkDirtySystem, TransformUpdateSystem, setLocalTransform, setParent } from './systems/TransformSystems';
+
+// Math Utilities
+export { mul, fromLocal, identity, transformPoint } from './math/Mat3';
+
 // Core Types
 export * from './utils/Types';
