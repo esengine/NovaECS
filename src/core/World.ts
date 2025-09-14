@@ -5,7 +5,7 @@
 
 import { EntityManager } from './EntityManager';
 import { Entity } from '../utils/Types';
-import { getComponentType, ComponentType, ComponentCtor } from './ComponentRegistry';
+import { getComponentType, ComponentType, ComponentCtor, getCtorByTypeId } from './ComponentRegistry';
 import { SparseSetStore, IComponentStore } from './SparseSetStore';
 import { Query } from './Query';
 import { CommandBuffer } from './CommandBuffer';
@@ -15,6 +15,7 @@ import { TagStore } from '../tag/TagStore';
 import { tagId, getAllTags } from '../tag/TagRegistry';
 import { ChildrenIndex } from '../hierarchy/ChildrenIndex';
 import { Bitset } from '../signature/Bitset';
+import { ArchetypeIndex, Archetype } from '../archetype';
 
 /**
  * Component base interface (placeholder)
@@ -33,6 +34,8 @@ export class World {
   private resources = new Map<new() => unknown, unknown>();
   private tags = new TagStore();
   private signatures = new Map<Entity, Bitset>();
+  private arch = new ArchetypeIndex();
+  private entityArchetype = new Map<Entity, Archetype>();
 
   /**
    * Current frame number (starts from 1); incremented by beginFrame()
@@ -55,7 +58,9 @@ export class World {
    * 创建新实体
    */
   createEntity(enabled = true): Entity {
-    return this.em.create(enabled);
+    const entity = this.em.create(enabled);
+    this.migrate(entity); // Migrate to empty archetype
+    return entity;
   }
 
   /**
@@ -64,6 +69,17 @@ export class World {
    */
   destroyEntity(e: Entity): void {
     this.assertNotIterating();
+
+    // Remove from archetype
+    const archetype = this.entityArchetype.get(e);
+    if (archetype) {
+      const row = archetype.getRow(e);
+      if (row !== undefined) {
+        archetype.swapRemove(row);
+      }
+      this.entityArchetype.delete(e);
+    }
+
     // Remove all components first (triggers Removed events)
     this.removeAllComponents(e);
     // Clean up signature
@@ -90,6 +106,57 @@ export class World {
       this.signatures.set(e, s);
     }
     return s;
+  }
+
+  /**
+   * Migrate entity to appropriate archetype based on signature
+   * 根据签名将实体迁移到适当的原型
+   */
+  private migrate(e: Entity): void {
+    const sig = this.getSignature(e);
+    const target = this.arch.getOrCreate(sig);
+    const current = this.entityArchetype.get(e);
+
+    if (current === target) return;
+
+    // Factory function for creating default component instances
+    const makeDefault = (typeId: number): unknown => {
+      const ctor = getCtorByTypeId(typeId);
+      if (ctor) {
+        return new ctor();
+      }
+      // Fallback to empty object for unknown types
+      return {};
+    };
+
+    // Remove from current archetype if exists
+    if (current) {
+      const row = current.getRow(e);
+      if (row !== undefined) {
+        // Copy component data before removing
+        const componentData = new Map<number, unknown>();
+        for (const typeId of current.types) {
+          componentData.set(typeId, current.getComponent(e, typeId));
+        }
+
+        current.swapRemove(row);
+
+        // Add to target archetype and restore component data
+        target.push(e, makeDefault);
+
+        // Restore actual component data
+        for (const [typeId, data] of componentData) {
+          if (target.types.includes(typeId)) {
+            target.setComponent(e, typeId, data);
+          }
+        }
+      }
+    } else {
+      // First time adding entity to archetype
+      target.push(e, makeDefault);
+    }
+
+    this.entityArchetype.set(e, target);
   }
 
   /**
@@ -144,6 +211,17 @@ export class World {
       const chan = this.getOrCreate(AddedEvent, () => new EventChannel<Added>()) as EventChannel<Added>;
       chan.emit({ e, typeId: type.id, value: c });
     }
+
+    // Migrate to new archetype if signature changed
+    if (!existed) {
+      this.migrate(e);
+
+      // Copy the actual component data to archetype
+      const archetype = this.entityArchetype.get(e);
+      if (archetype) {
+        archetype.setComponent(e, type.id, c);
+      }
+    }
   }
 
   /**
@@ -166,6 +244,11 @@ export class World {
     if (had) {
       const chan = this.getOrCreate(RemovedEvent, () => new EventChannel<Removed>()) as EventChannel<Removed>;
       chan.emit({ e, typeId: type.id, old });
+    }
+
+    // Migrate to new archetype if signature changed
+    if (had) {
+      this.migrate(e);
     }
   }
 
@@ -197,7 +280,9 @@ export class World {
    */
   getComponent<T>(e: Entity, ctor: ComponentCtor<T>): T | undefined {
     const type = getComponentType(ctor);
-    return this.storeOf(type).get(e);
+    const archetype = this.entityArchetype.get(e);
+    if (!archetype) return undefined;
+    return archetype.getComponent<T>(e, type.id);
   }
 
   /**
@@ -206,7 +291,9 @@ export class World {
    */
   hasComponent<T>(e: Entity, ctor: ComponentCtor<T>): boolean {
     const type = getComponentType(ctor);
-    return this.storeOf(type).has(e);
+    const archetype = this.entityArchetype.get(e);
+    if (!archetype) return false;
+    return archetype.types.includes(type.id);
   }
 
   /**
@@ -214,7 +301,9 @@ export class World {
    * 从实体获取组件
    */
   getEntityComponent<T>(e: Entity, type: ComponentType<T>): T | undefined {
-    return this.storeOf(type).get(e);
+    const archetype = this.entityArchetype.get(e);
+    if (!archetype) return undefined;
+    return archetype.getComponent<T>(e, type.id);
   }
 
   /**
@@ -222,7 +311,9 @@ export class World {
    * 检查实体是否拥有组件
    */
   entityHasComponent<T>(e: Entity, type: ComponentType<T>): boolean {
-    return !!this.getStore(type)?.has(e);
+    const archetype = this.entityArchetype.get(e);
+    if (!archetype) return false;
+    return archetype.types.includes(type.id);
   }
 
   /**
@@ -231,8 +322,11 @@ export class World {
    */
   getEntityComponents(e: Entity): Component[] {
     const components: Component[] = [];
-    for (const [, store] of this.stores) {
-      const component = store.get(e);
+    const archetype = this.entityArchetype.get(e);
+    if (!archetype) return components;
+
+    for (const typeId of archetype.types) {
+      const component = archetype.getComponent(e, typeId);
       if (component) {
         components.push(component as Component);
       }

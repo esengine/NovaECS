@@ -83,5 +83,8 @@ export * from './hierarchy';
 // Signature System
 export * from './signature';
 
+// Archetype System
+export * from './archetype';
+
 // Core Types
 export * from './utils/Types';
