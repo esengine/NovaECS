@@ -5,3 +5,4 @@
 
 export { CommandLog, Cmd, FrameLog } from './CommandLog';
 export { Recorder } from './Recorder';
+export { Replayer } from './Replayer';

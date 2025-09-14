@@ -180,6 +180,14 @@ export class World {
   }
 
   /**
+   * Get all alive entities
+   * 获取所有存活的实体
+   */
+  getAllAliveEntities(): Entity[] {
+    return this.em.getAllAliveEntities();
+  }
+
+  /**
    * Set entity enabled state
    * 设置实体启用状态
    */
