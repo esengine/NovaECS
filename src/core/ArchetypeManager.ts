@@ -207,7 +207,8 @@ export class ArchetypeManager {
       return false;
     }
 
-    return componentTypes.every(type => record.archetype.hasComponent(type));
+    const componentTypeIds = componentTypes.map(type => type.typeId);
+    return record.archetype.hasAll(componentTypeIds);
   }
 
   /**

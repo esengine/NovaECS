@@ -81,6 +81,14 @@ export class Archetype {
   }
 
   /**
+   * Check if archetype has all specified component type IDs
+   * 检查原型是否具有所有指定的组件类型ID
+   */
+  hasAll(componentTypeIds: ComponentTypeId[]): boolean {
+    return componentTypeIds.every(id => this._componentTypeIds.has(id));
+  }
+
+  /**
    * Check if archetype matches query signature using stable typeIds
    * 使用稳定typeId检查原型是否匹配查询签名
    */
