@@ -178,4 +178,67 @@ describe('Component Events', () => {
     expect(addedEvents.size).toBe(0);
     expect(addedEvents.hasEvents).toBe(false);
   });
+
+  test('complete lifecycle scenario: create -> add -> remove -> add -> destroy', () => {
+    // 1) 创建实体 + 添加 Position -> 应该收到 Added(Position)
+    const cmd = world.cmd();
+    const e = cmd.create(true);
+    cmd.add(e, Position, { x: 1, y: 2 });
+    world.flush(cmd);
+
+    let addedEvents = world.getAddedChannel().takeAll();
+    expect(addedEvents).toHaveLength(1);
+    expect(addedEvents[0]).toMatchObject({
+      e,
+      typeId: expect.any(Number),
+      value: expect.objectContaining({ x: 1, y: 2 })
+    });
+
+    // 2) 移除 Position -> 收到 Removed(Position)
+    const positionType = registerComponent(Position);
+    world.removeComponentFromEntity(e, positionType);
+
+    let removedEvents = world.getRemovedChannel().takeAll();
+    expect(removedEvents).toHaveLength(1);
+    expect(removedEvents[0]).toMatchObject({
+      e,
+      typeId: positionType.id,
+      old: expect.objectContaining({ x: 1, y: 2 })
+    });
+
+    // 3) 再添加 Position -> 再次 Added(Position)
+    world.addComponent(e, Position, { x: 3, y: 4 });
+
+    addedEvents = world.getAddedChannel().takeAll();
+    expect(addedEvents).toHaveLength(1);
+    expect(addedEvents[0]).toMatchObject({
+      e,
+      typeId: positionType.id,
+      value: expect.objectContaining({ x: 3, y: 4 })
+    });
+
+    // 4) 添加另一个组件，然后destroyEntity(e) -> 应逐个收到 Removed(...)
+    world.addComponent(e, Velocity, { dx: 5, dy: 6 });
+
+    // Clear any added events from velocity
+    world.getAddedChannel().takeAll();
+
+    // Destroy entity should trigger Removed events for all components
+    world.destroyEntity(e);
+
+    removedEvents = world.getRemovedChannel().takeAll();
+    expect(removedEvents).toHaveLength(2); // Position + Velocity
+
+    // Verify we got events for both components
+    const typeIds = removedEvents.map(ev => ev.typeId);
+    expect(typeIds).toContain(positionType.id);
+    expect(typeIds).toContain(registerComponent(Velocity).id);
+
+    // Verify old values are captured
+    const positionRemoved = removedEvents.find(ev => ev.typeId === positionType.id);
+    const velocityRemoved = removedEvents.find(ev => ev.typeId === registerComponent(Velocity).id);
+
+    expect(positionRemoved?.old).toMatchObject({ x: 3, y: 4 });
+    expect(velocityRemoved?.old).toMatchObject({ dx: 5, dy: 6 });
+  });
 });
