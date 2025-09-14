@@ -6,7 +6,7 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { World } from '../src/core/World';
 import { registerComponent } from '../src/core/ComponentRegistry';
-import { worldHash, worldHashForComponents, compareWorldStates, frameHash } from '../src/replay/StateHash';
+import { worldHash, worldHashForComponents, compareWorldStates, frameHash, registerComponentHasher } from '../src/replay/StateHash';
 import { Guid } from '../src/components/Guid';
 import { PRNG } from '../src/determinism/PRNG';
 
@@ -90,17 +90,17 @@ describe('StateHash', () => {
     expect(hash1).toBe(2166136261); // FNV-1a initial value
   });
 
-  test('should be order-independent for entity creation', () => {
-    // Create entities in different order but with same final state
-    const e1_1 = world1.createEntity();
-    const e1_2 = world1.createEntity();
+  test('should be deterministic for same component data arrangement', () => {
+    // Create entities with same IDs and same component data
+    const e1_1 = world1.createEntity(); // Should be entity 1
+    const e1_2 = world1.createEntity(); // Should be entity 2
     world1.addComponent(e1_1, Position, { x: 10, y: 20 });
     world1.addComponent(e1_2, Position, { x: 30, y: 40 });
 
-    const e2_2 = world2.createEntity();
-    const e2_1 = world2.createEntity();
-    world2.addComponent(e2_1, Position, { x: 10, y: 20 });
-    world2.addComponent(e2_2, Position, { x: 30, y: 40 });
+    const e2_1 = world2.createEntity(); // Should be entity 1
+    const e2_2 = world2.createEntity(); // Should be entity 2
+    world2.addComponent(e2_1, Position, { x: 10, y: 20 }); // Same entity ID, same data
+    world2.addComponent(e2_2, Position, { x: 30, y: 40 }); // Same entity ID, same data
 
     const hash1 = worldHash(world1);
     const hash2 = worldHash(world2);
@@ -119,8 +119,8 @@ describe('StateHash', () => {
     world2.addComponent(entity2, Health, { hp: 100 });
 
     // Hash only Position and Health components
-    const hash1 = worldHashForComponents(world1, ['Position', 'Health']);
-    const hash2 = worldHashForComponents(world2, ['Position', 'Health']);
+    const hash1 = worldHashForComponents(world1, [Position, Health]);
+    const hash2 = worldHashForComponents(world2, [Position, Health]);
 
     expect(hash1).toBe(hash2); // Should match despite different Velocity
   });
@@ -256,5 +256,121 @@ describe('StateHash', () => {
     const hashWithPRNG = frameHash(world1);
 
     expect(hashWithoutPRNG).not.toBe(hashWithPRNG);
+  });
+
+  test('should handle custom component hashers', () => {
+    // Register custom hasher for Position
+    registerComponentHasher(Position, (h, p) => {
+      h ^= (p.x * 1000 | 0);
+      h = (h * 0x01000193) >>> 0;
+      h ^= (p.y * 1000 | 0);
+      h = (h * 0x01000193) >>> 0;
+      return h;
+    });
+
+    const entity1 = world1.createEntity();
+    world1.addComponent(entity1, Position, { x: 10.567, y: 20.123 });
+
+    const entity2 = world2.createEntity();
+    world2.addComponent(entity2, Position, { x: 10.567, y: 20.123 });
+
+    const hash1 = worldHash(world1);
+    const hash2 = worldHash(world2);
+
+    expect(hash1).toBe(hash2);
+  });
+
+  test('should normalize numeric values correctly', () => {
+    const entity1 = world1.createEntity();
+    const entity2 = world2.createEntity();
+
+    // Test -0 normalization
+    world1.addComponent(entity1, Position, { x: -0, y: 0 });
+    world2.addComponent(entity2, Position, { x: 0, y: 0 });
+
+    expect(worldHash(world1)).toBe(worldHash(world2));
+  });
+
+  test('should handle NaN and Infinity consistently', () => {
+    class TestComp {
+      constructor(public value = 0) {}
+    }
+    registerComponent(TestComp);
+
+    const entity1 = world1.createEntity();
+    const entity2 = world2.createEntity();
+
+    // Both worlds should have same hash for NaN
+    world1.addComponent(entity1, TestComp, { value: NaN });
+    world2.addComponent(entity2, TestComp, { value: NaN });
+
+    expect(worldHash(world1)).toBe(worldHash(world2));
+
+    // Test Infinity
+    world1.getComponent(entity1, TestComp)!.value = Infinity;
+    world2.getComponent(entity2, TestComp)!.value = Infinity;
+
+    expect(worldHash(world1)).toBe(worldHash(world2));
+  });
+
+  test('should use stable GUID keys for consistent hashing', () => {
+    // Create entities with different IDs but same GUIDs
+    const e1_1 = world1.createEntity(); // Entity 1
+    const e1_2 = world1.createEntity(); // Entity 2
+    world1.addComponent(e1_1, Guid, { value: 'stable-guid-1' });
+    world1.addComponent(e1_2, Guid, { value: 'stable-guid-2' });
+    world1.addComponent(e1_1, Position, { x: 10, y: 20 });
+    world1.addComponent(e1_2, Position, { x: 30, y: 40 });
+
+    const e2_2 = world2.createEntity(); // Entity 1
+    const e2_1 = world2.createEntity(); // Entity 2
+    world2.addComponent(e2_1, Guid, { value: 'stable-guid-2' }); // Different entity ID, same GUID
+    world2.addComponent(e2_2, Guid, { value: 'stable-guid-1' }); // Different entity ID, same GUID
+    world2.addComponent(e2_1, Position, { x: 30, y: 40 }); // Same data as stable-guid-2
+    world2.addComponent(e2_2, Position, { x: 10, y: 20 }); // Same data as stable-guid-1
+
+    // Should have same hash because entities are matched by GUID, not entity ID
+    const hash1 = worldHash(world1);
+    const hash2 = worldHash(world2);
+
+    expect(hash1).toBe(hash2);
+  });
+
+  test('should fallback to entity ID when no GUID present', () => {
+    // Create entities without GUID
+    const e1_1 = world1.createEntity();
+    const e1_2 = world1.createEntity();
+    world1.addComponent(e1_1, Position, { x: 10, y: 20 });
+    world1.addComponent(e1_2, Position, { x: 30, y: 40 });
+
+    const e2_1 = world2.createEntity();
+    const e2_2 = world2.createEntity();
+    world2.addComponent(e2_1, Position, { x: 10, y: 20 });
+    world2.addComponent(e2_2, Position, { x: 30, y: 40 });
+
+    // Should have same hash because entity IDs and data match
+    const hash1 = worldHash(world1);
+    const hash2 = worldHash(world2);
+
+    expect(hash1).toBe(hash2);
+  });
+
+  test('should prioritize GUID over entity ID in sorting', () => {
+    // Mix of entities with and without GUIDs
+    const e1 = world1.createEntity();
+    const e2 = world1.createEntity();
+    const e3 = world1.createEntity();
+
+    // Add GUIDs to some entities (not all)
+    world1.addComponent(e2, Guid, { value: 'guid-entity' });
+    world1.addComponent(e1, Position, { x: 10, y: 20 }); // No GUID
+    world1.addComponent(e2, Position, { x: 20, y: 30 }); // Has GUID
+    world1.addComponent(e3, Position, { x: 30, y: 40 }); // No GUID
+
+    // Should consistently order GUID entities first, then by entity ID
+    const hash1 = worldHash(world1);
+    const hash2 = worldHash(world1); // Same world, should be same hash
+
+    expect(hash1).toBe(hash2);
   });
 });

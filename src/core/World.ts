@@ -536,6 +536,20 @@ export class World {
     return out;
   }
 
+  /**
+   * Get all component type IDs that have active stores
+   * 获取所有有活动存储的组件类型ID
+   */
+  getActiveComponentTypes(): number[] {
+    const typeIds: number[] = [];
+    for (const [typeId, store] of this.stores) {
+      if (store.size() > 0) {
+        typeIds.push(typeId);
+      }
+    }
+    return typeIds.sort((a, b) => a - b);
+  }
+
   // ================== Tag System ==================
   // 标签系统
 

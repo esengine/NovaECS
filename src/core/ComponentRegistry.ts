@@ -25,7 +25,6 @@ export interface ComponentType<T> {
 let _nextTypeId = 1; // 0 reserved 0被预留
 const _idByCtor = new Map<ComponentCtor<unknown>, number>();
 const _ctorById = new Map<number, ComponentCtor<unknown>>();
-const _ctorByName = new Map<string, ComponentCtor<unknown>>();
 
 /**
  * Register component with optional explicit ID for hot reload/toolchain stability
@@ -51,7 +50,6 @@ export function registerComponent<T>(
 
   _idByCtor.set(ctor, id);
   _ctorById.set(id, ctor);
-  _ctorByName.set(ctor.name, ctor);
   return { id, ctor };
 }
 
@@ -72,13 +70,6 @@ export function getCtorByTypeId<T = unknown>(id: number): ComponentCtor<T> | und
   return _ctorById.get(id) as ComponentCtor<T> | undefined;
 }
 
-/**
- * Get constructor by component name
- * 按组件名称获取构造函数
- */
-export function getCtorByName<T = unknown>(name: string): ComponentCtor<T> | undefined {
-  return _ctorByName.get(name) as ComponentCtor<T> | undefined;
-}
 
 /**
  * Create component type from ID (shell type for command buffer paths that don't depend on ctor)
@@ -97,5 +88,4 @@ export function __resetRegistry(): void {
   _nextTypeId = 1;
   _idByCtor.clear();
   _ctorById.clear();
-  _ctorByName.clear();
 }
