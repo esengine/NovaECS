@@ -77,5 +77,8 @@ export * from './serialize';
 // Tag System
 export * from './tag';
 
+// Hierarchy System
+export * from './hierarchy';
+
 // Core Types
 export * from './utils/Types';

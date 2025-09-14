@@ -13,6 +13,7 @@ import { EventChannel } from '../events/EventChannel';
 import { AddedEvent, RemovedEvent, Added, Removed } from '../events/Types';
 import { TagStore } from '../tag/TagStore';
 import { tagId, getAllTags } from '../tag/TagRegistry';
+import { ChildrenIndex } from '../hierarchy/ChildrenIndex';
 
 /**
  * Component base interface (placeholder)
