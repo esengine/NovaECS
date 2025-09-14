@@ -120,9 +120,9 @@ export class CommandBuffer {
   addByTypeId(entity: Entity, typeId: number, init?: Record<string, unknown>): void {
     if (this.isDestroyed(entity)) return;
     const Ctor = getCtorByTypeId(typeId);
-    const instance = Ctor ? new Ctor() : {};
+    const instance = Ctor ? new Ctor() : {} as Record<string, unknown>;
     if (init) {
-      Object.assign(instance, init);
+      Object.assign(instance as Record<string, unknown>, init);
     }
     this.queueAdd(entity, typeId, instance);
   }
