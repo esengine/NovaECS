@@ -3,6 +3,8 @@
  * 用于并行ECS处理的工作线程池和核函数执行系统
  */
 
+import { VisibilityGuard } from './ConcurrencySafety';
+
 /**
  * Payload data sent to worker for kernel execution
  * 发送给工作线程执行核函数的载荷数据
@@ -11,11 +13,11 @@ export type KernelPayload = {
   /** Kernel function identifier 核函数标识符 */
   kernelId: string;
   /** Component column arrays (structured clone or SAB mapping) 组件列数组（结构化克隆或SAB映射） */
-  cols: any[][];
+  cols: unknown[];
   /** Number of entities in this chunk 此块中的实体数量 */
   length: number;
   /** Optional parameters for kernel function 核函数的可选参数 */
-  params?: any;
+  params?: unknown;
 };
 
 /**
@@ -39,6 +41,10 @@ export class WorkerPool {
     url: string, 
     size = navigator?.hardwareConcurrency ? Math.max(1, Math.min(8, navigator.hardwareConcurrency-1)) : 4
   ) {
+    // Initialize memory fence for SAB visibility
+    // 为SAB可见性初始化内存栅栏
+    const fenceBuffer = VisibilityGuard.initFence();
+    
     for (let i = 0; i < size; i++) {
       const w = new Worker(url, { type: 'module' as any });
       w.onmessage = (ev: MessageEvent) => {
@@ -47,6 +53,13 @@ export class WorkerPool {
         // 将结果转发给完成处理器
         (this as any)._onResult?.(w, id, result);
       };
+      
+      // Send fence buffer to worker for visibility coordination
+      // 将栅栏缓冲区发送给worker用于可见性协调
+      if (fenceBuffer) {
+        w.postMessage({ fence: fenceBuffer });
+      }
+      
       this.workers.push(w);
       this.idle.push(w);
     }

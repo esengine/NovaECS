@@ -46,6 +46,15 @@ export { registerKernel, initWorkerKernel } from './parallel/WorkerKernel';
 export type { KernelFunction } from './parallel/WorkerKernel';
 export { forEachChunkParallel } from './parallel/ChunkParallel';
 
+// SharedArrayBuffer System
+export { registerSchema, getSchema, hasSchema, __resetSchemas } from './sab/Schema';
+export type { FieldType, ComponentSchema } from './sab/Schema';
+export { getFieldByteSize, getSchemaByteSize, getTypedArrayConstructor } from './sab/Schema';
+export { isSharedArrayBufferAvailable, getSABAvailability, SAB_REQUIREMENTS } from './sab/Environment';
+export { ColumnSAB } from './sab/ColumnSAB';
+export { ColumnArray } from './storage/ColumnArray';
+export type { IColumn } from './storage/IColumn';
+
 // World
 export { World } from './core/World';
 export type { Component } from './core/World';

@@ -6,6 +6,7 @@
 import type { World } from './World';
 import type { ComponentCtor } from './ComponentRegistry';
 import { getComponentType } from './ComponentRegistry';
+import { isSABColumn, hasSliceMethod } from '../parallel/TypeGuards';
 
 /**
  * Chunk view containing entity and component column slices
@@ -16,6 +17,8 @@ export type ChunkView = {
   entities: number[];
   /** Component column slices matching entities 与实体对应的组件列切片 */
   cols: any[][];
+  /** Raw IColumn instances for SAB buildSliceDescriptor (SAB用的原始IColumn实例) */
+  rawCols?: unknown[];
   /** Number of rows in this chunk 此块中的行数 */
   length: number;
   /** Archetype signature key 原型签名键 */
@@ -62,12 +65,31 @@ export class ChunkedQuery {
       // 分割成块以保持缓存局部性
       for (let start = 0; start < ents.length; start += targetChunkSize) {
         const end = Math.min(start + targetChunkSize, ents.length);
-        const sliceCols = cols.map(col => col.slice(start, end));
+        const sliceCols = cols.map(col => {
+          // Handle both IColumn interface and Array-like objects
+          // 处理IColumn接口和Array类对象
+          if (isSABColumn(col)) {
+            // Return the column itself for SAB Column, actual slicing happens in buildKernelPayloadsSAB
+            // 对于SAB列返回列本身，实际切片在buildKernelPayloadsSAB中进行
+            return col;
+          } else if (Array.isArray(col)) {
+            // Traditional array slicing for array columns
+            // 传统数组切片用于数组列
+            return col.slice(start, end);
+          } else if (hasSliceMethod(col)) {
+            // Array-like object with slice method
+            // 具有slice方法的类数组对象
+            return col.slice(start, end);
+          } else {
+            return col;
+          }
+        });
         const sliceEnts = ents.slice(start, end);
 
         cb({
-          entities: sliceEnts as any,
+          entities: sliceEnts,
           cols: sliceCols,
+          rawCols: cols, // Keep original IColumn instances for SAB buildSliceDescriptor
           length: end - start,
           archetypeKey: arch.key,
           startRow: start,

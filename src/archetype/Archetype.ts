@@ -4,25 +4,40 @@
  */
 
 import type { Entity } from '../utils/Types';
+import type { IColumn } from '../storage/IColumn';
+import { ColumnSAB } from '../sab/ColumnSAB';
+import { ColumnArray } from '../storage/ColumnArray';
+import { getSchema } from '../sab/Schema';
+import { getSABAvailability } from '../sab/Environment';
 
 export class Archetype {
   entities: Entity[] = [];
-  // 每种组件一个列
-  cols = new Map<number, unknown[]>();
+  /** Component columns using IColumn interface 使用IColumn接口的组件列 */
+  cols = new Map<number, IColumn>();
   rowOf = new Map<Entity, number>();
 
   constructor(
-    public key: string,                   // 由签名 bitset 派生
-    public types: number[],               // 排序后的 typeIds
+    public key: string,                   // Derived from signature bitset 由签名bitset派生
+    public types: number[],               // Sorted typeIds 排序后的typeIds
+    public typeCtors: Function[] = [],    // Component constructors 组件构造函数
   ) {}
 
   /**
-   * Ensure column exists for component type
-   * 确保组件类型的列存在
+   * Ensure column exists for component type with SAB/Array backend selection
+   * 确保组件类型的列存在，并选择SAB/数组后端
    */
-  ensureCol(typeId: number): void {
-    if (!this.cols.has(typeId)) {
-      this.cols.set(typeId, []);
+  ensureColumn(typeId: number, ctor: Function): void {
+    if (this.cols.has(typeId)) return;
+    
+    const schema = getSchema(ctor);
+    if (getSABAvailability() && schema) {
+      // Use SAB backend when available and schema is registered
+      // 当可用且已注册模式时使用SAB后端
+      this.cols.set(typeId, new ColumnSAB(schema));
+    } else {
+      // Fallback to array backend
+      // 回退到数组后端
+      this.cols.set(typeId, new ColumnArray());
     }
   }
 
@@ -35,10 +50,14 @@ export class Archetype {
     this.entities.push(e);
     this.rowOf.set(e, row);
 
-    for (const t of this.types) {
-      this.ensureCol(t);
-      const col = this.cols.get(t)!;
-      col[row] = makeDefault(t);
+    for (let i = 0; i < this.types.length; i++) {
+      const typeId = this.types[i];
+      const ctor = this.typeCtors[i] || Object;
+      this.ensureColumn(typeId, ctor);
+      const col = this.cols.get(typeId)!;
+      col.ensureCapacity(row + 1);
+      const rowIndex = col.pushDefault();
+      col.writeFromObject(rowIndex, makeDefault(typeId));
     }
   }
 
@@ -48,33 +67,24 @@ export class Archetype {
    */
   swapRemove(row: number): void {
     const last = this.entities.length - 1;
-    if (row === last) {
-      // 移除的就是最后一个，直接删除
-      const e = this.entities.pop()!;
-      this.rowOf.delete(e);
-      for (const t of this.types) {
-        const col = this.cols.get(t)!;
-        col.pop();
-      }
-      return;
-    }
-
-    const lastE = this.entities[last];
+    
+    // Remove entity from mapping 从映射中移除实体
     const removedE = this.entities[row];
-
-    // 交换实体
-    this.entities[row] = lastE;
-    this.entities.pop();
-
-    // 更新行映射
-    this.rowOf.set(lastE, row);
     this.rowOf.delete(removedE);
-
-    // 交换每列的数据
-    for (const t of this.types) {
-      const col = this.cols.get(t)!;
-      col[row] = col[last];
-      col.pop();
+    
+    if (row !== last) {
+      // Swap with last entity 与最后一个实体交换
+      const lastE = this.entities[last];
+      this.entities[row] = lastE;
+      this.rowOf.set(lastE, row);
+    }
+    
+    // Remove last entity 移除最后一个实体
+    this.entities.pop();
+    
+    // Update all columns using IColumn interface 使用IColumn接口更新所有列
+    for (const col of this.cols.values()) {
+      col.swapRemove(row);
     }
   }
 
@@ -91,7 +101,22 @@ export class Archetype {
    * 获取类型的组件列
    */
   getCol<T>(typeId: number): T[] {
-    return this.cols.get(typeId)! as T[];
+    const col = this.cols.get(typeId);
+    if (!col) return [];
+    
+    // For SAB columns, return objects; for Array columns, return data directly
+    // 对于SAB列，返回对象；对于数组列，直接返回数据
+    if ('getData' in col) {
+      // Array column
+      return (col as any).getData();
+    } else {
+      // SAB column - reconstruct objects
+      const result: T[] = [];
+      for (let i = 0; i < col.length(); i++) {
+        result.push(col.readToObject(i) as T);
+      }
+      return result;
+    }
   }
 
   /**
@@ -111,7 +136,7 @@ export class Archetype {
     if (row === undefined) return undefined;
     const col = this.cols.get(typeId);
     if (!col) return undefined;
-    return col[row] as T;
+    return col.readToObject(row) as T;
   }
 
   /**
@@ -123,7 +148,7 @@ export class Archetype {
     if (row === undefined) return;
     const col = this.cols.get(typeId);
     if (!col) return;
-    col[row] = value;
+    col.writeFromObject(row, value);
   }
 
   /**
@@ -157,9 +182,9 @@ export class Archetype {
   clear(): void {
     this.entities.length = 0;
     this.rowOf.clear();
-    for (const col of this.cols.values()) {
-      col.length = 0;
-    }
+    // Note: IColumn doesn't have direct length setter, would need clear method
+    // 注意：IColumn没有直接的length设置器，需要clear方法
+    this.cols.clear();
   }
 
   /**
@@ -167,17 +192,19 @@ export class Archetype {
    * 验证原型完整性（调试工具）
    */
   verify(): boolean {
-    // Check that all arrays have same length
+    // Check that all columns have same length as entities
+    // 检查所有列的长度与实体数量相同
     const expectedLength = this.entities.length;
 
     for (const [typeId, col] of this.cols) {
-      if (col.length !== expectedLength) {
-        console.error(`Column ${typeId} length mismatch: expected ${expectedLength}, got ${col.length}`);
+      if (col.length() !== expectedLength) {
+        console.error(`Column ${typeId} length mismatch: expected ${expectedLength}, got ${col.length()}`);
         return false;
       }
     }
 
     // Check that rowOf mapping is correct
+    // 检查rowOf映射是否正确
     for (let i = 0; i < this.entities.length; i++) {
       const entity = this.entities[i];
       const mappedRow = this.rowOf.get(entity);
