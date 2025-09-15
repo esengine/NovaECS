@@ -97,18 +97,26 @@ export class Archetype {
   }
 
   /**
+   * Type guard to check if column supports direct data access
+   * 类型守卫检查列是否支持直接数据访问
+   */
+  private hasDirectAccess(col: IColumn): col is IColumn & { getData(): any[] } {
+    return 'getData' in col && typeof (col as any).getData === 'function';
+  }
+
+  /**
    * Get component column for type
    * 获取类型的组件列
    */
   getCol<T>(typeId: number): T[] {
     const col = this.cols.get(typeId);
     if (!col) return [];
-    
+
     // For SAB columns, return objects; for Array columns, return data directly
     // 对于SAB列，返回对象；对于数组列，直接返回数据
-    if ('getData' in col) {
+    if (this.hasDirectAccess(col)) {
       // Array column
-      return (col as any).getData();
+      return col.getData();
     } else {
       // SAB column - reconstruct objects
       const result: T[] = [];
@@ -143,12 +151,14 @@ export class Archetype {
    * Set component for entity and type
    * 设置实体指定类型的组件
    */
-  setComponent<T>(e: Entity, typeId: number, value: T): void {
+  setComponent<T>(e: Entity, typeId: number, value: T, epoch?: number): void {
     const row = this.rowOf.get(e);
     if (row === undefined) return;
     const col = this.cols.get(typeId);
     if (!col) return;
-    col.writeFromObject(row, value);
+
+    // Write with epoch for change tracking
+    col.writeFromObject(row, value, epoch);
   }
 
   /**

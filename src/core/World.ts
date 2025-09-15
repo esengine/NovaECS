@@ -74,7 +74,24 @@ export class World {
    */
   beginFrame(): void {
     this.frame++;
+
+    // Clear change tracking for all archetype columns
+    // 清理所有原型列的变更追踪
+    for (const archetype of this.arch.getAll()) {
+      for (const col of archetype.cols.values()) {
+        col.clearChangeTracking();
+      }
+    }
+
     this.getResource(Recorder)?.beginFrame();
+  }
+
+  /**
+   * Get current epoch/frame number for change tracking
+   * 获取当前时代/帧号用于变更追踪
+   */
+  epoch(): number {
+    return this.frame;
   }
 
   /**
@@ -171,10 +188,10 @@ export class World {
         // Add to target archetype and restore component data
         target.push(e, makeDefault);
 
-        // Restore actual component data
+        // Restore actual component data (without marking as changed - this is migration)
         for (const [typeId, data] of componentData) {
           if (target.types.includes(typeId)) {
-            target.setComponent(e, typeId, data);
+            target.setComponent(e, typeId, data); // No epoch - migration shouldn't count as change
           }
         }
       }
@@ -243,7 +260,8 @@ export class World {
     }
 
     store.add(e, c);
-    store.markChanged(e, this.frame); // Addition counts as change 新增也算变更
+    // Don't mark as changed during initial addition - only mark when explicitly modified
+    // store.markChanged(e, this.frame);
 
     // Update entity signature
     if (!existed) {
@@ -384,7 +402,7 @@ export class World {
     const type = getComponentType(ctor);
     const archetype = this.entityArchetype.get(e);
     if (!archetype) return;
-    archetype.setComponent(e, type.id, data);
+    archetype.setComponent(e, type.id, data, this.frame);
   }
 
   /**

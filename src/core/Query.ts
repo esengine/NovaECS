@@ -25,6 +25,25 @@ export interface QueryDelta {
 }
 
 /**
+ * Chunk view for parallel processing
+ * 并行处理的分块视图
+ */
+export interface QueryChunkView {
+  /** Archetype identifier 原型标识符 */
+  archetypeKey: string;
+  /** Entity array for this chunk 此分块的实体数组 */
+  entities: Entity[];
+  /** Column data arrays for this chunk 此分块的列数据数组 */
+  cols: any[][];
+  /** Optional column data arrays 可选列数据数组 */
+  optionalCols: (any[] | undefined)[] | undefined;
+  /** Starting row index in the original archetype 在原始原型中的起始行索引 */
+  startRow: number;
+  /** Ending row index in the original archetype 在原始原型中的结束行索引 */
+  endRow: number;
+}
+
+/**
  * Type guard to check if column supports direct data access
  * 类型守卫检查列是否支持直接数据访问
  */
@@ -309,8 +328,24 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
         changedRows = this.buildChangedRowsSet(arch, cols);
       }
 
-      // Only include if tags match
+      // For tag filtering, we can't filter at archetype level since entities in the same
+      // archetype can have different tags. We need to include all archetypes and filter at row level.
+      // For other types of queries (no tags), we can use the more efficient archetype-level filtering.
       if (this.requireTags.length === 0 && this.forbidTags.length === 0) {
+        // No tag filtering - use original efficient archetype-level filtering
+        // (This preserves the original behavior for non-tag queries)
+        const entry: typeof entries[0] = {
+          arch,
+          ents: arch.entities,
+          cols,
+          optionalCols
+        };
+        if (changedRows !== undefined) {
+          entry.changedRows = changedRows;
+        }
+        entries.push(entry);
+      } else {
+        // Tag filtering required - include all archetypes and filter at row level
         const entry: typeof entries[0] = {
           arch,
           ents: arch.entities,
@@ -333,23 +368,48 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
    * 构建包含变更组件的行集合
    */
   private buildChangedRowsSet(arch: Archetype, cols: IColumn[]): Set<number> {
-    const changedRows = new Set<number>();
+    const rows = new Set<number>();
+    const need = this.changedMask; // 与 required 对齐
 
-    // For each required component that has changed mask
-    for (let i = 0; i < this.changedMask.length; i++) {
-      if (!this.changedMask[i]) continue;
+    // 语义：默认"任一列 changed 即命中"（ANY）
+    for (let i = 0; i < need.length; i++) {
+      if (!need[i]) continue;
+      const col = cols[i];
 
-      // TODO: Get changed rows from column's change tracking
-      // const col = cols[i]; // Will be used when implementing real change detection
-      // For now, return all rows as a fallback
-      for (let row = 0; row < arch.entities.length; row++) {
-        changedRows.add(row);
+      // 优先尝试位集扫描（零拷贝，适用于SAB写掩码）
+      const mask = col.getWriteMask?.();
+      if (mask) {
+        // 位集扫描：把置位行加入 rows
+        for (let b = 0; b < mask.length; b++) {
+          let byte = mask[b];
+          while (byte) {
+            const lsb = byte & -byte;
+            const bit = Math.log2(lsb) | 0;
+            const row = (b << 3) + bit;
+            if (row < arch.entities.length) rows.add(row);
+            byte &= byte - 1;
+          }
+        }
+        continue;
+      }
+
+      // 其次尝试按行时代/帧号检测
+      const epochs = col.getRowEpochs?.();
+      if (epochs) {
+        const cur = this.world.epoch();
+        for (let r = 0, n = arch.entities.length; r < n; r++) {
+          if (epochs[r] === cur) rows.add(r);
+        }
+        continue;
+      }
+
+      // 回退：未知后端，保守全行
+      for (let r = 0, n = arch.entities.length; r < n; r++) {
+        rows.add(r);
       }
     }
 
-    // Prevent unused parameter warning - cols will be used in actual implementation
-    void cols;
-    return changedRows;
+    return rows;
   }
 
   /**
@@ -447,6 +507,11 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
 
           const entity = ents[row];
 
+          // Check entity is alive and enabled (same as QueryArchetypeAdapter)
+          if (!this.world.isAlive(entity) || !this.world.isEnabled(entity)) {
+            continue;
+          }
+
           // Fast tag filtering using bit sets
           if (this.requiredTagMask || this.forbiddenTagMask) {
             const entityBits = this.world.getEntityTagBits(entity);
@@ -510,6 +575,11 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
       }
 
       anchorStore.forEach((entity, _anchorValue) => {
+        // Check entity is alive and enabled
+        if (!this.world.isAlive(entity) || !this.world.isEnabled(entity)) {
+          return;
+        }
+
         // Check required components and collect instances
         const values: unknown[] = new Array(this.required.length);
         let hasAll = true;
@@ -695,6 +765,135 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
    */
   toArray(): Array<[Entity, ...ReqTuple]> {
     return this.map((entity, ...components) => [entity, ...components] as [Entity, ...ReqTuple]);
+  }
+
+  // ================== Parallel Processing ==================
+  // 并行处理
+
+  /**
+   * Generate chunk views for parallel processing
+   * 生成并行处理的分块视图
+   */
+  toChunks(targetChunkSize: number = 4096): QueryChunkView[] {
+    if (this.required.length === 0) return [];
+
+    this.rebuildPlanIfNeeded();
+    const plan = this.plan;
+    if (!plan || plan.entries.length === 0) return [];
+
+    const chunks: QueryChunkView[] = [];
+
+    for (const entry of plan.entries) {
+      const { arch, ents, cols, optionalCols, changedRows } = entry;
+
+      // Determine which rows to process
+      const rowsToProcess = changedRows || new Set(Array.from({length: ents.length}, (_, i) => i));
+      let rowIndices = Array.from(rowsToProcess).filter(row => row < ents.length);
+
+      // Apply entity state and tag filtering
+      rowIndices = rowIndices.filter(row => {
+        const entity = ents[row];
+
+        // Check entity is alive and enabled (same as QueryArchetypeAdapter)
+        if (!this.world.isAlive(entity) || !this.world.isEnabled(entity)) {
+          return false;
+        }
+
+        // Check required tags
+        for (const tag of this.requireTags) {
+          if (!this.world.hasTag(entity, tag)) {
+            return false;
+          }
+        }
+
+        // Check forbidden tags
+        for (const tag of this.forbidTags) {
+          if (this.world.hasTag(entity, tag)) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+
+      if (rowIndices.length === 0) continue;
+
+      // Process in chunks
+      for (let start = 0; start < rowIndices.length; start += targetChunkSize) {
+        const end = Math.min(start + targetChunkSize, rowIndices.length);
+        const chunkRowIndices = rowIndices.slice(start, end);
+
+        if (chunkRowIndices.length === 0) continue;
+
+        // Get archetype key for identification
+        const archetypeKey = `arch_${arch.types.join('_')}`;
+
+        // Extract entities for this chunk
+        const chunkEntities = chunkRowIndices.map(row => ents[row]);
+
+        // Extract column data for this chunk
+        const chunkCols: any[][] = [];
+        for (let colIndex = 0; colIndex < cols.length; colIndex++) {
+          const col = cols[colIndex];
+
+          // Use buildSliceDescriptor for SAB support or fallback to direct access
+          if ('buildSliceDescriptor' in col && typeof col.buildSliceDescriptor === 'function') {
+            // For SAB columns, use buildSliceDescriptor
+            const minRow = Math.min(...chunkRowIndices);
+            const maxRow = Math.max(...chunkRowIndices) + 1;
+            chunkCols[colIndex] = col.buildSliceDescriptor(minRow, maxRow);
+          } else {
+            // Fallback: extract data directly
+            if (hasDirectAccess(col)) {
+              const rawData = col.getData();
+              chunkCols[colIndex] = chunkRowIndices.map(row => rawData[row]);
+            } else {
+              chunkCols[colIndex] = chunkRowIndices.map(row => col.readToObject(row));
+            }
+          }
+        }
+
+        // Extract optional column data for this chunk
+        let chunkOptionalCols: (any[] | undefined)[] | undefined;
+        if (optionalCols && optionalCols.length > 0) {
+          chunkOptionalCols = [];
+          for (let colIndex = 0; colIndex < optionalCols.length; colIndex++) {
+            const col = optionalCols[colIndex];
+
+            if (!col) {
+              chunkOptionalCols[colIndex] = undefined;
+              continue;
+            }
+
+            // Use buildSliceDescriptor for SAB support
+            if ('buildSliceDescriptor' in col && typeof col.buildSliceDescriptor === 'function') {
+              const minRow = Math.min(...chunkRowIndices);
+              const maxRow = Math.max(...chunkRowIndices) + 1;
+              chunkOptionalCols[colIndex] = col.buildSliceDescriptor(minRow, maxRow);
+            } else {
+              // Fallback: extract data directly
+              if (hasDirectAccess(col)) {
+                const rawData = col.getData();
+                chunkOptionalCols[colIndex] = chunkRowIndices.map(row => rawData[row]);
+              } else {
+                chunkOptionalCols[colIndex] = chunkRowIndices.map(row => col.readToObject(row));
+              }
+            }
+          }
+        }
+
+        chunks.push({
+          archetypeKey,
+          entities: chunkEntities,
+          cols: chunkCols,
+          optionalCols: chunkOptionalCols,
+          startRow: Math.min(...chunkRowIndices),
+          endRow: Math.max(...chunkRowIndices) + 1
+        });
+      }
+    }
+
+    return chunks;
   }
 
 }

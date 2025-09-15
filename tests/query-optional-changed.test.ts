@@ -73,6 +73,11 @@ describe('Query optional() and changed() functionality', () => {
     world.addComponent(entity2, Position, { x: 30, y: 40 });
     world.addComponent(entity2, Velocity, { dx: 3, dy: 4 });
 
+    world.beginFrame();
+
+    // 修改entity1的Position
+    world.setComponent(entity1, Position, { x: 15, y: 25 });
+
     const results: number[] = [];
 
     // 查询只有Position组件发生变化的实体
@@ -82,10 +87,9 @@ describe('Query optional() and changed() functionality', () => {
         results.push(entity);
       });
 
-    // 由于目前是fallback实现，应该返回所有实体
-    expect(results).toHaveLength(2);
+    // 只有entity1的Position被修改，所以只返回entity1
+    expect(results).toHaveLength(1);
     expect(results).toContain(entity1);
-    expect(results).toContain(entity2);
   });
 
   it('should work with both optional and changed together', () => {
@@ -97,6 +101,12 @@ describe('Query optional() and changed() functionality', () => {
     const entity2 = world.createEntity();
     world.addComponent(entity2, Position, { x: 30, y: 40 });
     world.addComponent(entity2, Velocity, { dx: 3, dy: 4 });
+
+    world.beginFrame();
+
+    // 修改两个实体的Position
+    world.setComponent(entity1, Position, { x: 15, y: 25 });
+    world.setComponent(entity2, Position, { x: 35, y: 45 });
 
     const results: Array<{
       entity: number;

@@ -113,7 +113,7 @@ export class ColumnSAB implements IColumn {
     this._len--;
   }
 
-  writeFromObject(row: number, obj: Record<string, unknown>): void {
+  writeFromObject(row: number, obj: Record<string, unknown>, epoch?: number): void {
     for (const [name, type] of this.fields) {
       const v = this.views[name] as Float32Array | Float64Array | Int32Array | Uint32Array | Int16Array | Uint16Array | Int8Array | Uint8Array;
       const value = obj?.[name] ?? 0;
@@ -211,4 +211,30 @@ export class ColumnSAB implements IColumn {
    * 便捷：拿到具体字段的视图（主线程本地用）
    */
   viewOf(name: string) { return this.views[name]; }
+
+  /**
+   * Get write mask for change detection (read-only, doesn't clear)
+   * 获取写掩码用于变更检测（只读，不清空）
+   */
+  getWriteMask(): Uint8Array | null {
+    return this.writeMask || null;
+  }
+
+  /**
+   * Get per-row epochs - not supported for SAB backend, use writeMask instead
+   * 获取每行时代 - SAB后端不支持，使用writeMask替代
+   */
+  getRowEpochs(): Uint32Array | null {
+    return null; // SAB使用位集而不是行时代
+  }
+
+  /**
+   * Clear write mask for new frame
+   * 清理写掩码开始新帧
+   */
+  clearChangeTracking(): void {
+    if (this.writeMask) {
+      this.writeMask.fill(0);
+    }
+  }
 }
