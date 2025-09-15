@@ -38,6 +38,14 @@ export { ChunkedQuery, chunked } from './core/ChunkedQuery';
 export type { ChunkView } from './core/ChunkedQuery';
 export { CommandBuffer } from './core/CommandBuffer';
 
+// Parallel System
+export { WorkerPool } from './parallel/WorkerPool';
+export type { KernelPayload, KernelResult } from './parallel/WorkerPool';
+export { ParallelQuery, parallel } from './parallel/ParallelQuery';
+export { registerKernel, initWorkerKernel } from './parallel/WorkerKernel';
+export type { KernelFunction } from './parallel/WorkerKernel';
+export { forEachChunkParallel } from './parallel/ChunkParallel';
+
 // World
 export { World } from './core/World';
 export type { Component } from './core/World';
