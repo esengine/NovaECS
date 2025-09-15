@@ -46,6 +46,52 @@ export { registerKernel, initWorkerKernel } from './parallel/WorkerKernel';
 export type { KernelFunction } from './parallel/WorkerKernel';
 export { forEachChunkParallel } from './parallel/ChunkParallel';
 
+// System-level Parallel Scheduler
+export {
+  createSystemMeta,
+  SystemMetaBuilder,
+  SystemMetaRegistry,
+  AccessMode
+} from './scheduler/SystemMeta';
+export type {
+  SystemMeta,
+  SystemHandle,
+  TypeId,
+  ResourceId,
+  ComponentAccess,
+  ResourceAccess
+} from './scheduler/SystemMeta';
+
+export {
+  WavePlanner,
+  ConflictType
+} from './scheduler/WavePlanner';
+export type {
+  SystemConflict,
+  ExecutionWave,
+  WavePlan
+} from './scheduler/WavePlanner';
+
+export {
+  ParallelRunner
+} from './scheduler/Runner';
+export type {
+  SystemExecutor,
+  SystemExecutionContext,
+  SystemExecutionResult,
+  WaveExecutionResult,
+  ExecutionSessionResult,
+  ExecutionMetrics,
+  RunnerConfig
+} from './scheduler/Runner';
+
+export {
+  ParallelScheduler
+} from './scheduler/ParallelScheduler';
+export type {
+  ParallelSchedulerConfig
+} from './scheduler/ParallelScheduler';
+
 // SharedArrayBuffer System
 export { registerSchema, getSchema, hasSchema, __resetSchemas } from './sab/Schema';
 export type { FieldType, ComponentSchema } from './sab/Schema';
