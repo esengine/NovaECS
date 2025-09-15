@@ -34,6 +34,8 @@ export type { IComponentStore } from './core/SparseSetStore';
 
 // Query and Command System
 export { Query } from './core/Query';
+export { ChunkedQuery, chunked } from './core/ChunkedQuery';
+export type { ChunkView } from './core/ChunkedQuery';
 export { CommandBuffer } from './core/CommandBuffer';
 
 // World
