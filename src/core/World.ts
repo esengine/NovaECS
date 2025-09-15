@@ -16,6 +16,7 @@ import { tagId, getAllTags } from '../tag/TagRegistry';
 import { Bitset } from '../signature/Bitset';
 import { ArchetypeIndex, Archetype } from '../archetype';
 import { Recorder } from '../replay/Recorder';
+import { TagBitSet, TagMaskManager } from './TagBitSet';
 
 /**
  * Component base interface (placeholder)
@@ -36,6 +37,12 @@ export class World {
   private signatures = new Map<Entity, Bitset>();
   private arch = new ArchetypeIndex();
   private entityArchetype = new Map<Entity, Archetype>();
+  private tagMaskManager = new TagMaskManager();
+  private entityTagBits = new Map<Entity, TagBitSet>();
+
+  // Query delta subscription management
+  // 查询增量订阅管理
+  private deltaSubscribedQueries = new Set<Query<unknown[]>>();
 
   /**
    * Current frame number (starts from 1); incremented by beginFrame()
@@ -44,6 +51,22 @@ export class World {
   frame = 1;
 
   constructor() {}
+
+  /**
+   * Get archetype index for query optimization
+   * 获取原型索引用于查询优化
+   */
+  getArchetypeIndex(): ArchetypeIndex {
+    return this.arch;
+  }
+
+  /**
+   * Get total entity count
+   * 获取实体总数
+   */
+  get entityCount(): number {
+    return this.arch.totalEntities();
+  }
 
   /**
    * Begin new frame (call at start of main loop)
@@ -111,13 +134,6 @@ export class World {
     return s;
   }
 
-  /**
-   * Get archetype index (for advanced queries)
-   * 获取原型索引（用于高级查询）
-   */
-  getArchetypeIndex(): ArchetypeIndex {
-    return this.arch;
-  }
 
   /**
    * Migrate entity to appropriate archetype based on signature
@@ -217,6 +233,15 @@ export class World {
     this.assertNotIterating();
     const store = this.storeOf(type);
     const existed = store.has(e);
+
+    // Check which queries matched before addition (for new components only)
+    const queryMatchesBefore = new Map<Query<unknown[]>, boolean>();
+    if (!existed) {
+      for (const query of this.deltaSubscribedQueries) {
+        queryMatchesBefore.set(query, query._matchesEntity(e));
+      }
+    }
+
     store.add(e, c);
     store.markChanged(e, this.frame); // Addition counts as change 新增也算变更
 
@@ -246,6 +271,23 @@ export class World {
     // Record component addition
     if (!existed) {
       this.getResource(Recorder)?.onAdd(e, type.id, c);
+
+      // Notify delta subscribed queries about potential state changes
+      for (const query of this.deltaSubscribedQueries) {
+        const matchedBefore = queryMatchesBefore.get(query) ?? false;
+        const matchesAfter = query._matchesEntity(e);
+
+        if (!matchedBefore && matchesAfter) {
+          query._notifyEntityAdded(e);
+        } else if (matchedBefore && !matchesAfter) {
+          query._notifyEntityRemoved(e);
+        } else if (matchedBefore && matchesAfter) {
+          query._notifyEntityChanged(e);
+        }
+      }
+    } else {
+      // Component existed but was updated - notify about change
+      this.notifyQueryEntityChanged(e);
     }
   }
 
@@ -258,6 +300,13 @@ export class World {
     const store = this.storeOf(type);
     const had = store.has(e);
     const old = had ? store.get(e) : undefined;
+
+    // Check which queries matched before removal
+    const queryMatchesBefore = new Map<Query<unknown[]>, boolean>();
+    for (const query of this.deltaSubscribedQueries) {
+      queryMatchesBefore.set(query, query._matchesEntity(e));
+    }
+
     store.remove(e);
 
     // Update entity signature
@@ -279,6 +328,18 @@ export class World {
     // Record component removal
     if (had) {
       this.getResource(Recorder)?.onRemove(e, type.id);
+
+      // Notify delta subscribed queries about potential entity removal
+      for (const query of this.deltaSubscribedQueries) {
+        const matchedBefore = queryMatchesBefore.get(query) ?? false;
+        const matchesAfter = query._matchesEntity(e);
+
+        if (matchedBefore && !matchesAfter) {
+          query._notifyEntityRemoved(e);
+        } else if (matchedBefore && matchesAfter) {
+          query._notifyEntityChanged(e);
+        }
+      }
     }
   }
 
@@ -416,6 +477,9 @@ export class World {
   markChanged<T>(e: Entity, ctor: ComponentCtor<T>): void {
     const type = getComponentType(ctor);
     this.getStore(type)?.markChanged(e, this.frame);
+
+    // Notify delta subscribed queries about component change
+    this.notifyQueryEntityChanged(e);
   }
 
   /**
@@ -586,7 +650,36 @@ export class World {
    * 为实体添加标签
    */
   addTag(e: Entity, name: string): void {
+    // Check which queries matched before tag addition
+    const queryMatchesBefore = new Map<Query<unknown[]>, boolean>();
+    for (const query of this.deltaSubscribedQueries) {
+      queryMatchesBefore.set(query, query._matchesEntity(e));
+    }
+
     this.tags.add(e, tagId(name));
+
+    // 更新位集
+    const bitIndex = this.tagMaskManager.getBitIndex(name);
+    let entityBits = this.entityTagBits.get(e);
+    if (!entityBits) {
+      entityBits = new TagBitSet();
+      this.entityTagBits.set(e, entityBits);
+    }
+    entityBits.setBit(bitIndex);
+
+    // Notify delta subscribed queries about tag change
+    for (const query of this.deltaSubscribedQueries) {
+      const matchedBefore = queryMatchesBefore.get(query) ?? false;
+      const matchesAfter = query._matchesEntity(e);
+
+      if (!matchedBefore && matchesAfter) {
+        query._notifyEntityAdded(e);
+      } else if (matchedBefore && !matchesAfter) {
+        query._notifyEntityRemoved(e);
+      } else if (matchedBefore && matchesAfter) {
+        query._notifyEntityChanged(e);
+      }
+    }
   }
 
   /**
@@ -594,7 +687,34 @@ export class World {
    * 从实体移除标签
    */
   removeTag(e: Entity, name: string): void {
+    // Check which queries matched before tag removal
+    const queryMatchesBefore = new Map<Query<unknown[]>, boolean>();
+    for (const query of this.deltaSubscribedQueries) {
+      queryMatchesBefore.set(query, query._matchesEntity(e));
+    }
+
     this.tags.remove(e, tagId(name));
+
+    // 更新位集
+    const bitIndex = this.tagMaskManager.getBitIndex(name);
+    const entityBits = this.entityTagBits.get(e);
+    if (entityBits) {
+      entityBits.clearBit(bitIndex);
+    }
+
+    // Notify delta subscribed queries about tag change
+    for (const query of this.deltaSubscribedQueries) {
+      const matchedBefore = queryMatchesBefore.get(query) ?? false;
+      const matchesAfter = query._matchesEntity(e);
+
+      if (matchedBefore && !matchesAfter) {
+        query._notifyEntityRemoved(e);
+      } else if (!matchedBefore && matchesAfter) {
+        query._notifyEntityAdded(e);
+      } else if (matchedBefore && matchesAfter) {
+        query._notifyEntityChanged(e);
+      }
+    }
   }
 
   /**
@@ -623,6 +743,12 @@ export class World {
    */
   clearEntityTags(e: Entity): void {
     this.tags.clearEntity(e);
+
+    // 清除位集
+    const entityBits = this.entityTagBits.get(e);
+    if (entityBits) {
+      entityBits.clear();
+    }
   }
 
   /**
@@ -631,5 +757,63 @@ export class World {
    */
   getEntitiesWithTag(name: string): Entity[] {
     return this.tags.getEntitiesWithTag(tagId(name));
+  }
+
+  // ================== Tag BitSet API ==================
+  // 标签位集API
+
+  /**
+   * Get tag mask manager for bit operations
+   * 获取标签掩码管理器用于位操作
+   */
+  getTagMaskManager(): TagMaskManager {
+    return this.tagMaskManager;
+  }
+
+  /**
+   * Get entity's tag bit set
+   * 获取实体的标签位集
+   */
+  getEntityTagBits(e: Entity): TagBitSet | undefined {
+    return this.entityTagBits.get(e);
+  }
+
+  /**
+   * Create tag mask for multiple tag names
+   * 为多个标签名称创建掩码
+   */
+  createTagMask(tagNames: string[]): TagBitSet {
+    return this.tagMaskManager.createMask(tagNames);
+  }
+
+  // ================== Query Delta Subscription ==================
+  // 查询增量订阅
+
+  /**
+   * Register query for delta notifications
+   * 注册查询以接收增量通知
+   */
+  registerQueryForDelta(query: Query<unknown[]>): void {
+    this.deltaSubscribedQueries.add(query);
+  }
+
+  /**
+   * Unregister query from delta notifications
+   * 取消注册查询的增量通知
+   */
+  unregisterQueryForDelta(query: Query<unknown[]>): void {
+    this.deltaSubscribedQueries.delete(query);
+  }
+
+  /**
+   * Notify subscribed queries about component changes on matching entities
+   * 通知订阅的查询匹配实体的组件变更
+   */
+  private notifyQueryEntityChanged(entity: Entity): void {
+    for (const query of this.deltaSubscribedQueries) {
+      if (query._matchesEntity(entity)) {
+        query._notifyEntityChanged(entity);
+      }
+    }
   }
 }

@@ -9,6 +9,7 @@ import { Bitset } from '../signature/Bitset';
 export class ArchetypeIndex {
   private map = new Map<string, Archetype>();
   private signatureCache = new Map<string, Bitset>(); // 缓存从key重构的签名
+  private _version = 0; // archetype结构变化版本号
 
   /**
    * Get or create archetype for given signature
@@ -37,6 +38,9 @@ export class ArchetypeIndex {
 
       // 缓存重构的签名
       this.signatureCache.set(key, sig.clone());
+
+      // archetype结构发生变化，增加版本号
+      this._version++;
     }
 
     return a;
@@ -97,6 +101,11 @@ export class ArchetypeIndex {
     for (const key of toDelete) {
       this.map.delete(key);
       this.signatureCache.delete(key);
+    }
+
+    if (toDelete.length > 0) {
+      // archetype结构发生变化，增加版本号
+      this._version++;
     }
   }
 
@@ -181,6 +190,15 @@ export class ArchetypeIndex {
   clear(): void {
     this.map.clear();
     this.signatureCache.clear();
+    this._version++;
+  }
+
+  /**
+   * Get current archetype structure version
+   * 获取当前archetype结构版本
+   */
+  version(): number {
+    return this._version;
   }
 
   /**
