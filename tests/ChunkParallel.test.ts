@@ -34,7 +34,12 @@ class MockWorker {
   }
   
   private processMessage(data: any) {
-    const { id, payload } = data;
+    // Handle fence buffer initialization
+    if ('fence' in data && !('payload' in data)) {
+      return;
+    }
+
+    const { runId, id, payload } = data;
     let result = { written: [] };
     
     if (payload.kernelId === 'movement') {
@@ -90,7 +95,7 @@ class MockWorker {
     }
     
     if (this.onmessage) {
-      this.onmessage(new MessageEvent('message', { data: { id, result } }));
+      this.onmessage(new MessageEvent('message', { data: { runId, id, result } }));
     }
   }
   
