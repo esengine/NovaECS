@@ -8,6 +8,7 @@ import { getCtorByTypeId, getComponentType } from '../core/ComponentRegistry';
 import { Parent, LocalTransform, WorldTransform, DirtyTransform } from '../components/Transform';
 import { mul, fromLocal } from '../math/Mat3';
 import type { Entity } from '../utils/Types';
+import type { World } from '../core/World';
 import { ChildrenIndex } from "../hierarchy/ChildrenIndex";
 import { getOrCreateResource } from "../utils/ResourceHelpers";
 
@@ -81,7 +82,15 @@ export const TransformUpdateSystem = system('TransformUpdate', (ctx) => {
     const shouldMarkDirty = parentDirty || hasDirty;
 
     if (shouldMarkDirty) {
-      ensureWorld(e).m = mat;
+      // Ensure WorldTransform exists
+      if (!world.hasComponent(e, WorldTransform)) {
+        cmd.add(e, WorldTransform);
+        world.flush(cmd);
+      }
+
+      const worldTransform = world.getComponent(e, WorldTransform)!;
+      worldTransform.m = mat;
+      world.setComponent(e, WorldTransform, worldTransform);
       world.markChanged(e, WorldTransform);
       if (hasDirty) {
         cmd.remove(e, DirtyTransform);
@@ -106,7 +115,7 @@ export const TransformUpdateSystem = system('TransformUpdate', (ctx) => {
  * 设置本地变换值的便利函数
  */
 export function setLocalTransform(
-  world: any,
+  world: World,
   entity: Entity,
   x?: number,
   y?: number,
@@ -122,12 +131,14 @@ export function setLocalTransform(
     if (sx !== undefined) localTransform.sx = sx;
     if (sy !== undefined) localTransform.sy = sy;
 
-    // Mark as dirty and changed
-    // 标记为脏和已更改
+    // Write the modified component back to storage
+    world.setComponent(entity, LocalTransform, localTransform);
+
+    // Mark as changed and add dirty flag
     world.markChanged(entity, LocalTransform);
-    const cmd = world.cmd();
-    cmd.add(entity, DirtyTransform);
-    world.flush(cmd);
+    if (!world.hasComponent(entity, DirtyTransform)) {
+      world.addComponent(entity, DirtyTransform);
+    }
   }
 }
 
@@ -135,7 +146,7 @@ export function setLocalTransform(
  * Convenience function to set parent relationship
  * 设置父子关系的便利函数
  */
-export function setParent(world: any, child: Entity, parent: Entity | null): void {
+export function setParent(world: World, child: Entity, parent: Entity | null): void {
   if (parent === null || parent === 0) {
     // Remove parent
     // 移除父级

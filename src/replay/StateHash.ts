@@ -250,7 +250,7 @@ function heapPeekItem(_world: World, it: ArchetypeIterator, keyMap: Map<number, 
   if (it.index >= it.sortedIndices.length) return null;
   const row = it.sortedIndices[it.index];
   const ent = it.archetype.entities[row];
-  const comp = it.archetype.cols.get(it.typeId)![row];
+  const comp = it.archetype.getComponent(ent, it.typeId);
   return { it, entity: ent, comp, key: keyOf(keyMap, ent) };
 }
 

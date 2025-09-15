@@ -228,4 +228,18 @@ export class CheckpointRing {
       checkpoints: checkpoints.sort((a, b) => a.frame - b.frame)
     };
   }
+
+  /**
+   * Debug: Get save data for a specific frame
+   * 调试：获取特定帧的保存数据
+   */
+  getSaveData(frame: number): any {
+    for (let i = 0; i < this.ring.length; i++) {
+      const checkpoint = this.ring[i];
+      if (checkpoint && checkpoint.frame === frame) {
+        return checkpoint.save;
+      }
+    }
+    return undefined;
+  }
 }

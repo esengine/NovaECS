@@ -21,11 +21,13 @@ class GameState {
 // Mock SAB environment
 // 模拟SAB环境
 (global as any).SharedArrayBuffer = class MockSharedArrayBuffer extends ArrayBuffer {
-  constructor(length: number) { 
+  constructor(length: number) {
     super(length);
-    this.byteLength = length; 
   }
-  slice() { return new MockSharedArrayBuffer(this.byteLength); }
+  slice(start?: number, end?: number) {
+    const newLength = end ? Math.max(0, end - (start || 0)) : this.byteLength - (start || 0);
+    return new MockSharedArrayBuffer(newLength);
+  }
 };
 
 describe('SAB Bool Field Handling', () => {

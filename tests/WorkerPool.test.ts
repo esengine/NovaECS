@@ -3,6 +3,7 @@
  * 使用模拟工作线程环境的工作线程池测试
  */
 
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { vi } from 'vitest';
 import { KernelPayload, KernelResult } from '../src/parallel/WorkerPool';
 
@@ -10,8 +11,7 @@ import { KernelPayload, KernelResult } from '../src/parallel/WorkerPool';
 // 用于测试的模拟Worker类
 class MockWorker {
   onmessage: ((event: MessageEvent) => void) | null = null;
-  private messageQueue: any[] = [];
-  
+
   constructor(public url: string, public options?: any) {}
   
   postMessage(data: any) {
@@ -23,19 +23,38 @@ class MockWorker {
   }
   
   private processMessage(data: any) {
+    if (!data || typeof data !== 'object') {
+      console.error('Invalid message data:', data);
+      return;
+    }
+
+    // Handle fence buffer initialization message
+    // 处理栅栏缓冲区初始化消息
+    if ('fence' in data && !('payload' in data)) {
+      // This is just a fence initialization message, ignore
+      // 这只是栅栏初始化消息，忽略
+      return;
+    }
+
     const { id, payload } = data as { id: number, payload: KernelPayload };
-    
+
+    if (!payload || !payload.kernelId) {
+      console.error('Invalid payload or missing kernelId:', payload);
+      return;
+    }
+
     // Mock kernel execution
     // 模拟核函数执行
     let result: KernelResult;
-    
+
     switch (payload.kernelId) {
       case 'movement':
         // Simulate movement kernel
         // 模拟移动核函数
-        const [positions, velocities] = payload.cols;
-        const deltaTime = payload.params?.deltaTime || 1;
-        
+        const [positions, velocities] = payload.cols as [any[], any[]];
+        const params = payload.params as { deltaTime?: number };
+        const deltaTime = params?.deltaTime || 1;
+
         for (let i = 0; i < payload.length; i++) {
           const pos = positions[i];
           const vel = velocities[i];
@@ -49,9 +68,10 @@ class MockWorker {
       case 'scale':
         // Simulate scaling kernel
         // 模拟缩放核函数
-        const [scalePositions] = payload.cols;
-        const scale = payload.params?.scale || 1;
-        
+        const [scalePositions] = payload.cols as [any[]];
+        const scaleParams = payload.params as { scale?: number };
+        const scale = scaleParams?.scale || 1;
+
         for (let i = 0; i < payload.length; i++) {
           const pos = scalePositions[i];
           pos.x *= scale;
@@ -110,23 +130,24 @@ describe('WorkerPool', () => {
   test('应该执行单个核函数载荷', async () => {
     const positions = [{ x: 0, y: 0 }, { x: 10, y: 10 }];
     const velocities = [{ dx: 1, dy: 2 }, { dx: -1, dy: -2 }];
-    
+
     const payload: KernelPayload = {
       kernelId: 'movement',
       cols: [positions, velocities],
       length: 2,
       params: { deltaTime: 1 }
     };
-    
+
     const results = await pool.run([payload]);
-    
+
     expect(results).toHaveLength(1);
+    expect(results[0]).toBeDefined();
     expect(results[0].written).toEqual([0]);
-    
-    // Check that positions were updated
-    // 检查位置是否已更新
-    expect(positions[0]).toEqual({ x: 1, y: 2 });
-    expect(positions[1]).toEqual({ x: 9, y: 8 });
+
+    // In mock environment, data is modified in-place
+    // 在模拟环境中，数据会被就地修改
+    expect(positions[0]).toEqual({ x: 1, y: 2 }); // 0 + 1*1, 0 + 2*1
+    expect(positions[1]).toEqual({ x: 9, y: 8 });  // 10 + (-1)*1, 10 + (-2)*1
   });
   
   test('应该并行执行多个核函数载荷', async () => {
@@ -158,7 +179,9 @@ describe('WorkerPool', () => {
     // Check that all positions were scaled
     // 检查所有位置是否已缩放
     payloads.forEach((payload, i) => {
-      const positions = payload.cols[0];
+      const positions = payload.cols[0] as any[];
+      // Original: { x: i * 10, y: i * 10 }, { x: i * 10 + 5, y: i * 10 + 5 }
+      // After scale 2: { x: i * 20, y: i * 20 }, { x: i * 20 + 10, y: i * 20 + 10 }
       expect(positions[0]).toEqual({ x: i * 20, y: i * 20 });
       expect(positions[1]).toEqual({ x: i * 20 + 10, y: i * 20 + 10 });
     });
@@ -168,7 +191,7 @@ describe('WorkerPool', () => {
     const positions1 = [{ x: 0, y: 0 }];
     const velocities1 = [{ dx: 1, dy: 1 }];
     const positions2 = [{ x: 10, y: 10 }];
-    
+
     const payloads: KernelPayload[] = [
       {
         kernelId: 'movement',

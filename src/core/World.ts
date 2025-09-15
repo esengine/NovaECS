@@ -316,6 +316,17 @@ export class World {
   }
 
   /**
+   * Set component data for entity (convenience method)
+   * 为实体设置组件数据（便捷方法）
+   */
+  setComponent<T>(e: Entity, ctor: ComponentCtor<T>, data: T): void {
+    const type = getComponentType(ctor);
+    const archetype = this.entityArchetype.get(e);
+    if (!archetype) return;
+    archetype.setComponent(e, type.id, data);
+  }
+
+  /**
    * Check if entity has component (convenience method)
    * 检查实体是否有组件（便捷方法）
    */
@@ -359,6 +370,24 @@ export class World {
       const component = archetype.getComponent(e, typeId);
       if (component) {
         components.push(component as Component);
+      }
+    }
+    return components;
+  }
+
+  /**
+   * Get all components with their type IDs for an entity
+   * 获取实体的所有组件及其类型ID
+   */
+  getEntityComponentsWithTypeIds(e: Entity): Array<{ typeId: number; component: unknown }> {
+    const components: Array<{ typeId: number; component: unknown }> = [];
+    const archetype = this.entityArchetype.get(e);
+    if (!archetype) return components;
+
+    for (const typeId of archetype.types) {
+      const component = archetype.getComponent(e, typeId);
+      if (component) {
+        components.push({ typeId, component });
       }
     }
     return components;

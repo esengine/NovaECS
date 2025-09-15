@@ -32,11 +32,17 @@ export class WorldSerializer {
     const out: SaveData = { version: this.version, entities: [] };
     // 简易：扫描所有挂 Guid 的实体
     world.query(Guid).forEach((e, guid) => {
-      const comps = world.getEntityComponents(e).map(c => {
-        const t = getComponentType((c as any).constructor);
-        const serde = getSerde((c as any).constructor);
-        return { typeId: t.id, data: serde.toJSON(c) };
-      });
+      const comps: Array<{ typeId: number; data: any }> = [];
+      const entityComponents = world.getEntityComponentsWithTypeIds(e);
+
+      for (const { typeId, component } of entityComponents) {
+        const ctor = getCtorByTypeId(typeId);
+        if (ctor) {
+          const serde = getSerde(ctor);
+          comps.push({ typeId, data: serde.toJSON(component) });
+        }
+      }
+
       out.entities.push({ guid: (guid).value, comps });
     });
     return out;
@@ -55,7 +61,8 @@ export class WorldSerializer {
         const Ctor = getCtorByTypeId<any>(c.typeId);
         if (!Ctor) continue; // 未注册类型可跳过/报错
         const serde = getSerde(Ctor);
-        cmd.addInstance(e, serde.fromJSON(c.data));
+        const data = serde.fromJSON(c.data);
+        cmd.add(e, Ctor, data);
       }
     }
     world.flush(cmd);

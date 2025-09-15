@@ -9,7 +9,7 @@ import { CheckpointRing } from '../src/replay/CheckpointRing';
 import { CommandLog } from '../src/replay/CommandLog';
 import { Recorder } from '../src/replay/Recorder';
 import { PRNG } from '../src/determinism/PRNG';
-import { registerComponent } from '../src/core/ComponentRegistry';
+import { registerComponent, getComponentType } from '../src/core/ComponentRegistry';
 import { Guid } from '../src/components/Guid';
 import { registerSerde } from '../src/serialize/ComponentSerde';
 
@@ -39,25 +39,26 @@ describe('CheckpointRing', () => {
     registerComponent(Health);
     registerComponent(Guid);
 
+
     // Register serialization for test components
     registerSerde(Position, {
       toJSON: (comp: Position) => ({ x: comp.x, y: comp.y }),
-      fromJSON: (data: any) => new Position(data.x, data.y)
+      fromJSON: (data: any) => data
     });
 
     registerSerde(Velocity, {
       toJSON: (comp: Velocity) => ({ dx: comp.dx, dy: comp.dy }),
-      fromJSON: (data: any) => new Velocity(data.dx, data.dy)
+      fromJSON: (data: any) => data
     });
 
     registerSerde(Health, {
       toJSON: (comp: Health) => ({ hp: comp.hp }),
-      fromJSON: (data: any) => new Health(data.hp)
+      fromJSON: (data: any) => data
     });
 
     registerSerde(Guid, {
       toJSON: (comp: Guid) => ({ value: comp.value }),
-      fromJSON: (data: any) => new Guid(data.value)
+      fromJSON: (data: any) => data
     });
   });
 
@@ -123,6 +124,7 @@ describe('CheckpointRing', () => {
     const entity1 = world.createEntity();
     world.addComponent(entity1, Guid, { value: 'test-entity' });
     world.addComponent(entity1, Position, { x: 100, y: 200 });
+
     ring.snapshot(world);
 
     // Modify world state
@@ -214,22 +216,27 @@ describe('CheckpointRing Integration', () => {
     // Register serialization
     registerSerde(Position, {
       toJSON: (comp: Position) => ({ x: comp.x, y: comp.y }),
-      fromJSON: (data: any) => new Position(data.x, data.y)
+      fromJSON: (data: any) => {
+        const pos = new Position();
+        pos.x = data.x;
+        pos.y = data.y;
+        return pos;
+      }
     });
 
     registerSerde(Velocity, {
       toJSON: (comp: Velocity) => ({ dx: comp.dx, dy: comp.dy }),
-      fromJSON: (data: any) => new Velocity(data.dx, data.dy)
+      fromJSON: (data: any) => data
     });
 
     registerSerde(Health, {
       toJSON: (comp: Health) => ({ hp: comp.hp }),
-      fromJSON: (data: any) => new Health(data.hp)
+      fromJSON: (data: any) => data
     });
 
     registerSerde(Guid, {
       toJSON: (comp: Guid) => ({ value: comp.value }),
-      fromJSON: (data: any) => new Guid(data.value)
+      fromJSON: (data: any) => data
     });
   });
 
@@ -244,7 +251,9 @@ describe('CheckpointRing Integration', () => {
 
     // Frame 2: Move player
     world.beginFrame();
-    world.getComponent(entity1, Position)!.x = 10;
+    const pos2 = world.getComponent(entity1, Position)!;
+    pos2.x = 10;
+    world.setComponent(entity1, Position, pos2);
     recorder.endFrame();
 
     // Frame 3: Add velocity
@@ -257,6 +266,7 @@ describe('CheckpointRing Integration', () => {
     const pos = world.getComponent(entity1, Position)!;
     pos.x = 20;
     pos.y = 15;
+    world.setComponent(entity1, Position, pos);
     recorder.endFrame();
 
     // Frame 5: Take another checkpoint
