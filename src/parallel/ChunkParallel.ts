@@ -147,7 +147,7 @@ function buildKernelPayloadsSAB(chunk: ChunkView, kernelId: string, params?: unk
   if (getSABAvailability()) {
     // Use SAB zero-copy descriptors, prioritize rawCols for accurate SAB detection
     // 使用SAB零拷贝描述符，优先使用rawCols进行准确的SAB检测
-    const sabCols: unknown[] = [];
+    const sabCols: any[] = [];
     const sourceColumns = chunk.rawCols || chunk.cols;
     
     for (let i = 0; i < sourceColumns.length; i++) {

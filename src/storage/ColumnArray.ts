@@ -90,7 +90,7 @@ export class ColumnArray implements IColumn {
     return this.data.slice(start, end);
   }
 
-  markWrittenRange?(start: number, end: number): void {
+  markWrittenRange?(): void {
     // For array backend, we don't track precise writes
     // 对于数组后端，我们不跟踪精确写入
   }

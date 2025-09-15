@@ -65,13 +65,6 @@ export const TransformUpdateSystem = system('TransformUpdate', (ctx) => {
     }
   });
 
-  const ensureWorld = (e: Entity): WorldTransform => {
-    const t = world.getEntityComponent(e, getComponentType(WorldTransform));
-    if (t) return t;
-    cmd.add(e, WorldTransform);
-    world.flush(cmd);
-    return world.getEntityComponent(e, getComponentType(WorldTransform))!;
-  };
 
   const visit = (e: Entity, parentMat: number[] | null, parentDirty: boolean): void => {
     const hasDirty = world.entityHasComponent(e, getComponentType(DirtyTransform));

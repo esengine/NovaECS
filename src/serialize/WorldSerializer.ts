@@ -4,7 +4,7 @@
  */
 
 import type { World } from "../core/World";
-import { getCtorByTypeId, getComponentType } from "../core/ComponentRegistry";
+import { getCtorByTypeId } from "../core/ComponentRegistry";
 import { Guid } from "../components/Guid";
 import { getSerde } from "./ComponentSerde";
 

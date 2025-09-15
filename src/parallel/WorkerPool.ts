@@ -13,7 +13,7 @@ export type KernelPayload = {
   /** Kernel function identifier 核函数标识符 */
   kernelId: string;
   /** Component column arrays (structured clone or SAB mapping) 组件列数组（结构化克隆或SAB映射） */
-  cols: unknown[];
+  cols: any[][];
   /** Number of entities in this chunk 此块中的实体数量 */
   length: number;
   /** Optional parameters for kernel function 核函数的可选参数 */

@@ -113,7 +113,7 @@ export class ColumnSAB implements IColumn {
     this._len--;
   }
 
-  writeFromObject(row: number, obj: Record<string, unknown>, epoch?: number): void {
+  writeFromObject(row: number, obj: Record<string, unknown>): void {
     for (const [name, type] of this.fields) {
       const v = this.views[name] as Float32Array | Float64Array | Int32Array | Uint32Array | Int16Array | Uint16Array | Int8Array | Uint8Array;
       const value = obj?.[name] ?? 0;

@@ -6,7 +6,7 @@
 import type { World } from '../core/World';
 import type { ComponentCtor } from '../core/ComponentRegistry';
 import { getComponentType } from '../core/ComponentRegistry';
-import { isDrainableColumn, type ArchetypeObject, isArchetypeObject } from './TypeGuards';
+import { isDrainableColumn, type ArchetypeObject } from './TypeGuards';
 
 /**
  * Commit component changes from SAB write masks to World
