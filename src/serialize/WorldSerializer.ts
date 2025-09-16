@@ -5,7 +5,7 @@
 
 import type { World } from "../core/World";
 import { getCtorByTypeId } from "../core/ComponentRegistry";
-import { Guid } from "../components/Guid";
+import { Guid, getGuidValue } from "../components/Guid";
 import { getSerde } from "./ComponentSerde";
 
 /**
@@ -43,7 +43,8 @@ export class WorldSerializer {
         }
       }
 
-      out.entities.push({ guid: (guid).value, comps });
+      const guidValue = getGuidValue(guid);
+      out.entities.push({ guid: guidValue, comps });
     });
     return out;
   }

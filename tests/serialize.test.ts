@@ -6,7 +6,7 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { World } from '../src/core/World';
 import { registerComponent } from '../src/core/ComponentRegistry';
-import { Guid, registerSerde, getSerde, WorldSerializer } from '../src/serialize';
+import { Guid, registerSerde, getSerde, WorldSerializer, getGuidValue } from '../src/serialize';
 
 // Test components
 class Position {
@@ -136,7 +136,7 @@ describe('Serialization System', () => {
       let entityCount = 0;
       newWorld.query(Guid).forEach((loadedEntity, guid) => {
         entityCount++;
-        expect((guid as Guid).value).toBe('test-guid-123');
+        expect(getGuidValue(guid)).toBe('test-guid-123');
 
         const pos = newWorld.getComponent(loadedEntity, Position);
         const vel = newWorld.getComponent(loadedEntity, Velocity);
@@ -182,7 +182,10 @@ describe('Serialization System', () => {
       let entityCount = 0;
       newWorld.query(Guid).forEach((_, guid) => {
         entityCount++;
-        guidValues.add((guid as Guid).value);
+        const guidValue = getGuidValue(guid);
+        if (guidValue) {
+          guidValues.add(guidValue);
+        }
       });
 
       expect(entityCount).toBe(3);

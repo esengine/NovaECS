@@ -108,7 +108,13 @@ export class CommandBuffer {
     const type = getComponentType(ctor);
     const instance = new ctor();
     if (partial) {
-      Object.assign(instance as object, partial);
+      // Use proper property assignment to respect getters/setters
+      // 使用正确的属性赋值以尊重getter/setter
+      for (const key in partial) {
+        if (partial.hasOwnProperty(key)) {
+          (instance as any)[key] = partial[key];
+        }
+      }
     }
     this.queueAdd(entity, type.id, instance);
   }
@@ -135,7 +141,13 @@ export class CommandBuffer {
     const Ctor = getCtorByTypeId(typeId);
     const instance = Ctor ? new Ctor() : {} as Record<string, unknown>;
     if (init) {
-      Object.assign(instance as Record<string, unknown>, init);
+      // Use proper property assignment to respect getters/setters
+      // 使用正确的属性赋值以尊重getter/setter
+      for (const key in init) {
+        if (init.hasOwnProperty(key)) {
+          (instance as any)[key] = init[key];
+        }
+      }
     }
     this.queueAdd(entity, typeId, instance);
   }

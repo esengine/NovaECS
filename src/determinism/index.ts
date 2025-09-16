@@ -15,3 +15,4 @@ export {
   getGuid,
   type StableKey
 } from './GuidUtils';
+export { makePairKey, makePairKeyOrdered, parsePairKey } from './PairKey';

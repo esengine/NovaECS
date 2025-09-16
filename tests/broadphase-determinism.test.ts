@@ -19,7 +19,7 @@ import { ShapeCircle, createCircleShape } from '../src/components/ShapeCircle';
 import { AABB2D } from '../src/components/AABB2D';
 import { BroadphasePairs } from '../src/resources/BroadphasePairs';
 import { IntegrateVelocitiesSystem } from '../src/systems/IntegrateVelocitiesSystem';
-import { SyncAABBSystemDirect } from '../src/systems/phys2d/SyncAABBSystem';
+import { SyncAABBSystem } from '../src/systems/phys2d/SyncAABBSystem';
 import { BroadphaseSAP } from '../src/systems/phys2d/BroadphaseSAP';
 import { Guid } from '../src/components/Guid';
 
@@ -58,7 +58,7 @@ describe('Broadphase Determinism', () => {
       // Add physics systems in correct order
       // 按正确顺序添加物理系统
       scheduler.add(IntegrateVelocitiesSystem.build());
-      scheduler.add(SyncAABBSystemDirect.build());
+      scheduler.add(SyncAABBSystem.build());
       scheduler.add(BroadphaseSAP.build());
 
       // Create test bodies with deterministic initial conditions
@@ -137,7 +137,7 @@ describe('Broadphase Determinism', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystemDirect.build());
+    scheduler.add(SyncAABBSystem.build());
     scheduler.add(BroadphaseSAP.build());
 
     // Run with no entities
@@ -155,7 +155,7 @@ describe('Broadphase Determinism', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystemDirect.build());
+    scheduler.add(SyncAABBSystem.build());
     scheduler.add(BroadphaseSAP.build());
 
     // Create single entity
@@ -181,7 +181,7 @@ describe('Broadphase Determinism', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystemDirect.build());
+    scheduler.add(SyncAABBSystem.build());
     scheduler.add(BroadphaseSAP.build());
 
     // Create two overlapping circles
@@ -218,7 +218,7 @@ describe('Broadphase Determinism', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystemDirect.build());
+    scheduler.add(SyncAABBSystem.build());
     scheduler.add(BroadphaseSAP.build());
 
     // Create two distant circles
@@ -250,7 +250,7 @@ describe('Broadphase Determinism', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystemDirect.build());
+    scheduler.add(SyncAABBSystem.build());
     scheduler.add(BroadphaseSAP.build());
 
     // Create multiple entities in a grid pattern

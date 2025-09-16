@@ -172,8 +172,11 @@ export { Guid, createGuid, createGuidFromValues, createZeroGuid, compareGuid, gu
 // Physics Resources
 export { BroadphasePairs } from './resources/BroadphasePairs';
 export type { Pair } from './resources/BroadphasePairs';
+export { Contacts2D, type Contact1 } from './resources/Contacts2D';
 
 // Physics Systems
 export { IntegrateVelocitiesSystem } from './systems/IntegrateVelocitiesSystem';
-export { SyncAABBSystem, SyncAABBSystemDirect } from './systems/phys2d/SyncAABBSystem';
+export { SyncAABBSystem } from './systems/phys2d/SyncAABBSystem';
 export { BroadphaseSAP } from './systems/phys2d/BroadphaseSAP';
+export { NarrowphaseCircle } from './systems/phys2d/NarrowphaseCircle';
+export { updateContactCache, clearContactCache, getContactStats } from './systems/phys2d/ContactCacheUtils';

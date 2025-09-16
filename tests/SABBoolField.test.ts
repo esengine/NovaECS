@@ -134,10 +134,10 @@ describe('SAB Bool Field Handling', () => {
     // 构建切片描述符
     const descriptor = column.buildSliceDescriptor(0, 2);
     
-    expect(descriptor.fields.enabled.type).toBe('bool');
-    expect(descriptor.fields.value.type).toBe('f32');
-    expect(descriptor.fields.enabled.length).toBe(2);
-    expect(descriptor.fields.value.length).toBe(2);
+    expect(descriptor.view.fields.enabled.type).toBe('bool');
+    expect(descriptor.view.fields.value.type).toBe('f32');
+    expect(descriptor.view.fields.enabled.length).toBe(2);
+    expect(descriptor.view.fields.value.length).toBe(2);
   });
   
   test('应该在World中正确处理bool组件', () => {

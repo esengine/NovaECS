@@ -23,9 +23,90 @@ export class Guid {
    */
   lo = 0 >>> 0;
 
-  constructor(hi = 0, lo = 0) {
-    this.hi = hi >>> 0;
-    this.lo = lo >>> 0;
+  /**
+   * Original string value for backward compatibility
+   * 原始字符串值用于向后兼容
+   */
+  _originalValue?: string;
+
+  constructor(hiOrValue?: number | string, lo?: number) {
+    if (hiOrValue === undefined && lo === undefined) {
+      // Generate random GUID for backward compatibility
+      // 为向后兼容生成随机GUID
+      this.hi = (Math.random() * 0x100000000) >>> 0;
+      this.lo = (Math.random() * 0x100000000) >>> 0;
+    } else if (typeof hiOrValue === 'string') {
+      // Store original string for backward compatibility
+      // 存储原始字符串用于向后兼容
+      this._originalValue = hiOrValue;
+
+      // Parse hex string format for backward compatibility
+      // 解析十六进制字符串格式用于向后兼容
+      if (hiOrValue.length === 16) {
+        this.hi = parseInt(hiOrValue.slice(0, 8), 16) >>> 0;
+        this.lo = parseInt(hiOrValue.slice(8), 16) >>> 0;
+      } else {
+        // Fallback: use hash for arbitrary strings
+        // 回退：对任意字符串使用哈希
+        let hash = 0;
+        for (let i = 0; i < hiOrValue.length; i++) {
+          hash = ((hash * 31) + hiOrValue.charCodeAt(i)) >>> 0;
+        }
+        this.hi = hash >>> 0;
+        this.lo = (hash ^ 0xAAAAAAAA) >>> 0;
+      }
+    } else {
+      this.hi = (hiOrValue || 0) >>> 0;
+      this.lo = (lo || 0) >>> 0;
+    }
+  }
+
+  /**
+   * Get string representation for backward compatibility
+   * 获取字符串表示用于向后兼容
+   */
+  get value(): string | undefined {
+    // Return original value if available, otherwise hex representation
+    // 如果有原始值则返回原始值，否则返回十六进制表示
+    if (this._originalValue) {
+      return this._originalValue;
+    }
+
+    // If both hi and lo are 0, this might be an empty GUID
+    if (this.hi === 0 && this.lo === 0) {
+      return undefined;
+    }
+
+    return `${this.hi.toString(16).padStart(8, '0')}${this.lo.toString(16).padStart(8, '0')}`;
+  }
+
+  /**
+   * Set string value for backward compatibility
+   * 设置字符串值用于向后兼容
+   */
+  set value(val: string | undefined | null) {
+    if (val === undefined || val === null || val === '') {
+      this._originalValue = undefined;
+      this.hi = 0;
+      this.lo = 0;
+      return;
+    }
+
+    this._originalValue = val;
+
+    if (val.length === 16) {
+      this.hi = parseInt(val.slice(0, 8), 16) >>> 0;
+      this.lo = parseInt(val.slice(8), 16) >>> 0;
+    } else {
+      // For arbitrary strings, use hash
+      // 对任意字符串使用哈希
+      let hash = 0;
+      for (let i = 0; i < val.length; i++) {
+        hash = ((hash * 31) + val.charCodeAt(i)) >>> 0;
+      }
+      this.hi = hash >>> 0;
+      this.lo = (hash ^ 0xAAAAAAAA) >>> 0;
+    }
   }
 }
 
@@ -81,6 +162,20 @@ export function guidEquals(a: Guid, b: Guid): boolean {
  */
 export function isZeroGuid(guid: Guid): boolean {
   return guid.hi === 0 && guid.lo === 0;
+}
+
+/**
+ * Get string value from Guid, works with both instances and plain objects
+ * 从Guid获取字符串值，支持实例和普通对象
+ */
+export function getGuidValue(guid: any): string | undefined {
+  if (guid._originalValue) {
+    return guid._originalValue;
+  }
+  if (guid.hi === 0 && guid.lo === 0) {
+    return undefined;
+  }
+  return `${guid.hi.toString(16).padStart(8, '0')}${guid.lo.toString(16).padStart(8, '0')}`;
 }
 
 /**
