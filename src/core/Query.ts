@@ -59,10 +59,10 @@ export interface QueryChunkView {
   archetypeKey: string;
   /** Entity array for this chunk 此分块的实体数组 */
   entities: Entity[];
-  /** Column data arrays for this chunk 此分块的列数据数组 */
-  cols: any[][];
-  /** Optional column data arrays 可选列数据数组 */
-  optionalCols: (any[] | undefined)[] | undefined;
+  /** Column slice descriptors for this chunk 此分块的列切片描述符 */
+  cols: Array<{ view: { kind: string; data: any[]; baseRow: number } }>;
+  /** Optional column slice descriptors 可选列切片描述符 */
+  optionalCols: Array<{ view: { kind: string; data: any[]; baseRow: number } } | undefined> | undefined;
   /** Starting row index in the original archetype 在原始原型中的起始行索引 */
   startRow: number;
   /** Ending row index in the original archetype 在原始原型中的结束行索引 */
@@ -962,7 +962,7 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
           const chunkEntities = ents.slice(chunkStart, chunkEnd);
 
           // Extract column data for this chunk
-          const chunkCols: any[][] = [];
+          const chunkCols: Array<{ view: { kind: string; data: any[]; baseRow: number } }> = [];
           for (let colIndex = 0; colIndex < cols.length; colIndex++) {
             const col = cols[colIndex];
 
@@ -971,7 +971,7 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
           }
 
           // Extract optional column data for this chunk
-          let chunkOptionalCols: (any[] | undefined)[] | undefined;
+          let chunkOptionalCols: Array<{ view: { kind: string; data: any[]; baseRow: number } } | undefined> | undefined;
           if (optionalCols && optionalCols.length > 0) {
             chunkOptionalCols = [];
             for (let colIndex = 0; colIndex < optionalCols.length; colIndex++) {

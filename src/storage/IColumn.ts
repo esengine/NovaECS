@@ -44,7 +44,7 @@ export interface IColumn {
   buildSliceDescriptor(start: number, end: number): any;
   
   /** (Main thread) Mark certain rows in this column as written, for changed() （主线程）标记这一列某些行被写，用于changed() */
-  markWrittenRange?(start: number, end: number): void;
+  markWrittenRange?(start: number, end: number, epoch: number): void;
 
   /** —— Change tracking 变更追踪 —— */
   /** Get write mask for frame-level change detection (1 bit per row, read-only) 获取帧级变更检测的写掩码（每行1位，只读） */
@@ -55,6 +55,19 @@ export interface IColumn {
 
   /** Clear change tracking for new frame 清理变更追踪开始新帧 */
   clearChangeTracking(): void;
+
+  /** —— Compaction API 压缩相关 —— */
+  /** Generate new column with same layout but empty data 生成同布局的新列（空列），newCap为目标容量 */
+  spawnLike(newCap: number): IColumn;
+
+  /** Copy [0, n) rows to target column 拷贝[0,n)行到目标列 */
+  copyRangeTo(dst: IColumn, n: number): void;
+
+  /** Estimated bytes per row for memory statistics 每行字节估算，便于统计释放内存 */
+  bytesPerRow?(): number;
+
+  /** Get zero-allocation row accessor for debugging/Raw traversal 获取零分配行访问器，用于调试/Raw遍历 */
+  getRowAccessor?(): (row: number, out?: any) => any;
 }
 
 /**

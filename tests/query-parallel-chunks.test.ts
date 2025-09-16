@@ -79,13 +79,13 @@ describe('Query Parallel Chunks', () => {
       const chunks = world.query(Position, Velocity).toChunks(5);
 
       chunks.forEach(chunk => {
-        expect(chunk.entities.length).toBe(chunk.cols[0].length);
-        expect(chunk.entities.length).toBe(chunk.cols[1].length);
+        expect(chunk.entities.length).toBe(chunk.cols[0].view.data.length);
+        expect(chunk.entities.length).toBe(chunk.cols[1].view.data.length);
 
         // Verify data consistency
         for (let i = 0; i < chunk.entities.length; i++) {
-          const position = chunk.cols[0][i];
-          const velocity = chunk.cols[1][i];
+          const position = chunk.cols[0].view.data[i];
+          const velocity = chunk.cols[1].view.data[i];
 
           expect(position).toHaveProperty('x');
           expect(position).toHaveProperty('y');
@@ -124,8 +124,8 @@ describe('Query Parallel Chunks', () => {
 
         // Verify optional components structure
         for (let i = 0; i < chunk.entities.length; i++) {
-          const position = chunk.cols[0][i];
-          const health = chunk.optionalCols![0] ? chunk.optionalCols![0][i] : undefined;
+          const position = chunk.cols[0].view.data[i];
+          const health = chunk.optionalCols![0] ? chunk.optionalCols![0].view.data[i] : undefined;
 
           expect(position).toHaveProperty('x');
           expect(position).toHaveProperty('y');
@@ -290,12 +290,12 @@ describe('Query Parallel Chunks', () => {
       chunks.forEach(chunk => {
         expect(chunk.startRow).toBeLessThan(chunk.endRow);
         expect(chunk.entities.length).toBe(chunk.endRow - chunk.startRow);
-        expect(chunk.entities.length).toBe(chunk.cols[0].length);
-        expect(chunk.entities.length).toBe(chunk.cols[1].length);
+        expect(chunk.entities.length).toBe(chunk.cols[0].view.data.length);
+        expect(chunk.entities.length).toBe(chunk.cols[1].view.data.length);
 
         for (let i = 0; i < chunk.entities.length; i++) {
-          const position = chunk.cols[0][i];
-          const velocity = chunk.cols[1][i];
+          const position = chunk.cols[0].view.data[i];
+          const velocity = chunk.cols[1].view.data[i];
 
           expect(position).toHaveProperty('x');
           expect(position).toHaveProperty('y');
@@ -356,7 +356,7 @@ describe('Query Parallel Chunks', () => {
         expect(chunk.entities.length).toBe(chunk.endRow - chunk.startRow);
 
         for (let i = 0; i < chunk.entities.length; i++) {
-          const position = chunk.cols[0][i];
+          const position = chunk.cols[0].view.data[i];
           expect(position).toHaveProperty('x');
           expect(position).toHaveProperty('y');
         }
@@ -380,11 +380,11 @@ describe('Query Parallel Chunks', () => {
       chunks.forEach(chunk => {
         const expectedLength = chunk.endRow - chunk.startRow;
         expect(chunk.entities.length).toBe(expectedLength);
-        expect(chunk.cols[0].length).toBe(expectedLength);
+        expect(chunk.cols[0].view.data.length).toBe(expectedLength);
 
         for (let i = 0; i < expectedLength; i++) {
-          expect(chunk.cols[0][i]).toHaveProperty('x');
-          expect(chunk.cols[0][i]).toHaveProperty('y');
+          expect(chunk.cols[0].view.data[i]).toHaveProperty('x');
+          expect(chunk.cols[0].view.data[i]).toHaveProperty('y');
         }
       });
     });
@@ -406,8 +406,8 @@ describe('Query Parallel Chunks', () => {
         for (let i = 0; i < chunk.entities.length; i++) {
           chunkResults.push({
             entity: chunk.entities[i],
-            position: chunk.cols[0][i],
-            velocity: chunk.cols[1][i]
+            position: chunk.cols[0].view.data[i],
+            velocity: chunk.cols[1].view.data[i]
           });
         }
       });
@@ -444,8 +444,8 @@ describe('Query Parallel Chunks', () => {
         // Process entities in chunk (simulating worker processing)
         for (let i = 0; i < chunk.entities.length; i++) {
           const entity = chunk.entities[i];
-          const position = chunk.cols[0][i];
-          const velocity = chunk.cols[1][i];
+          const position = chunk.cols[0].view.data[i];
+          const velocity = chunk.cols[1].view.data[i];
 
           expect(typeof entity).toBe('number');
           expect(position).toHaveProperty('x');

@@ -4,6 +4,7 @@
  */
 
 import type { IColumn } from '../storage/IColumn';
+import { ColumnType } from '../storage/IColumn';
 import type { ComponentSchema, FieldType } from './Schema';
 
 /**
@@ -37,6 +38,7 @@ type Views = Record<string, Float32Array|Float64Array|Int32Array|Uint32Array|Int
  * 基于SharedArrayBuffer的列实现
  */
 export class ColumnSAB implements IColumn {
+  readonly columnType = ColumnType.SAB;
   private _len = 0;
   private _cap = 0;
   private buffers: Record<string, SharedArrayBuffer> = {};
@@ -114,10 +116,16 @@ export class ColumnSAB implements IColumn {
   }
 
   writeFromObject(row: number, obj: Record<string, unknown>): void {
+    // Ensure capacity for this row
+    // 确保此行的容量
+    if (row >= this._cap) {
+      this.ensureCapacity(row + 1);
+    }
+
     for (const [name, type] of this.fields) {
       const v = this.views[name] as Float32Array | Float64Array | Int32Array | Uint32Array | Int16Array | Uint16Array | Int8Array | Uint8Array;
       const value = obj?.[name] ?? 0;
-      
+
       // Special handling for bool fields to ensure 0/1 values
       // 特殊处理bool字段以确保0/1值
       if (type === 'bool') {
@@ -126,14 +134,27 @@ export class ColumnSAB implements IColumn {
         v[row] = Number(value);
       }
     }
+
+    // Update length if necessary
+    // 必要时更新长度
+    this._len = Math.max(this._len, row + 1);
+
     // Mark dirty bit 标脏位
     this.setWrittenBit(row);
   }
 
   readToObject(row: number, out: Record<string, unknown> = {}): Record<string, unknown> {
+    // Clean up extra keys in out that don't exist in fields to avoid key pollution
+    // 清理out中不存在于字段的多余键，避免键污染
+    for (const k in out) {
+      if (!this.fields.some(([name]) => name === k)) {
+        delete out[k];
+      }
+    }
+
     for (const [name, type] of this.fields) {
       const v = this.views[name] as Float32Array | Float64Array | Int32Array | Uint32Array | Int16Array | Uint16Array | Int8Array | Uint8Array;
-      
+
       // Special handling for bool fields to convert 0/1 back to boolean
       // 特殊处理bool字段将0/1转换回boolean
       if (type === 'bool') {
@@ -149,10 +170,7 @@ export class ColumnSAB implements IColumn {
    * Zero-copy slice descriptor for Worker to rebuild TypedArray views
    * 零拷贝切片描述，发给Worker重建TypedArray视图即可
    */
-  buildSliceDescriptor(start: number, end: number): {
-    fields: Record<string, { buffer: SharedArrayBuffer; byteOffset: number; length: number; type: string }>;
-    writeMask: { buffer: SharedArrayBuffer; byteOffset: number; length: number };
-  } {
+  buildSliceDescriptor(start: number, end: number): any {
     const desc: Record<string, { buffer: SharedArrayBuffer; byteOffset: number; length: number; type: string }> = {};
     for (const [name, ty] of this.fields) {
       const bytes = BYTES[ty];
@@ -163,10 +181,14 @@ export class ColumnSAB implements IColumn {
         type: ty,
       };
     }
-    // Also attach write mask view (main thread reads it, or Worker sets bits) 同时附上写掩码视图（主线程读它，或Worker设置位）
+    // Return unified slice descriptor format
     return {
-      fields: desc,
-      writeMask: { buffer: this.writeMaskBuf!, byteOffset: 0, length: Math.ceil(this._cap/8) }
+      view: {
+        kind: 'SAB',
+        fields: desc,
+        writeMask: { buffer: this.writeMaskBuf!, byteOffset: 0, length: Math.ceil(this._cap/8) },
+        baseRow: start
+      }
     };
   }
 
@@ -176,8 +198,10 @@ export class ColumnSAB implements IColumn {
     this.writeMask[i] |= (1 << b);
   }
 
-  markWrittenRange(start: number, end: number) {
+  markWrittenRange(start: number, end: number, epoch: number): void {
     if (!this.writeMask) return;
+    // For SAB, we use write mask instead of per-row epochs
+    // 对于SAB，我们使用写掩码而不是每行时代
     for (let r = start; r < end; r++) {
       const i = r >> 3, b = r & 7;
       this.writeMask[i] |= (1 << b);
@@ -236,5 +260,85 @@ export class ColumnSAB implements IColumn {
     if (this.writeMask) {
       this.writeMask.fill(0);
     }
+  }
+
+  /**
+   * Generate new column with same layout but empty data
+   * 生成同布局的新列（空列）
+   */
+  spawnLike(newCap: number): IColumn {
+    // Reconstruct schema from current fields
+    // 从当前字段重建模式
+    const schema = {
+      fields: Object.fromEntries(this.fields)
+    };
+    return new ColumnSAB(schema, newCap);
+  }
+
+  /**
+   * Copy [0, n) rows to target column using TypedArray operations
+   * 使用TypedArray操作拷贝[0,n)行到目标列
+   */
+  copyRangeTo(dst: IColumn, n: number): void {
+    if (!(dst instanceof ColumnSAB)) {
+      // Generic path: fallback to per-row writes for compatibility with other implementations
+      // 泛化路径：退化为逐行写入，保证兼容其他实现
+      for (let i = 0; i < n; i++) {
+        // SAB doesn't track per-row epochs, so we don't pass epoch parameter
+        dst.writeFromObject(i, this.readToObject(i));
+      }
+      return;
+    }
+
+    // Ensure destination has enough capacity
+    // 确保目标有足够容量
+    dst.ensureCapacity(n);
+
+    // Copy each field using TypedArray.set for efficiency
+    // 使用TypedArray.set高效复制每个字段
+    for (const [name] of this.fields) {
+      const srcView = this.views[name] as any;
+      const dstView = dst.views[name] as any;
+
+      if (srcView && dstView) {
+        // Use TypedArray.set for fast memory copy
+        // 使用TypedArray.set进行快速内存复制
+        dstView.set(srcView.subarray(0, n));
+      }
+    }
+
+    // Copy write mask if available
+    // 复制写掩码（如果可用）
+    if (this.writeMask && dst.writeMask) {
+      const maskBytesNeeded = Math.ceil(n / 8);
+      dst.writeMask.set(this.writeMask.subarray(0, maskBytesNeeded));
+    }
+
+    // Update destination length
+    // 更新目标长度
+    dst._len = n;
+  }
+
+  /**
+   * Estimated bytes per row for memory statistics
+   * 每行字节估算，便于统计释放内存
+   */
+  bytesPerRow(): number {
+    let totalBytes = 0;
+    for (const [, type] of this.fields) {
+      totalBytes += BYTES[type];
+    }
+    // Add write mask overhead (1 bit per row = 1/8 byte)
+    // 添加写掩码开销（每行1位 = 1/8字节）
+    totalBytes += 0.125;
+    return totalBytes;
+  }
+
+  /**
+   * Get zero-allocation row accessor for debugging/Raw traversal
+   * 获取零分配行访问器，用于调试/Raw遍历
+   */
+  getRowAccessor(): (row: number, out?: any) => any {
+    return (row, out = {}) => this.readToObject(row, out);
   }
 }
