@@ -11,6 +11,9 @@ import type { IColumn } from '../storage/IColumn';
 import { TagBitSet } from './TagBitSet';
 // import type { IComponentStore } from './SparseSetStore';
 
+/** Maximum entities to track in delta before marking as overflowed 增量跟踪的最大实体数，超过则标记为溢出 */
+const MAX_DELTA_ENTITIES = 10000;
+
 /**
  * Query delta containing incremental changes
  * 包含增量变化的查询增量
@@ -22,6 +25,25 @@ export interface QueryDelta {
   removed: Entity[];
   /** Entities with changed components 组件发生变化的实体 */
   changed: Entity[];
+  /** Whether delta tracking overflowed (consumer should do full scan) 增量跟踪是否溢出（消费者应进行全量扫描） */
+  overflowed: boolean;
+}
+
+/**
+ * Internal delta accumulator with deduplication
+ * 内部增量累加器，带去重功能
+ */
+interface DeltaAccumulator {
+  /** Added entities (deduplicated) 新增实体（去重） */
+  added: Set<Entity>;
+  /** Removed entities (deduplicated) 移除实体（去重） */
+  removed: Set<Entity>;
+  /** Changed entities (deduplicated) 变更实体（去重） */
+  changed: Set<Entity>;
+  /** Total entity count across all sets 所有集合的总实体数 */
+  totalCount: number;
+  /** Whether accumulator has overflowed 累加器是否已溢出 */
+  overflowed: boolean;
 }
 
 /**
@@ -139,7 +161,7 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
   // Delta subscription for incremental updates
   // 增量订阅用于增量更新
   private deltaEnabled = false;
-  private delta?: QueryDelta;
+  private deltaAccumulator?: DeltaAccumulator;
 
   constructor(private world: World, required: ComponentType<unknown>[]) {
     this.required = required;
@@ -205,7 +227,13 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
   enableDelta(): Query<ReqTuple> {
     if (!this.deltaEnabled) {
       this.deltaEnabled = true;
-      this.delta = { added: [], removed: [], changed: [] };
+      this.deltaAccumulator = {
+        added: new Set(),
+        removed: new Set(),
+        changed: new Set(),
+        totalCount: 0,
+        overflowed: false
+      };
 
       // 向 World 注册此查询用于增量更新通知
       this.world.registerQueryForDelta(this);
@@ -218,12 +246,27 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
    * 消费并清空累积的增量
    */
   consumeDelta(): QueryDelta {
-    if (!this.deltaEnabled) {
-      return { added: [], removed: [], changed: [] };
+    if (!this.deltaEnabled || !this.deltaAccumulator) {
+      return { added: [], removed: [], changed: [], overflowed: false };
     }
 
-    const result = this.delta ?? { added: [], removed: [], changed: [] };
-    this.delta = { added: [], removed: [], changed: [] };
+    const accumulator = this.deltaAccumulator;
+    const result: QueryDelta = {
+      added: Array.from(accumulator.added),
+      removed: Array.from(accumulator.removed),
+      changed: Array.from(accumulator.changed),
+      overflowed: accumulator.overflowed
+    };
+
+    // Reset accumulator
+    this.deltaAccumulator = {
+      added: new Set(),
+      removed: new Set(),
+      changed: new Set(),
+      totalCount: 0,
+      overflowed: false
+    };
+
     return result;
   }
 
@@ -240,8 +283,8 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
    * 内部方法用于通知实体添加
    */
   _notifyEntityAdded(entity: Entity): void {
-    if (this.deltaEnabled && this.delta) {
-      this.delta.added.push(entity);
+    if (this.deltaEnabled && this.deltaAccumulator && !this.deltaAccumulator.overflowed) {
+      this.addToDeltaSet(this.deltaAccumulator.added, entity);
     }
   }
 
@@ -250,8 +293,8 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
    * 内部方法用于通知实体移除
    */
   _notifyEntityRemoved(entity: Entity): void {
-    if (this.deltaEnabled && this.delta) {
-      this.delta.removed.push(entity);
+    if (this.deltaEnabled && this.deltaAccumulator && !this.deltaAccumulator.overflowed) {
+      this.addToDeltaSet(this.deltaAccumulator.removed, entity);
     }
   }
 
@@ -260,9 +303,35 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
    * 内部方法用于通知实体变更
    */
   _notifyEntityChanged(entity: Entity): void {
-    if (this.deltaEnabled && this.delta) {
-      this.delta.changed.push(entity);
+    if (this.deltaEnabled && this.deltaAccumulator && !this.deltaAccumulator.overflowed) {
+      this.addToDeltaSet(this.deltaAccumulator.changed, entity);
     }
+  }
+
+  /**
+   * Add entity to delta set with overflow protection
+   * 向增量集合添加实体，带溢出保护
+   */
+  private addToDeltaSet(set: Set<Entity>, entity: Entity): void {
+    if (!this.deltaAccumulator) return;
+
+    // Check if entity is already in the set
+    if (set.has(entity)) return;
+
+    // Check for overflow before adding
+    if (this.deltaAccumulator.totalCount >= MAX_DELTA_ENTITIES) {
+      this.deltaAccumulator.overflowed = true;
+      // Clear all sets to save memory when overflowed
+      this.deltaAccumulator.added.clear();
+      this.deltaAccumulator.removed.clear();
+      this.deltaAccumulator.changed.clear();
+      this.deltaAccumulator.totalCount = 0;
+      return;
+    }
+
+    // Add entity and update total count
+    set.add(entity);
+    this.deltaAccumulator.totalCount++;
   }
 
   /**

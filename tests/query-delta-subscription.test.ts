@@ -243,6 +243,84 @@ describe('Query Delta Subscription', () => {
     });
   });
 
+  describe('Delta overflow protection', () => {
+    it('should handle delta overflow correctly', () => {
+      const query = world.query(Position).enableDelta();
+
+      // Simulate overflow by creating many entities
+      // We'll create slightly more than the MAX_DELTA_ENTITIES limit
+      const entityCount = 11000; // Assuming MAX_DELTA_ENTITIES = 10000
+      const entities: number[] = [];
+
+      for (let i = 0; i < entityCount; i++) {
+        const entity = world.createEntity();
+        world.addComponent(entity, Position, { x: i, y: i });
+        entities.push(entity);
+      }
+
+      const delta = query.consumeDelta();
+
+      // Should be marked as overflowed
+      expect(delta.overflowed).toBe(true);
+
+      // Arrays should be empty due to overflow
+      expect(delta.added).toEqual([]);
+      expect(delta.removed).toEqual([]);
+      expect(delta.changed).toEqual([]);
+
+      // After overflow, new changes should still be tracked
+      const newEntity = world.createEntity();
+      world.addComponent(newEntity, Position, { x: 999, y: 999 });
+
+      const newDelta = query.consumeDelta();
+      expect(newDelta.overflowed).toBe(false);
+      expect(newDelta.added).toContain(newEntity);
+    });
+
+    it('should deduplicate entities correctly', () => {
+      const query = world.query(Position).enableDelta();
+
+      const entity = world.createEntity();
+      world.addComponent(entity, Position, { x: 10, y: 20 });
+
+      // Simulate multiple notifications for the same entity
+      // (this would happen if World called _notifyEntityAdded multiple times)
+      query._notifyEntityAdded(entity);
+      query._notifyEntityAdded(entity);
+      query._notifyEntityAdded(entity);
+
+      const delta = query.consumeDelta();
+
+      // Should only appear once due to Set deduplication
+      expect(delta.added.length).toBe(1);
+      expect(delta.added[0]).toBe(entity);
+      expect(delta.overflowed).toBe(false);
+    });
+
+    it('should reset correctly after consumeDelta', () => {
+      const query = world.query(Position).enableDelta();
+
+      // Add some entities
+      const entity1 = world.createEntity();
+      const entity2 = world.createEntity();
+      world.addComponent(entity1, Position, { x: 1, y: 1 });
+      world.addComponent(entity2, Position, { x: 2, y: 2 });
+
+      // First consume
+      const delta1 = query.consumeDelta();
+      expect(delta1.added.length).toBe(2);
+
+      // Add more entities
+      const entity3 = world.createEntity();
+      world.addComponent(entity3, Position, { x: 3, y: 3 });
+
+      // Second consume should only have new entities
+      const delta2 = query.consumeDelta();
+      expect(delta2.added.length).toBe(1);
+      expect(delta2.added[0]).toBe(entity3);
+    });
+  });
+
   describe('Performance considerations', () => {
     it('should efficiently handle large numbers of entities', () => {
       const query = world.query(Position).enableDelta();
