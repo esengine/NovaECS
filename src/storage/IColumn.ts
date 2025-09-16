@@ -1,9 +1,23 @@
 /**
- * Column storage interface for array and SAB backends
- * 数组和SAB后端的列存储接口
+ * Column type enumeration for type-safe access
+ * 列类型枚举用于类型安全访问
  */
+export enum ColumnType {
+  /** Array-based column with direct data access 基于数组的列，支持直接数据访问 */
+  ARRAY = 'array',
+  /** Structured column with object-based access 结构化列，基于对象访问 */
+  OBJECT = 'object',
+  /** SharedArrayBuffer-based column for parallel access 基于SharedArrayBuffer的列，用于并行访问 */
+  SAB = 'sab'
+}
 
+/**
+ * Base column storage interface
+ * 基础列存储接口
+ */
 export interface IColumn {
+  /** Column type identifier 列类型标识符 */
+  readonly columnType: ColumnType;
   /** Current number of rows 当前行数 */
   length(): number;
   
@@ -41,4 +55,36 @@ export interface IColumn {
 
   /** Clear change tracking for new frame 清理变更追踪开始新帧 */
   clearChangeTracking(): void;
+}
+
+/**
+ * Array-based column with direct data access
+ * 基于数组的列，支持直接数据访问
+ */
+export interface IArrayColumn extends IColumn {
+  readonly columnType: ColumnType.ARRAY;
+  /** Get direct access to underlying array 获取底层数组的直接访问 */
+  getData(): any[];
+}
+
+/**
+ * Object-based column with row-by-row access
+ * 基于对象的列，支持逐行访问
+ */
+export interface IObjectColumn extends IColumn {
+  readonly columnType: ColumnType.OBJECT;
+  /** Get row value into reusable object (optional optimization) 将行值获取到可重用对象（可选优化） */
+  getRowInto?(row: number, out: any): any;
+}
+
+/**
+ * SharedArrayBuffer-based column for parallel access
+ * 基于SharedArrayBuffer的列，用于并行访问
+ */
+export interface ISABColumn extends IColumn {
+  readonly columnType: ColumnType.SAB;
+  /** Get field accessor for specific field name 获取特定字段名的字段访问器 */
+  getFieldAccessor?(fieldName: string): any;
+  /** Get all field names 获取所有字段名 */
+  getFieldNames?(): string[];
 }

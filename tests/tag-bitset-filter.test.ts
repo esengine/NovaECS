@@ -243,11 +243,11 @@ describe('Tag BitSet Filtering', () => {
 
       world.query(Position, Velocity)
         .where(['Moving'], [])
-        .forEachRaw((row, entities, accessors) => {
+        .forEachRaw((row, entities, cols) => {
           movingEntityCount++;
           const entity = entities[row];
-          const position = accessors[0](row);
-          const velocity = accessors[1](row);
+          const position = cols[0].readToObject(row);
+          const velocity = cols[1].readToObject(row);
 
           expect(entity).toBe(entity1);
           expect(position.x).toBe(10);

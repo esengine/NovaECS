@@ -7,7 +7,8 @@ import { World } from './World';
 import { ComponentType, ComponentCtor, getComponentType } from './ComponentRegistry';
 import { Entity } from '../utils/Types';
 import type { Archetype } from '../archetype/Archetype';
-import type { IColumn } from '../storage/IColumn';
+import type { IColumn, IArrayColumn, IObjectColumn, ISABColumn } from '../storage/IColumn';
+import { ColumnType } from '../storage/IColumn';
 import { TagBitSet } from './TagBitSet';
 // import type { IComponentStore } from './SparseSetStore';
 
@@ -66,31 +67,47 @@ export interface QueryChunkView {
 }
 
 /**
- * Row accessor function type for zero-allocation column access
- * 零分配列访问的行访问器函数类型
+ * Raw column callback interface that receives column objects directly
+ * 直接接收列对象的原始列回调接口
  */
-type RowAccessor = (row: number) => any;
+type RawColumnCallback = (row: number, entities: Entity[], cols: IColumn[], optionalCols?: (IColumn | undefined)[]) => void;
 
 /**
- * Type guard to check if column supports direct data access
- * 类型守卫检查列是否支持直接数据访问
+ * Type-safe component access helper
+ * 类型安全的组件访问辅助函数
  */
-function hasDirectAccess(col: IColumn): col is IColumn & { getData(): any[] } {
-  return 'getData' in col && typeof (col as any).getData === 'function';
-}
+function getComponentFromColumn(col: IColumn, row: number): any {
+  // Check if column has columnType property
+  if ('columnType' in col) {
+    switch (col.columnType) {
+      case ColumnType.ARRAY:
+        return (col as IArrayColumn).getData()[row];
 
-/**
- * Create row accessor for a column
- * 为列创建行访问器
- */
-function createRowAccessor(col: IColumn): RowAccessor {
-  if (hasDirectAccess(col)) {
-    const data = col.getData();
-    return (row: number) => data[row];
+      case ColumnType.OBJECT:
+        // For object columns, always use readToObject
+        // This should return the actual component reference for modification
+        return col.readToObject(row);
+
+      case ColumnType.SAB:
+        // For SAB columns, use buildSliceDescriptor or readToObject
+        // The exact implementation depends on SAB column structure
+        return col.readToObject(row);
+
+      default:
+        // Fallback to readToObject for unknown types
+        return col.readToObject(row);
+    }
+  }
+
+  // Legacy support: try getData first, then readToObject
+  if ('getData' in col && typeof (col as any).getData === 'function') {
+    const data = (col as any).getData();
+    return data[row];
   } else {
-    return (row: number) => col.readToObject(row);
+    return col.readToObject(row);
   }
 }
+
 
 /**
  * Compress sorted row indices into continuous runs
@@ -306,6 +323,28 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
     if (this.deltaEnabled && this.deltaAccumulator && !this.deltaAccumulator.overflowed) {
       this.addToDeltaSet(this.deltaAccumulator.changed, entity);
     }
+  }
+
+  /**
+   * Create a virtual column for sparse store single-entity access
+   * 为稀疏存储单实体访问创建虚拟列
+   */
+  private createVirtualColumn(value: any): IArrayColumn {
+    // Store value in an array to maintain reference semantics
+    const valueArray = [value];
+    return {
+      columnType: ColumnType.ARRAY,
+      length: () => 1,
+      capacity: () => 1,
+      ensureCapacity: () => {},
+      swapRemove: () => {},
+      pushDefault: () => 0,
+      writeFromObject: () => {},
+      readToObject: (row: number) => row === 0 ? valueArray[0] : undefined,
+      buildSliceDescriptor: (_start: number, _end: number) => valueArray,
+      clearChangeTracking: () => {},
+      getData: () => valueArray
+    };
   }
 
   /**
@@ -529,24 +568,28 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
   }
 
   /**
-   * Zero-allocation raw column iteration
-   * 零分配原始列遍历
+   * Raw column iteration with direct column access
+   * 直接列访问的原始列遍历
    */
-  forEachRaw(callback: (row: number, entities: Entity[], accessors: RowAccessor[], optionalAccessors?: (RowAccessor | undefined)[]) => void): void {
+  forEachRaw(callback: RawColumnCallback): void {
     if (this.required.length === 0) return;
 
     if (this.useArchetype && this.requireTags.length === 0 && this.forbidTags.length === 0) {
       this.forEachArchetypeRaw(callback);
     } else {
-      // Sparse store path: convert to single-entity semantics
+      // Sparse store path: create virtual single-entity columns
       this.forEachSparseStore((entity, ...components) => {
-        // Create single-entity accessors for forEachRaw interface
-        const accessors: RowAccessor[] = components.slice(0, this.required.length).map(comp => () => comp);
-        const optionalAccessors: (RowAccessor | undefined)[] | undefined =
+        // Create virtual columns that return the component values
+        const virtualCols: IColumn[] = components.slice(0, this.required.length).map(comp =>
+          this.createVirtualColumn(comp)
+        );
+        const virtualOptionalCols: (IColumn | undefined)[] | undefined =
           this.optionalTypes.length > 0 ?
-            components.slice(this.required.length).map(comp => comp !== undefined ? () => comp : undefined) : undefined;
+            components.slice(this.required.length).map(comp =>
+              comp !== undefined ? this.createVirtualColumn(comp) : undefined
+            ) : undefined;
 
-        callback(0, [entity], accessors, optionalAccessors);
+        callback(0, [entity], virtualCols, virtualOptionalCols);
       });
     }
   }
@@ -560,15 +603,15 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
 
     if (this.useArchetype && this.requireTags.length === 0 && this.forbidTags.length === 0) {
       // Use archetype path with forEachRaw
-      this.forEachRaw((row: number, entities: Entity[], accessors: RowAccessor[], optionalAccessors?: (RowAccessor | undefined)[]) => {
+      this.forEachRaw((row: number, entities: Entity[], cols: IColumn[], optionalCols?: (IColumn | undefined)[]) => {
         const entity = entities[row];
 
-        // Extract required components using accessors
-        const requiredComponents = accessors.map(accessor => accessor(row));
+        // Extract required components from columns using type-safe access
+        const requiredComponents = cols.map(col => getComponentFromColumn(col, row));
 
-        // Extract optional components using accessors
-        const optionalComponents = optionalAccessors ?
-          optionalAccessors.map(accessor => accessor ? accessor(row) : undefined) : [];
+        // Extract optional components from columns using type-safe access
+        const optionalComponents = optionalCols ?
+          optionalCols.map(col => col ? getComponentFromColumn(col, row) : undefined) : [];
 
         // Combine required and optional components
         const allComponents = [...requiredComponents, ...optionalComponents];
@@ -585,7 +628,7 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
    * Raw archetype iteration
    * 原始原型迭代
    */
-  private forEachArchetypeRaw(callback: (row: number, entities: Entity[], accessors: RowAccessor[], optionalAccessors?: (RowAccessor | undefined)[]) => void): void {
+  private forEachArchetypeRaw(callback: RawColumnCallback): void {
     this.rebuildPlanIfNeeded();
     this.buildTagMasksIfNeeded();
     const plan = this.plan;
@@ -599,12 +642,7 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
       for (const entry of plan.entries) {
         const { ents, cols, optionalCols, changedRows } = entry;
 
-        // Create row accessors for zero-allocation access
-        const accessors: RowAccessor[] = cols.map(createRowAccessor);
-
-        // Create optional column accessors
-        const optionalAccessors: (RowAccessor | undefined)[] | undefined = optionalCols.length > 0 ?
-          optionalCols.map(col => col ? createRowAccessor(col) : undefined) : undefined;
+        // Direct column access - no conversion needed
 
         // Determine which rows to iterate
         const rowsToProcess = changedRows || new Set(Array.from({length: ents.length}, (_, i) => i));
@@ -635,7 +673,7 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
             }
           }
 
-          callback(row, ents, accessors, optionalAccessors);
+          callback(row, ents, cols, optionalCols.length > 0 ? optionalCols : undefined);
         }
       }
     } finally {
@@ -780,11 +818,11 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
 
     // Use try-catch for early exit
     try {
-      this.forEachRaw((row: number, entities: Entity[], accessors: RowAccessor[], optionalAccessors?: (RowAccessor | undefined)[]) => {
+      this.forEachRaw((row: number, entities: Entity[], cols: IColumn[], optionalCols?: (IColumn | undefined)[]) => {
         const entity = entities[row];
-        const requiredComponents = accessors.map(accessor => accessor(row));
-        const optionalComponents = optionalAccessors ?
-          optionalAccessors.map(accessor => accessor ? accessor(row) : undefined) : [];
+        const requiredComponents = cols.map(col => getComponentFromColumn(col, row));
+        const optionalComponents = optionalCols ?
+          optionalCols.map(col => col ? getComponentFromColumn(col, row) : undefined) : [];
         const allComponents = [...requiredComponents, ...optionalComponents];
 
         if (!predicate || predicate(entity, ...allComponents as ReqTuple)) {
@@ -812,11 +850,11 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
 
     // Use try-catch for early exit
     try {
-      this.forEachRaw((row: number, entities: Entity[], accessors: RowAccessor[], optionalAccessors?: (RowAccessor | undefined)[]) => {
+      this.forEachRaw((row: number, entities: Entity[], cols: IColumn[], optionalCols?: (IColumn | undefined)[]) => {
         const entity = entities[row];
-        const requiredComponents = accessors.map(accessor => accessor(row));
-        const optionalComponents = optionalAccessors ?
-          optionalAccessors.map(accessor => accessor ? accessor(row) : undefined) : [];
+        const requiredComponents = cols.map(col => getComponentFromColumn(col, row));
+        const optionalComponents = optionalCols ?
+          optionalCols.map(col => col ? getComponentFromColumn(col, row) : undefined) : [];
         const allComponents = [...requiredComponents, ...optionalComponents];
 
         result = [entity, ...allComponents] as [Entity, ...ReqTuple];
