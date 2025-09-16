@@ -818,6 +818,9 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
       const rowsToProcess = changedRows || new Set(Array.from({length: ents.length}, (_, i) => i));
       let rowIndices = Array.from(rowsToProcess).filter(row => row < ents.length);
 
+      // Build tag masks if needed for filtering
+      this.buildTagMasksIfNeeded();
+
       // Apply entity state and tag filtering
       rowIndices = rowIndices.filter(row => {
         const entity = ents[row];
@@ -827,16 +830,17 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
           return false;
         }
 
-        // Check required tags
-        for (const tag of this.requireTags) {
-          if (!this.world.hasTag(entity, tag)) {
+        // Fast tag filtering using bit sets (consistent with forEachArchetypeRaw)
+        if (this.requiredTagMask || this.forbiddenTagMask) {
+          const entityBits = this.world.getEntityTagBits(entity);
+
+          // Check required tags
+          if (this.requiredTagMask && (!entityBits || !entityBits.containsAll(this.requiredTagMask))) {
             return false;
           }
-        }
 
-        // Check forbidden tags
-        for (const tag of this.forbidTags) {
-          if (this.world.hasTag(entity, tag)) {
+          // Check forbidden tags
+          if (this.forbiddenTagMask && entityBits && entityBits.hasAny(this.forbiddenTagMask)) {
             return false;
           }
         }
@@ -875,18 +879,8 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
           for (let colIndex = 0; colIndex < cols.length; colIndex++) {
             const col = cols[colIndex];
 
-            // Use buildSliceDescriptor for SAB support with continuous slice
-            if ('buildSliceDescriptor' in col && typeof col.buildSliceDescriptor === 'function') {
-              chunkCols[colIndex] = col.buildSliceDescriptor(chunkStart, chunkEnd);
-            } else {
-              // Fallback: extract data directly
-              if (hasDirectAccess(col)) {
-                const rawData = col.getData();
-                chunkCols[colIndex] = chunkRowIndices.map(row => rawData[row]);
-              } else {
-                chunkCols[colIndex] = chunkRowIndices.map(row => col.readToObject(row));
-              }
-            }
+            // Use buildSliceDescriptor for zero-copy slice
+            chunkCols[colIndex] = col.buildSliceDescriptor(chunkStart, chunkEnd);
           }
 
           // Extract optional column data for this chunk
@@ -901,18 +895,8 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
                 continue;
               }
 
-              // Use buildSliceDescriptor for SAB support with continuous slice
-              if ('buildSliceDescriptor' in col && typeof col.buildSliceDescriptor === 'function') {
-                chunkOptionalCols[colIndex] = col.buildSliceDescriptor(chunkStart, chunkEnd);
-              } else {
-                // Fallback: extract data directly
-                if (hasDirectAccess(col)) {
-                  const rawData = col.getData();
-                  chunkOptionalCols[colIndex] = chunkRowIndices.map(row => rawData[row]);
-                } else {
-                  chunkOptionalCols[colIndex] = chunkRowIndices.map(row => col.readToObject(row));
-                }
-              }
+              // Use buildSliceDescriptor for zero-copy slice
+              chunkOptionalCols[colIndex] = col.buildSliceDescriptor(chunkStart, chunkEnd);
             }
           }
 
