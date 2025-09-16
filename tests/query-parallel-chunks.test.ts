@@ -265,6 +265,161 @@ describe('Query Parallel Chunks', () => {
     });
   });
 
+  describe('Continuous run compression', () => {
+    beforeEach(() => {
+      // Create entities with non-continuous patterns for testing run compression
+      for (let i = 0; i < 20; i++) {
+        const entity = world.createEntity();
+        world.addComponent(entity, Position, { x: i * 10, y: i * 5 });
+        world.addComponent(entity, Velocity, { dx: i, dy: i * 2 });
+
+        // Create non-continuous tag pattern
+        if (i === 0 || i === 1 || i === 2 || i === 5 || i === 6 || i === 10 || i === 15 || i === 16 || i === 17) {
+          world.addTag(entity, 'Sparse');
+        }
+      }
+    });
+
+    it('should handle sparse non-continuous row indices correctly', () => {
+      const chunks = world.query(Position, Velocity)
+        .where(['Sparse'], [])
+        .toChunks(5);
+
+      expect(chunks.length).toBeGreaterThan(0);
+
+      chunks.forEach(chunk => {
+        expect(chunk.startRow).toBeLessThan(chunk.endRow);
+        expect(chunk.entities.length).toBe(chunk.endRow - chunk.startRow);
+        expect(chunk.entities.length).toBe(chunk.cols[0].length);
+        expect(chunk.entities.length).toBe(chunk.cols[1].length);
+
+        for (let i = 0; i < chunk.entities.length; i++) {
+          const position = chunk.cols[0][i];
+          const velocity = chunk.cols[1][i];
+
+          expect(position).toHaveProperty('x');
+          expect(position).toHaveProperty('y');
+          expect(velocity).toHaveProperty('dx');
+          expect(velocity).toHaveProperty('dy');
+        }
+      });
+
+      const totalEntities = chunks.reduce((sum, chunk) => sum + chunk.entities.length, 0);
+      expect(totalEntities).toBe(9); // Should match the sparse entities count
+    });
+
+    it('should split large continuous runs into multiple chunks', () => {
+      for (let i = 20; i < 100; i++) {
+        const entity = world.createEntity();
+        world.addComponent(entity, Position, { x: i, y: i });
+        world.addComponent(entity, Velocity, { dx: i, dy: i });
+        world.addTag(entity, 'LargeContinuous');
+      }
+
+      const chunks = world.query(Position, Velocity)
+        .where(['LargeContinuous'], [])
+        .toChunks(25);
+
+      expect(chunks.length).toBeGreaterThanOrEqual(3); // 80 entities / 25 chunk size
+
+      chunks.forEach(chunk => {
+        expect(chunk.entities.length).toBeLessThanOrEqual(25);
+        expect(chunk.startRow).toBeLessThan(chunk.endRow);
+        expect(chunk.entities.length).toBe(chunk.endRow - chunk.startRow);
+      });
+
+      const totalEntities = chunks.reduce((sum, chunk) => sum + chunk.entities.length, 0);
+      expect(totalEntities).toBe(80);
+    });
+
+    it('should handle changed() queries with non-continuous patterns', () => {
+      world.beginFrame();
+
+      const allEntities = world.query(Position, Velocity).toArray();
+      const entitiesToModify = [0, 2, 3, 7, 8, 9, 15, 18, 19];
+
+      entitiesToModify.forEach(index => {
+        if (index < allEntities.length) {
+          const entity = allEntities[index][0];
+          world.setComponent(entity, Position, { x: index * 1000, y: index * 500 });
+        }
+      });
+
+      const chunks = world.query(Position, Velocity)
+        .changed(Position)
+        .toChunks(4);
+
+      expect(chunks.length).toBeGreaterThan(0);
+
+      chunks.forEach(chunk => {
+        expect(chunk.startRow).toBeLessThan(chunk.endRow);
+        expect(chunk.entities.length).toBe(chunk.endRow - chunk.startRow);
+
+        for (let i = 0; i < chunk.entities.length; i++) {
+          const position = chunk.cols[0][i];
+          expect(position).toHaveProperty('x');
+          expect(position).toHaveProperty('y');
+        }
+      });
+
+      const totalEntities = chunks.reduce((sum, chunk) => sum + chunk.entities.length, 0);
+      expect(totalEntities).toBe(entitiesToModify.length);
+    });
+
+    it('should ensure continuous chunks have sequential row indices', () => {
+      for (let i = 20; i < 50; i++) {
+        const entity = world.createEntity();
+        world.addComponent(entity, Position, { x: i, y: i });
+        world.addTag(entity, 'Sequential');
+      }
+
+      const chunks = world.query(Position)
+        .where(['Sequential'], [])
+        .toChunks(10);
+
+      chunks.forEach(chunk => {
+        const expectedLength = chunk.endRow - chunk.startRow;
+        expect(chunk.entities.length).toBe(expectedLength);
+        expect(chunk.cols[0].length).toBe(expectedLength);
+
+        for (let i = 0; i < expectedLength; i++) {
+          expect(chunk.cols[0][i]).toHaveProperty('x');
+          expect(chunk.cols[0][i]).toHaveProperty('y');
+        }
+      });
+    });
+
+    it('should produce same results as regular iteration for sparse queries', () => {
+      const regularResults: Array<{ entity: number; position: Position; velocity: Velocity }> = [];
+      world.query(Position, Velocity)
+        .where(['Sparse'], [])
+        .forEach((entity, position, velocity) => {
+          regularResults.push({ entity, position, velocity });
+        });
+
+      const chunkResults: Array<{ entity: number; position: Position; velocity: Velocity }> = [];
+      const chunks = world.query(Position, Velocity)
+        .where(['Sparse'], [])
+        .toChunks(3);
+
+      chunks.forEach(chunk => {
+        for (let i = 0; i < chunk.entities.length; i++) {
+          chunkResults.push({
+            entity: chunk.entities[i],
+            position: chunk.cols[0][i],
+            velocity: chunk.cols[1][i]
+          });
+        }
+      });
+
+      expect(chunkResults.length).toBe(regularResults.length);
+
+      const regularEntityIds = regularResults.map(r => r.entity).sort();
+      const chunkEntityIds = chunkResults.map(r => r.entity).sort();
+      expect(chunkEntityIds).toEqual(regularEntityIds);
+    });
+  });
+
   describe('Integration with existing parallel system', () => {
     it('should produce chunks compatible with forEachChunkParallel interface', () => {
       // Create test entities

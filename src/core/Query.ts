@@ -51,6 +51,34 @@ function hasDirectAccess(col: IColumn): col is IColumn & { getData(): any[] } {
   return 'getData' in col && typeof (col as any).getData === 'function';
 }
 
+/**
+ * Compress sorted row indices into continuous runs
+ * 将排序的行索引压缩为连续区间
+ * @param sortedIndices 已排序的行索引数组
+ * @returns 连续区间数组，每个元素为[start, end)的形式
+ */
+function compressRuns(sortedIndices: number[]): Array<[number, number]> {
+  const runs: Array<[number, number]> = [];
+  if (sortedIndices.length === 0) return runs;
+
+  let start = sortedIndices[0];
+  let prev = start;
+
+  for (let i = 1; i < sortedIndices.length; i++) {
+    const current = sortedIndices[i];
+    if (current === prev + 1) {
+      prev = current;
+      continue;
+    }
+
+    runs.push([start, prev + 1]);
+    start = prev = current;
+  }
+
+  runs.push([start, prev + 1]);
+  return runs;
+}
+
 
 /**
  * Precompiled query plan for archetype optimization
@@ -818,78 +846,85 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
 
       if (rowIndices.length === 0) continue;
 
-      // Process in chunks
-      for (let start = 0; start < rowIndices.length; start += targetChunkSize) {
-        const end = Math.min(start + targetChunkSize, rowIndices.length);
-        const chunkRowIndices = rowIndices.slice(start, end);
+      // Sort row indices for run compression
+      rowIndices.sort((a, b) => a - b);
 
-        if (chunkRowIndices.length === 0) continue;
+      // Compress into continuous runs
+      const runs = compressRuns(rowIndices);
 
-        // Get archetype key for identification
-        const archetypeKey = `arch_${arch.types.join('_')}`;
+      // Get archetype key for identification
+      const archetypeKey = `arch_${arch.types.join('_')}`;
 
-        // Extract entities for this chunk
-        const chunkEntities = chunkRowIndices.map(row => ents[row]);
+      // Process each continuous run
+      for (const [runStart, runEnd] of runs) {
+        // Split large runs into chunks of targetChunkSize
+        for (let chunkStart = runStart; chunkStart < runEnd; chunkStart += targetChunkSize) {
+          const chunkEnd = Math.min(chunkStart + targetChunkSize, runEnd);
 
-        // Extract column data for this chunk
-        const chunkCols: any[][] = [];
-        for (let colIndex = 0; colIndex < cols.length; colIndex++) {
-          const col = cols[colIndex];
-
-          // Use buildSliceDescriptor for SAB support or fallback to direct access
-          if ('buildSliceDescriptor' in col && typeof col.buildSliceDescriptor === 'function') {
-            // For SAB columns, use buildSliceDescriptor
-            const minRow = Math.min(...chunkRowIndices);
-            const maxRow = Math.max(...chunkRowIndices) + 1;
-            chunkCols[colIndex] = col.buildSliceDescriptor(minRow, maxRow);
-          } else {
-            // Fallback: extract data directly
-            if (hasDirectAccess(col)) {
-              const rawData = col.getData();
-              chunkCols[colIndex] = chunkRowIndices.map(row => rawData[row]);
-            } else {
-              chunkCols[colIndex] = chunkRowIndices.map(row => col.readToObject(row));
-            }
+          // Generate continuous row indices for this chunk
+          const chunkRowIndices: number[] = [];
+          for (let row = chunkStart; row < chunkEnd; row++) {
+            chunkRowIndices.push(row);
           }
-        }
 
-        // Extract optional column data for this chunk
-        let chunkOptionalCols: (any[] | undefined)[] | undefined;
-        if (optionalCols && optionalCols.length > 0) {
-          chunkOptionalCols = [];
-          for (let colIndex = 0; colIndex < optionalCols.length; colIndex++) {
-            const col = optionalCols[colIndex];
+          // Extract entities for this chunk
+          const chunkEntities = chunkRowIndices.map(row => ents[row]);
 
-            if (!col) {
-              chunkOptionalCols[colIndex] = undefined;
-              continue;
-            }
+          // Extract column data for this chunk
+          const chunkCols: any[][] = [];
+          for (let colIndex = 0; colIndex < cols.length; colIndex++) {
+            const col = cols[colIndex];
 
-            // Use buildSliceDescriptor for SAB support
+            // Use buildSliceDescriptor for SAB support with continuous slice
             if ('buildSliceDescriptor' in col && typeof col.buildSliceDescriptor === 'function') {
-              const minRow = Math.min(...chunkRowIndices);
-              const maxRow = Math.max(...chunkRowIndices) + 1;
-              chunkOptionalCols[colIndex] = col.buildSliceDescriptor(minRow, maxRow);
+              chunkCols[colIndex] = col.buildSliceDescriptor(chunkStart, chunkEnd);
             } else {
               // Fallback: extract data directly
               if (hasDirectAccess(col)) {
                 const rawData = col.getData();
-                chunkOptionalCols[colIndex] = chunkRowIndices.map(row => rawData[row]);
+                chunkCols[colIndex] = chunkRowIndices.map(row => rawData[row]);
               } else {
-                chunkOptionalCols[colIndex] = chunkRowIndices.map(row => col.readToObject(row));
+                chunkCols[colIndex] = chunkRowIndices.map(row => col.readToObject(row));
               }
             }
           }
-        }
 
-        chunks.push({
-          archetypeKey,
-          entities: chunkEntities,
-          cols: chunkCols,
-          optionalCols: chunkOptionalCols,
-          startRow: Math.min(...chunkRowIndices),
-          endRow: Math.max(...chunkRowIndices) + 1
-        });
+          // Extract optional column data for this chunk
+          let chunkOptionalCols: (any[] | undefined)[] | undefined;
+          if (optionalCols && optionalCols.length > 0) {
+            chunkOptionalCols = [];
+            for (let colIndex = 0; colIndex < optionalCols.length; colIndex++) {
+              const col = optionalCols[colIndex];
+
+              if (!col) {
+                chunkOptionalCols[colIndex] = undefined;
+                continue;
+              }
+
+              // Use buildSliceDescriptor for SAB support with continuous slice
+              if ('buildSliceDescriptor' in col && typeof col.buildSliceDescriptor === 'function') {
+                chunkOptionalCols[colIndex] = col.buildSliceDescriptor(chunkStart, chunkEnd);
+              } else {
+                // Fallback: extract data directly
+                if (hasDirectAccess(col)) {
+                  const rawData = col.getData();
+                  chunkOptionalCols[colIndex] = chunkRowIndices.map(row => rawData[row]);
+                } else {
+                  chunkOptionalCols[colIndex] = chunkRowIndices.map(row => col.readToObject(row));
+                }
+              }
+            }
+          }
+
+          chunks.push({
+            archetypeKey,
+            entities: chunkEntities,
+            cols: chunkCols,
+            optionalCols: chunkOptionalCols,
+            startRow: chunkStart,
+            endRow: chunkEnd
+          });
+        }
       }
     }
 
