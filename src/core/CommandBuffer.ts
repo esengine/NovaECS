@@ -25,8 +25,20 @@ import {
   getCtorByTypeId,
   typeFromId
 } from './ComponentRegistry';
+import type { Prefab } from '../prefab/Prefab';
+import type { SpawnOptions } from '../prefab/SpawnOptions';
 
 type TypeId = number;
+
+/**
+ * Spawn command for batch entity creation
+ * 批量实体创建的spawn命令
+ */
+interface SpawnCommand {
+  kind: 'spawn';
+  prefab: Prefab;
+  options: SpawnOptions;
+}
 
 /**
  * Pending operations for a single entity
@@ -50,6 +62,7 @@ interface PendingPerEntity {
 export class CommandBuffer {
   private pending = new Map<Entity, PendingPerEntity>();
   private created: Entity[] = [];
+  private spawns: SpawnCommand[] = [];
 
   constructor(private world: World) {}
 
@@ -147,19 +160,36 @@ export class CommandBuffer {
   }
 
   /**
+   * Spawn multiple entities from prefab (deferred until flush)
+   * 从预制体批量生成实体（延迟到flush时执行）
+   */
+  spawn(prefab: Prefab, options: SpawnOptions = {}): void {
+    this.spawns.push({
+      kind: 'spawn',
+      prefab,
+      options
+    });
+  }
+
+  /**
    * Apply all operations to world (recommended to call at frame end)
    * 应用到世界（建议帧末调用）
    */
   flush(): void {
-    // Apply in order: removes -> adds -> enable -> destroy
-    // 应用顺序：removes -> adds -> enable -> destroy
+    // Apply in order: spawns -> removes -> adds -> enable -> destroy
+    // 应用顺序：spawns -> removes -> adds -> enable -> destroy
+
+    // 0) Process spawns first to avoid structural changes during entity operations
+    for (const spawnCmd of this.spawns) {
+      this.world.spawn(spawnCmd.prefab, spawnCmd.options);
+    }
 
     // 1) Process removals
     for (const [entity, pending] of this.pending) {
       if (pending.destroy) continue;
       if (pending.removes) {
         for (const typeId of pending.removes) {
-          const type = typeFromId(typeId); // Use bidirectional registry to get ComponentType
+          const type = typeFromId(typeId);
           this.world.removeComponentFromEntity(entity, type);
         }
       }
@@ -171,8 +201,6 @@ export class CommandBuffer {
       if (pending.adds) {
         for (const [typeId, instance] of pending.adds) {
           const type = typeFromId(typeId);
-          // addComponentToEntity internally calls markChanged(entity, frame)
-          // addComponentToEntity内部会markChanged(entity, frame)
           this.world.addComponentToEntity(entity, type, instance);
         }
       }
@@ -194,9 +222,9 @@ export class CommandBuffer {
     }
 
     // Clear all pending operations
-    // 清空所有挂起操作
     this.pending.clear();
     this.created = [];
+    this.spawns = [];
   }
 
   /**

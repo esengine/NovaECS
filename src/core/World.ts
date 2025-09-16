@@ -17,6 +17,8 @@ import { Bitset } from '../signature/Bitset';
 import { ArchetypeIndex, Archetype } from '../archetype';
 import { Recorder } from '../replay/Recorder';
 import { TagBitSet, TagMaskManager } from './TagBitSet';
+import { PRNG } from '../determinism/PRNG';
+import type { Prefab, SpawnOptions } from '../prefab/Prefab';
 
 /**
  * Component base interface (placeholder)
@@ -58,6 +60,70 @@ export class World {
    */
   getArchetypeIndex(): ArchetypeIndex {
     return this.arch;
+  }
+
+  /**
+   * Spawn multiple entities from prefab with batch optimizations
+   * 从预制体批量生成实体并优化
+   */
+  spawn(prefab: Prefab, options: SpawnOptions = {}): Entity[] {
+    const count = options.count ?? 1;
+    const epoch = options.epoch ?? this.frame;
+    const entities: Entity[] = [];
+
+    for (let i = 0; i < count; i++) {
+      entities.push(this.createEntity());
+    }
+
+    for (const comp of prefab.comps) {
+      for (let i = 0; i < count; i++) {
+        const entity = entities[i];
+
+        const baseValue = typeof comp.defaults === 'function'
+          ? (comp.defaults as () => any)()
+          : { ...comp.defaults };
+
+        let finalValue = baseValue;
+        const compName = comp.ctor.name;
+
+        if (options.overrides?.shared?.[compName]) {
+          finalValue = { ...finalValue, ...options.overrides.shared[compName] };
+        }
+
+        const perEntity = options.overrides?.perEntity;
+        if (perEntity) {
+          const entityOverride = typeof perEntity === 'function'
+            ? perEntity(i)
+            : perEntity[i];
+          if (entityOverride?.[compName]) {
+            finalValue = { ...finalValue, ...entityOverride[compName] };
+          }
+        }
+
+        this.addComponent(entity, comp.ctor, finalValue);
+
+        const archetype = this.entityArchetype.get(entity);
+        if (archetype) {
+          archetype.setComponent(entity, getComponentType(comp.ctor).id, finalValue, epoch);
+        }
+      }
+    }
+
+    const allTags = [...(prefab.tags ?? []), ...(options.tags ?? [])];
+    for (const tag of allTags) {
+      for (const entity of entities) {
+        this.addTag(entity, tag);
+      }
+    }
+
+    if (prefab.init) {
+      const rng = new PRNG();
+      for (let i = 0; i < count; i++) {
+        prefab.init(this, entities[i], i, rng);
+      }
+    }
+
+    return entities;
   }
 
   /**
@@ -406,6 +472,17 @@ export class World {
   }
 
   /**
+   * Set component data with custom epoch for change tracking
+   * 使用自定义epoch设置组件数据用于变更追踪
+   */
+  setComponentWithEpoch<T>(e: Entity, ctor: ComponentCtor<T>, data: T, epoch: number): void {
+    const type = getComponentType(ctor);
+    const archetype = this.entityArchetype.get(e);
+    if (!archetype) return;
+    archetype.setComponent(e, type.id, data, epoch);
+  }
+
+  /**
    * Check if entity has component (convenience method)
    * 检查实体是否有组件（便捷方法）
    */
@@ -697,6 +774,16 @@ export class World {
       } else if (matchedBefore && matchesAfter) {
         query._notifyEntityChanged(e);
       }
+    }
+  }
+
+  /**
+   * Add multiple tags to entity at once
+   * 一次性为实体添加多个标签
+   */
+  addTags(e: Entity, tagNames: string[]): void {
+    for (const tagName of tagNames) {
+      this.addTag(e, tagName);
     }
   }
 
