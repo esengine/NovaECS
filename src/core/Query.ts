@@ -15,6 +15,9 @@ import { TagBitSet } from './TagBitSet';
 /** Maximum entities to track in delta before marking as overflowed 增量跟踪的最大实体数，超过则标记为溢出 */
 const MAX_DELTA_ENTITIES = 10000;
 
+/** Early exit sentinel object for query iteration control 查询迭代控制的早期退出哨兵对象 */
+const EARLY_EXIT = Symbol('EARLY_EXIT');
+
 /**
  * Query delta containing incremental changes
  * 包含增量变化的查询增量
@@ -77,35 +80,31 @@ type RawColumnCallback = (row: number, entities: Entity[], cols: IColumn[], opti
  * 类型安全的组件访问辅助函数
  */
 function getComponentFromColumn(col: IColumn, row: number): any {
-  // Check if column has columnType property
-  if ('columnType' in col) {
+  // Type-safe access for new columns with columnType
+  if ('columnType' in col && col.columnType) {
     switch (col.columnType) {
       case ColumnType.ARRAY:
         return (col as IArrayColumn).getData()[row];
 
       case ColumnType.OBJECT:
-        // For object columns, always use readToObject
-        // This should return the actual component reference for modification
         return col.readToObject(row);
 
       case ColumnType.SAB:
-        // For SAB columns, use buildSliceDescriptor or readToObject
-        // The exact implementation depends on SAB column structure
         return col.readToObject(row);
 
       default:
-        // Fallback to readToObject for unknown types
         return col.readToObject(row);
     }
   }
 
-  // Legacy support: try getData first, then readToObject
+  // Fallback for existing columns without columnType
+  // Try getData first for reference access, then readToObject
   if ('getData' in col && typeof (col as any).getData === 'function') {
     const data = (col as any).getData();
     return data[row];
-  } else {
-    return col.readToObject(row);
   }
+
+  return col.readToObject(row);
 }
 
 
@@ -827,11 +826,11 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
 
         if (!predicate || predicate(entity, ...allComponents as ReqTuple)) {
           found = true;
-          throw new Error('EARLY_EXIT'); // Use exception for early exit
+          throw EARLY_EXIT; // Use sentinel object for early exit
         }
       });
     } catch (e) {
-      if ((e as Error).message !== 'EARLY_EXIT') {
+      if (e !== EARLY_EXIT) {
         throw e;
       }
     }
@@ -858,10 +857,10 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
         const allComponents = [...requiredComponents, ...optionalComponents];
 
         result = [entity, ...allComponents] as [Entity, ...ReqTuple];
-        throw new Error('EARLY_EXIT'); // Use exception for early exit
+        throw EARLY_EXIT; // Use sentinel object for early exit
       });
     } catch (e) {
-      if ((e as Error).message !== 'EARLY_EXIT') {
+      if (e !== EARLY_EXIT) {
         throw e;
       }
     }
