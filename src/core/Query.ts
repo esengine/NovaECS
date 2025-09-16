@@ -949,8 +949,8 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
       // Compress into continuous runs
       const runs = compressRuns(rowIndices);
 
-      // Get archetype key for identification
-      const archetypeKey = `arch_${arch.types.join('_')}`;
+      // Use cached archetype key directly
+      const archetypeKey = arch.key;
 
       // Process each continuous run
       for (const [runStart, runEnd] of runs) {
@@ -958,14 +958,8 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
         for (let chunkStart = runStart; chunkStart < runEnd; chunkStart += targetChunkSize) {
           const chunkEnd = Math.min(chunkStart + targetChunkSize, runEnd);
 
-          // Generate continuous row indices for this chunk
-          const chunkRowIndices: number[] = [];
-          for (let row = chunkStart; row < chunkEnd; row++) {
-            chunkRowIndices.push(row);
-          }
-
-          // Extract entities for this chunk
-          const chunkEntities = chunkRowIndices.map(row => ents[row]);
+          // Extract entities for this chunk (continuous range)
+          const chunkEntities = ents.slice(chunkStart, chunkEnd);
 
           // Extract column data for this chunk
           const chunkCols: any[][] = [];
