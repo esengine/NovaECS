@@ -78,6 +78,14 @@ export class ColumnArray implements IColumn {
     return row;
   }
 
+  emplaceDefault(row: number): void {
+    this.ensureCapacity(row + 1);
+
+    // Don't allocate {}, just reserve slot - caller will writeFromObject() immediately
+    // 不分配{}，只预留位置 - 调用方会立即调用writeFromObject()
+    this._length = Math.max(this._length, row + 1);
+  }
+
   writeFromObject(row: number, obj: any, epoch?: number): void {
     this.ensureCapacity(row + 1);
     this.data[row] = obj;
@@ -254,5 +262,24 @@ export class ColumnArray implements IColumn {
    */
   getRowAccessor(): (row: number, out?: any) => any {
     return (row, out = {}) => this.readToObject(row, out);
+  }
+
+  /**
+   * Clear all row data but preserve column structure
+   * 清空所有行数据但保留列结构
+   */
+  clear(): void {
+    // Clear references to prevent memory leaks but keep capacity
+    // 清除引用防止内存泄漏但保持容量
+    for (let i = 0; i < this._length; i++) {
+      this.data[i] = undefined;
+    }
+    this._length = 0;
+
+    // Keep rowEpochs capacity but clear tracking data
+    // 保持rowEpochs容量但清理追踪数据
+    if (this.rowEpochs.length > 0) {
+      this.rowEpochs.fill(0);
+    }
   }
 }

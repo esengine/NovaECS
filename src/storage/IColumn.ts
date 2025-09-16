@@ -27,11 +27,24 @@ export interface IColumn {
   /** Ensure capacity 确保容量 */
   ensureCapacity(rows: number): void;
   
-  /** Swap-remove a row (for archetype migration) 交换删除一行（用于archetype迁移） */
+  /**
+   * Swap-remove a row (for archetype migration)
+   * IMPORTANT: Changes row indices for all rows after the removed position!
+   * 交换删除一行（用于archetype迁移）
+   * 重要：会改变被删除位置之后所有行的索引！
+   */
   swapRemove(row: number): void;
   
-  /** Add new row with default value at end, return row index 在末尾新增一行默认值，返回行号 */
+  /**
+   * Add new row with default value at end, return row index
+   * WARNING: Returned row index may become invalid after swapRemove operations!
+   * 在末尾新增一行默认值，返回行号
+   * 警告：返回的行索引在 swapRemove 操作后可能失效！
+   */
   pushDefault(): number;
+
+  /** Emplace default value at specified row index 在指定行索引位置放置默认值 */
+  emplaceDefault(row: number): void;
   
   /** Write from object to specified row (for addInstance/serde) 从对象写入指定行（用于addInstance/序列化） */
   writeFromObject(row: number, obj: any, epoch?: number): void;
@@ -55,6 +68,9 @@ export interface IColumn {
 
   /** Clear change tracking for new frame 清理变更追踪开始新帧 */
   clearChangeTracking(): void;
+
+  /** Clear all row data but preserve column structure 清空所有行数据但保留列结构 */
+  clear(): void;
 
   /** —— Compaction API 压缩相关 —— */
   /** Generate new column with same layout but empty data 生成同布局的新列（空列），newCap为目标容量 */

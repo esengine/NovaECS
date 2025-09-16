@@ -37,7 +37,7 @@ export function forEachArchetype(
     // 构造列引用（避免内层重复 Map 查找）
     const cols = requiredCtors.map(c => {
       const type = getComponentType(c);
-      return arch.getCol(type.id);
+      return arch.getColView(type.id);
     });
 
     for (let row = 0; row < arch.entities.length; row++) {
@@ -49,7 +49,7 @@ export function forEachArchetype(
       }
 
       // 构造组件参数
-      const args = cols.map(col => col[row]);
+      const args = cols.map(col => col ? col.readToObject(row) : undefined);
       cb(e, ...args);
     }
   }

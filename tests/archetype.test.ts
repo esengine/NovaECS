@@ -144,19 +144,284 @@ describe('Archetype System', () => {
       expect(archetype.verify()).toBe(true);
     });
 
-    test('should clear archetype correctly', () => {
-      const archetype = new Archetype('key1', [1, 2]);
+    test('should distinguish clearRows vs clear semantics', () => {
+      const archetype = new Archetype('key1', [1, 2], [Position, Velocity]);
 
       archetype.push(1, () => new Position());
       archetype.push(2, () => new Position());
 
       expect(archetype.size()).toBe(2);
 
-      archetype.clear();
+      // Get column view before clearing
+      const colView = archetype.getColView(1);
+      expect(colView).toBeDefined();
+      expect(colView!.capacity()).toBeGreaterThan(0);
+
+      // clearRows: preserve column structure
+      archetype.clearRows();
 
       expect(archetype.size()).toBe(0);
       expect(archetype.isEmpty()).toBe(true);
       expect(archetype.getEntities()).toEqual([]);
+
+      // Column structure should be preserved
+      const sameColView = archetype.getColView(1);
+      expect(sameColView).toBe(colView); // Same column instance
+      expect(sameColView!.capacity()).toBeGreaterThan(0); // Capacity preserved
+
+      // Add new data should work without recreating columns
+      archetype.push(3, () => new Position(10, 20));
+      expect(archetype.size()).toBe(1);
+      expect(archetype.getComponent<Position>(3, 1)).toEqual({ x: 10, y: 20 });
+
+      // clear: completely destroy columns
+      archetype.clear();
+
+      expect(archetype.size()).toBe(0);
+      expect(archetype.getColView(1)).toBeUndefined(); // Column completely gone
+    });
+
+    test('should maintain column consistency after push operations', () => {
+      const archetype = new Archetype('key1', [1, 2, 3], [Position, Velocity, Health]);
+
+      const makeDefault = (typeId: number) => {
+        if (typeId === 1) return new Position(typeId * 10, typeId * 20);
+        if (typeId === 2) return new Velocity(typeId, typeId * 2);
+        if (typeId === 3) return new Health(typeId * 50);
+        return {};
+      };
+
+      const entities = [10, 20, 30, 40, 50];
+      entities.forEach(e => {
+        const sizeBefore = archetype.size();
+        archetype.push(e, makeDefault);
+
+        expect(archetype.verify()).toBe(true);
+        expect(archetype.size()).toBe(sizeBefore + 1);
+        expect(archetype.hasEntity(e)).toBe(true);
+        expect(archetype.getRow(e)).toBe(sizeBefore);
+      });
+
+      expect(archetype.size()).toBe(entities.length);
+
+      for (let i = 0; i < entities.length; i++) {
+        const entity = entities[i];
+        expect(archetype.getRow(entity)).toBe(i);
+
+        const pos = archetype.getComponent<Position>(entity, 1);
+        expect(pos).toEqual({ x: 10, y: 20 });
+
+        const vel = archetype.getComponent<Velocity>(entity, 2);
+        expect(vel).toEqual({ dx: 2, dy: 4 });
+
+        const health = archetype.getComponent<Health>(entity, 3);
+        expect(health).toEqual({ hp: 150 });
+      }
+    });
+
+    test('should provide distinct API semantics for getColView vs getColSnapshot', () => {
+      const archetype = new Archetype('key1', [1, 2], [Position, Velocity]);
+
+      const makeDefault = (typeId: number) => {
+        if (typeId === 1) return new Position(100, 200);
+        if (typeId === 2) return new Velocity(10, 20);
+        return {};
+      };
+
+      archetype.push(1, makeDefault);
+      archetype.push(2, makeDefault);
+
+      // Test getColView returns low-level column interface
+      const colView = archetype.getColView(1);
+      expect(colView).toBeDefined();
+      expect(colView!.length()).toBe(2);
+      expect(colView!.readToObject(0)).toEqual({ x: 100, y: 200 });
+
+      // Test getColSnapshot returns consistent snapshot regardless of backend
+      const snapshot1 = archetype.getColSnapshot<Position>(1);
+      const snapshot2 = archetype.getColSnapshot<Position>(1);
+
+      expect(snapshot1).toHaveLength(2);
+      expect(snapshot1[0]).toEqual({ x: 100, y: 200 });
+      expect(snapshot2).toHaveLength(2);
+      expect(snapshot2[0]).toEqual({ x: 100, y: 200 });
+
+      // Snapshots are separate instances (not same reference)
+      expect(snapshot1).not.toBe(snapshot2);
+
+      // Modifying snapshot doesn't affect archetype data
+      snapshot1[0] = new Position(999, 999);
+      const freshSnapshot = archetype.getColSnapshot<Position>(1);
+      expect(freshSnapshot[0]).toEqual({ x: 100, y: 200 });
+    });
+
+    test('should prevent duplicate entity insertion', () => {
+      const archetype = new Archetype('key1', [1], [Position]);
+
+      const makeDefault = () => new Position(10, 20);
+
+      // First insert should succeed
+      expect(() => archetype.push(1, makeDefault)).not.toThrow();
+      expect(archetype.size()).toBe(1);
+      expect(archetype.hasEntity(1)).toBe(true);
+
+      // Second insert of same entity should throw
+      expect(() => archetype.push(1, makeDefault))
+        .toThrow('Entity 1 already exists in archetype key1');
+
+      // Size should remain unchanged
+      expect(archetype.size()).toBe(1);
+      expect(archetype.verify()).toBe(true);
+
+      // Different entity should still work
+      expect(() => archetype.push(2, makeDefault)).not.toThrow();
+      expect(archetype.size()).toBe(2);
+    });
+
+    test('should detect integrity violations in verify()', () => {
+      const archetype = new Archetype('key1', [1], [Position]);
+
+      archetype.push(1, () => new Position());
+      archetype.push(2, () => new Position());
+
+      // Normal state should pass verification
+      expect(archetype.verify()).toBe(true);
+
+      // Simulate duplicate entity corruption (this shouldn't happen with proper push)
+      // by directly manipulating internal state
+      archetype.entities.push(1); // Duplicate entity 1
+      expect(archetype.verify()).toBe(false);
+
+      // Restore proper state
+      archetype.entities.pop();
+
+      // Simulate rowOf size mismatch
+      archetype.rowOf.delete(2);
+      expect(archetype.verify()).toBe(false);
+    });
+
+    test('should maintain consistency on makeDefault exceptions', () => {
+      const archetype = new Archetype('key1', [1, 2], [Position, Velocity]);
+
+      // Add some initial entities
+      archetype.push(1, (typeId) => {
+        if (typeId === 1) return new Position(10, 20);
+        if (typeId === 2) return new Velocity(1, 2);
+        return {};
+      });
+
+      expect(archetype.size()).toBe(1);
+      expect(archetype.verify()).toBe(true);
+
+      // makeDefault that throws on second component
+      const faultyMakeDefault = (typeId: number) => {
+        if (typeId === 1) return new Position(30, 40);
+        if (typeId === 2) throw new Error('Component creation failed');
+        return {};
+      };
+
+      // Push should fail completely
+      expect(() => archetype.push(2, faultyMakeDefault))
+        .toThrow('Component creation failed');
+
+      // Archetype should remain in consistent state
+      expect(archetype.size()).toBe(1); // No new entity added
+      expect(archetype.hasEntity(2)).toBe(false); // Entity 2 not added
+      expect(archetype.verify()).toBe(true); // Still consistent
+
+      // Original entity should be unaffected
+      const pos1 = archetype.getComponent<Position>(1, 1);
+      expect(pos1).toEqual({ x: 10, y: 20 });
+
+      // Subsequent normal operation should work
+      expect(() => archetype.push(3, (typeId) => {
+        if (typeId === 1) return new Position(50, 60);
+        if (typeId === 2) return new Velocity(5, 6);
+        return {};
+      })).not.toThrow();
+
+      expect(archetype.size()).toBe(2);
+      expect(archetype.hasEntity(3)).toBe(true);
+      expect(archetype.verify()).toBe(true);
+    });
+
+    test('should provide truly readonly entities array', () => {
+      const archetype = new Archetype('key1', [1], [Position]);
+
+      archetype.push(1, () => new Position());
+      archetype.push(2, () => new Position());
+
+      const entities = archetype.getEntities();
+      expect(entities).toHaveLength(2);
+      expect(entities[0]).toBe(1);
+      expect(entities[1]).toBe(2);
+
+      // Array should be frozen and prevent modifications
+      expect(Object.isFrozen(entities)).toBe(true);
+
+      // Direct modifications should be prevented
+      expect(() => {
+        (entities as any).push(3);
+      }).toThrow();
+
+      expect(() => {
+        (entities as any)[0] = 999;
+      }).toThrow();
+
+      expect(() => {
+        (entities as any).length = 0;
+      }).toThrow();
+
+      // Original archetype should be unaffected
+      expect(archetype.size()).toBe(2);
+      expect(archetype.hasEntity(1)).toBe(true);
+      expect(archetype.hasEntity(2)).toBe(true);
+
+      // Multiple calls should return new frozen arrays
+      const entities2 = archetype.getEntities();
+      expect(entities2).not.toBe(entities); // Different reference (new copy)
+      expect(entities2).toEqual(entities); // Same content
+      expect(Object.isFrozen(entities2)).toBe(true);
+    });
+
+    test('should support epoch consistency between push and setComponent', () => {
+      const archetype = new Archetype('key1', [1, 2], [Position, Velocity]);
+
+      const testEpoch = 42;
+
+      // Push with specific epoch
+      archetype.push(1, (typeId) => {
+        if (typeId === 1) return new Position(10, 20);
+        if (typeId === 2) return new Velocity(1, 2);
+        return {};
+      }, testEpoch);
+
+      // Get column views to check epoch tracking
+      const posCol = archetype.getColView(1);
+      const velCol = archetype.getColView(2);
+
+      // Check that epoch was properly recorded (if columns support it)
+      if (posCol?.getRowEpochs) {
+        const epochs = posCol.getRowEpochs();
+        expect(epochs?.[0]).toBe(testEpoch);
+      }
+
+      if (velCol?.getRowEpochs) {
+        const epochs = velCol.getRowEpochs();
+        expect(epochs?.[0]).toBe(testEpoch);
+      }
+
+      // setComponent should work with same epoch semantics
+      archetype.setComponent(1, 1, new Position(30, 40), testEpoch + 1);
+
+      if (posCol?.getRowEpochs) {
+        const epochs = posCol.getRowEpochs();
+        expect(epochs?.[0]).toBe(testEpoch + 1); // Updated epoch
+      }
+
+      // Verify data consistency
+      expect(archetype.getComponent<Position>(1, 1)).toEqual({ x: 30, y: 40 });
+      expect(archetype.getComponent<Velocity>(1, 2)).toEqual({ dx: 1, dy: 2 });
     });
   });
 

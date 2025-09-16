@@ -254,7 +254,7 @@ export class World {
         current.swapRemove(row);
 
         // Add to target archetype and restore component data
-        target.push(e, makeDefault);
+        target.push(e, makeDefault, this.epoch());
 
         // Restore actual component data (without marking as changed - this is migration)
         for (const [typeId, data] of componentData) {
@@ -265,7 +265,7 @@ export class World {
       }
     } else {
       // First time adding entity to archetype
-      target.push(e, makeDefault);
+      target.push(e, makeDefault, this.epoch());
     }
 
     this.entityArchetype.set(e, target);

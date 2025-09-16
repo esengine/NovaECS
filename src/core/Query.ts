@@ -338,11 +338,17 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
       ensureCapacity: () => {},
       swapRemove: () => {},
       pushDefault: () => 0,
+      emplaceDefault: () => {},
       writeFromObject: () => {},
       readToObject: (row: number) => row === 0 ? valueArray[0] : undefined,
       buildSliceDescriptor: (_start: number, _end: number) => valueArray,
       clearChangeTracking: () => {},
-      getData: () => valueArray
+      getData: () => valueArray,
+      spawnLike: () => this.createVirtualColumn(undefined),
+      copyRangeTo: () => {},
+      bytesPerRow: () => 64,
+      getRowAccessor: () => (row: number) => row === 0 ? valueArray[0] : undefined,
+      clear: () => { valueArray[0] = undefined; }
     };
   }
 

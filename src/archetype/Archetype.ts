@@ -1,6 +1,17 @@
 /**
  * Archetype for dense component storage
+ *
+ * IMPORTANT CONSTRAINT: Uses swap-remove optimization which invalidates row indices!
+ * - Any removal operation may change row indices of remaining entities
+ * - Do not cache row indices across structural modifications
+ * - Always call getRow() to get fresh row indices when needed
+ *
  * 原型用于密集组件存储
+ *
+ * 重要约束：使用交换删除优化会使行索引失效！
+ * - 任何删除操作都可能改变剩余实体的行索引
+ * - 不要在结构修改操作之间缓存行索引
+ * - 需要时总是调用 getRow() 获取最新的行索引
  */
 
 import type { Entity } from '../utils/Types';
@@ -45,25 +56,50 @@ export class Archetype {
    * Add entity to archetype with default component values
    * 向原型添加实体及默认组件值
    */
-  push(e: Entity, makeDefault: (typeId: number) => unknown): void {
+  push(e: Entity, makeDefault: (typeId: number) => unknown, epoch?: number): void {
+    if (this.rowOf.has(e)) {
+      throw new Error(`Entity ${e} already exists in archetype ${this.key}`);
+    }
+
     const row = this.entities.length;
+
+    // Prepare component data first (may throw)
+    // 先准备组件数据（可能抛异常）
+    const componentData: { typeId: number, data: unknown }[] = [];
+
+    for (let i = 0; i < this.types.length; i++) {
+      const typeId = this.types[i];
+      const data = makeDefault(typeId);
+      componentData.push({ typeId, data });
+    }
+
+    // All data prepared successfully, now commit to archetype
+    // 所有数据准备成功，现在提交到原型
     this.entities.push(e);
     this.rowOf.set(e, row);
 
+    // Expand columns and write data
+    // 扩展列并写入数据
     for (let i = 0; i < this.types.length; i++) {
       const typeId = this.types[i];
       const ctor = this.typeCtors[i] || Object;
       this.ensureColumn(typeId, ctor);
       const col = this.cols.get(typeId)!;
-      col.ensureCapacity(row + 1);
-      const rowIndex = col.pushDefault();
-      col.writeFromObject(rowIndex, makeDefault(typeId));
+      col.emplaceDefault(row);
+      col.writeFromObject(row, componentData[i].data, epoch);
     }
   }
 
   /**
    * Remove entity using swap-remove optimization
+   * IMPORTANT: This operation invalidates cached row indices!
+   * The last entity will be moved to the removed position, changing its row index.
+   * Any external code caching row indices must refresh them after this call.
+   *
    * 使用交换删除优化移除实体
+   * 重要：此操作会使缓存的行索引失效！
+   * 最后一个实体会移动到被删除的位置，改变其行索引。
+   * 任何缓存行索引的外部代码必须在此调用后刷新它们。
    */
   swapRemove(row: number): void {
     const last = this.entities.length - 1;
@@ -90,42 +126,41 @@ export class Archetype {
 
   /**
    * Get row index for entity
+   * WARNING: Returned row index may become invalid after swapRemove operations!
+   * Do not cache row indices across structural modifications.
+   *
    * 获取实体的行索引
+   * 警告：返回的行索引在 swapRemove 操作后可能失效！
+   * 不要在结构修改操作之间缓存行索引。
    */
   getRow(e: Entity): number | undefined {
     return this.rowOf.get(e);
   }
 
+
   /**
-   * Type guard to check if column supports direct data access
-   * 类型守卫检查列是否支持直接数据访问
+   * Get column view for direct access
+   * 获取列视图用于直接访问
    */
-  private hasDirectAccess(col: IColumn): col is IColumn & { getData(): any[] } {
-    return 'getData' in col && typeof (col as any).getData === 'function';
+  getColView(typeId: number): IColumn | undefined {
+    return this.cols.get(typeId);
   }
 
   /**
-   * Get component column for type
-   * 获取类型的组件列
+   * Get column data snapshot
+   * 获取列数据快照
    */
-  getCol<T>(typeId: number): T[] {
+  getColSnapshot<T>(typeId: number): T[] {
     const col = this.cols.get(typeId);
     if (!col) return [];
 
-    // For SAB columns, return objects; for Array columns, return data directly
-    // 对于SAB列，返回对象；对于数组列，直接返回数据
-    if (this.hasDirectAccess(col)) {
-      // Array column
-      return col.getData();
-    } else {
-      // SAB column - reconstruct objects
-      const result: T[] = [];
-      for (let i = 0; i < col.length(); i++) {
-        result.push(col.readToObject(i) as T);
-      }
-      return result;
+    const result: T[] = [];
+    for (let i = 0; i < col.length(); i++) {
+      result.push(col.readToObject(i) as T);
     }
+    return result;
   }
+
 
   /**
    * Check if entity exists in this archetype
@@ -182,18 +217,37 @@ export class Archetype {
    * 获取此原型中的所有实体
    */
   getEntities(): readonly Entity[] {
-    return this.entities;
+    return Object.freeze([...this.entities]);
   }
 
   /**
-   * Clear all entities and components from archetype
-   * 清空原型中的所有实体和组件
+   * Clear row data but preserve column structure
+   * IMPORTANT: This operation invalidates ALL cached row indices!
+   *
+   * 清空行数据但保留列结构
+   * 重要：此操作会使所有缓存的行索引失效！
+   */
+  clearRows(): void {
+    this.entities.length = 0;
+    this.rowOf.clear();
+
+    // Clear each column's data while preserving structure
+    // 清空每列的数据但保留结构
+    for (const col of this.cols.values()) {
+      col.clear();
+    }
+  }
+
+  /**
+   * Clear all entities and columns completely
+   * IMPORTANT: This operation invalidates ALL cached row indices!
+   *
+   * 完全清空所有实体和列
+   * 重要：此操作会使所有缓存的行索引失效！
    */
   clear(): void {
     this.entities.length = 0;
     this.rowOf.clear();
-    // Note: IColumn doesn't have direct length setter, would need clear method
-    // 注意：IColumn没有直接的length设置器，需要clear方法
     this.cols.clear();
   }
 
@@ -222,6 +276,21 @@ export class Archetype {
         console.error(`Entity ${entity} row mapping mismatch: expected ${i}, got ${mappedRow}`);
         return false;
       }
+    }
+
+    // Check entity uniqueness in array
+    // 检查数组中的实体唯一性
+    const entitySet = new Set(this.entities);
+    if (entitySet.size !== this.entities.length) {
+      console.error(`Duplicate entities detected: ${this.entities.length} entities but only ${entitySet.size} unique`);
+      return false;
+    }
+
+    // Check rowOf size consistency
+    // 检查rowOf大小一致性
+    if (this.rowOf.size !== this.entities.length) {
+      console.error(`rowOf size mismatch: expected ${this.entities.length}, got ${this.rowOf.size}`);
+      return false;
     }
 
     return true;

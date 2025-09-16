@@ -99,6 +99,13 @@ export class ColumnSAB implements IColumn {
     return row;
   }
 
+  emplaceDefault(row: number): void {
+    this.ensureCapacity(row + 1);
+    // Default to all 0; fields are zero-initialized by default in TypedArrays
+    // 默认全0；TypedArray中字段默认零初始化
+    this._len = Math.max(this._len, row + 1);
+  }
+
   swapRemove(row: number): void {
     const last = this._len - 1;
     for (const [name] of this.fields) {
@@ -340,5 +347,30 @@ export class ColumnSAB implements IColumn {
    */
   getRowAccessor(): (row: number, out?: any) => any {
     return (row, out = {}) => this.readToObject(row, out);
+  }
+
+  /**
+   * Clear all row data but preserve column structure
+   * 清空所有行数据但保留列结构
+   */
+  clear(): void {
+    // Reset length but preserve SharedArrayBuffer and views
+    // 重置长度但保留SharedArrayBuffer和视图
+    this._len = 0;
+
+    // Clear all field data to zero (TypedArrays are zero-initialized by default)
+    // 将所有字段数据清零（TypedArray默认零初始化）
+    for (const [name] of this.fields) {
+      const view = this.views[name] as any;
+      if (view && this._cap > 0) {
+        view.fill(0, 0, this._cap);
+      }
+    }
+
+    // Clear write mask
+    // 清空写掩码
+    if (this.writeMask) {
+      this.writeMask.fill(0);
+    }
   }
 }
