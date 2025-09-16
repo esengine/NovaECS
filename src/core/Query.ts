@@ -44,11 +44,30 @@ export interface QueryChunkView {
 }
 
 /**
+ * Row accessor function type for zero-allocation column access
+ * 零分配列访问的行访问器函数类型
+ */
+type RowAccessor = (row: number) => any;
+
+/**
  * Type guard to check if column supports direct data access
  * 类型守卫检查列是否支持直接数据访问
  */
 function hasDirectAccess(col: IColumn): col is IColumn & { getData(): any[] } {
   return 'getData' in col && typeof (col as any).getData === 'function';
+}
+
+/**
+ * Create row accessor for a column
+ * 为列创建行访问器
+ */
+function createRowAccessor(col: IColumn): RowAccessor {
+  if (hasDirectAccess(col)) {
+    const data = col.getData();
+    return (row: number) => data[row];
+  } else {
+    return (row: number) => col.readToObject(row);
+  }
 }
 
 /**
@@ -444,7 +463,7 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
    * Zero-allocation raw column iteration
    * 零分配原始列遍历
    */
-  forEachRaw(callback: (row: number, entities: Entity[], cols: any[][], optionalCols?: (any[] | undefined)[]) => void): void {
+  forEachRaw(callback: (row: number, entities: Entity[], accessors: RowAccessor[], optionalAccessors?: (RowAccessor | undefined)[]) => void): void {
     if (this.required.length === 0) return;
 
     if (this.useArchetype && this.requireTags.length === 0 && this.forbidTags.length === 0) {
@@ -461,15 +480,15 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
   forEach(callback: (entity: Entity, ...components: ReqTuple) => void): void {
     if (this.required.length === 0) return;
 
-    this.forEachRaw((row: number, entities: Entity[], cols: any[][], optionalCols?: (any[] | undefined)[]) => {
+    this.forEachRaw((row: number, entities: Entity[], accessors: RowAccessor[], optionalAccessors?: (RowAccessor | undefined)[]) => {
       const entity = entities[row];
 
-      // Extract required components
-      const requiredComponents = cols.map(col => col[row]);
+      // Extract required components using accessors
+      const requiredComponents = accessors.map(accessor => accessor(row));
 
-      // Extract optional components
-      const optionalComponents = optionalCols ?
-        optionalCols.map(col => col ? col[row] : undefined) : [];
+      // Extract optional components using accessors
+      const optionalComponents = optionalAccessors ?
+        optionalAccessors.map(accessor => accessor ? accessor(row) : undefined) : [];
 
       // Combine required and optional components
       const allComponents = [...requiredComponents, ...optionalComponents];
@@ -482,7 +501,7 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
    * Raw archetype iteration
    * 原始原型迭代
    */
-  private forEachArchetypeRaw(callback: (row: number, entities: Entity[], cols: any[][], optionalCols?: (any[] | undefined)[]) => void): void {
+  private forEachArchetypeRaw(callback: (row: number, entities: Entity[], accessors: RowAccessor[], optionalAccessors?: (RowAccessor | undefined)[]) => void): void {
     this.rebuildPlanIfNeeded();
     this.buildTagMasksIfNeeded();
     const plan = this.plan;
@@ -496,35 +515,12 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
       for (const entry of plan.entries) {
         const { ents, cols, optionalCols, changedRows } = entry;
 
-        // Convert IColumn to raw data arrays for zero-allocation access
-        const rawCols: any[][] = cols.map(col => {
-          if (hasDirectAccess(col)) {
-            return col.getData();
-          } else {
-            const length = col.length();
-            const rawData: any[] = new Array(length);
-            for (let i = 0; i < length; i++) {
-              rawData[i] = col.readToObject(i);
-            }
-            return rawData;
-          }
-        });
+        // Create row accessors for zero-allocation access
+        const accessors: RowAccessor[] = cols.map(createRowAccessor);
 
-        // Convert optional columns
-        const rawOptionalCols: (any[] | undefined)[] | undefined = optionalCols.length > 0 ?
-          optionalCols.map(col => {
-            if (!col) return undefined;
-            if (hasDirectAccess(col)) {
-              return col.getData();
-            } else {
-              const length = col.length();
-              const rawData: any[] = new Array(length);
-              for (let i = 0; i < length; i++) {
-                rawData[i] = col.readToObject(i);
-              }
-              return rawData;
-            }
-          }) : undefined;
+        // Create optional column accessors
+        const optionalAccessors: (RowAccessor | undefined)[] | undefined = optionalCols.length > 0 ?
+          optionalCols.map(col => col ? createRowAccessor(col) : undefined) : undefined;
 
         // Determine which rows to iterate
         const rowsToProcess = changedRows || new Set(Array.from({length: ents.length}, (_, i) => i));
@@ -555,7 +551,7 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
             }
           }
 
-          callback(row, ents, rawCols, rawOptionalCols);
+          callback(row, ents, accessors, optionalAccessors);
         }
       }
     } finally {
@@ -568,7 +564,7 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
    * Raw sparse store iteration
    * 原始稀疏存储迭代
    */
-  private forEachSparseStoreRaw(callback: (row: number, entities: Entity[], cols: any[][], optionalCols?: (any[] | undefined)[]) => void): void {
+  private forEachSparseStoreRaw(callback: (row: number, entities: Entity[], accessors: RowAccessor[], optionalAccessors?: (RowAccessor | undefined)[]) => void): void {
     this.buildTagMasksIfNeeded();
 
     let anchorType = this.required[0];
@@ -665,20 +661,15 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
           optionalValues[i] = store ? store.get(entity) : undefined;
         }
 
-        // Add to temporary arrays
+        // Create temporary accessors for single entity
         tempEntities[0] = entity;
-        for (let i = 0; i < values.length; i++) {
-          tempCols[i][0] = values[i];
-        }
-
-        for (let i = 0; i < optionalValues.length; i++) {
-          if (tempOptionalCols[i]) {
-            tempOptionalCols[i]![0] = optionalValues[i];
-          }
-        }
+        const tempAccessors: RowAccessor[] = values.map(value => () => value);
+        const tempOptionalAccessors: (RowAccessor | undefined)[] | undefined =
+          this.optionalTypes.length > 0 ?
+            optionalValues.map(value => value !== undefined ? () => value : undefined) : undefined;
 
         // Call callback with single entity batch
-        callback(0, tempEntities, tempCols, this.optionalTypes.length > 0 ? tempOptionalCols : undefined);
+        callback(0, tempEntities, tempAccessors, tempOptionalAccessors);
       });
     } finally {
       this.world._leaveIteration();
@@ -724,11 +715,11 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
 
     // Use try-catch for early exit
     try {
-      this.forEachRaw((row: number, entities: Entity[], cols: any[][], optionalCols?: (any[] | undefined)[]) => {
+      this.forEachRaw((row: number, entities: Entity[], accessors: RowAccessor[], optionalAccessors?: (RowAccessor | undefined)[]) => {
         const entity = entities[row];
-        const requiredComponents = cols.map(col => col[row]);
-        const optionalComponents = optionalCols ?
-          optionalCols.map(col => col ? col[row] : undefined) : [];
+        const requiredComponents = accessors.map(accessor => accessor(row));
+        const optionalComponents = optionalAccessors ?
+          optionalAccessors.map(accessor => accessor ? accessor(row) : undefined) : [];
         const allComponents = [...requiredComponents, ...optionalComponents];
 
         if (!predicate || predicate(entity, ...allComponents as ReqTuple)) {
@@ -756,11 +747,11 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
 
     // Use try-catch for early exit
     try {
-      this.forEachRaw((row: number, entities: Entity[], cols: any[][], optionalCols?: (any[] | undefined)[]) => {
+      this.forEachRaw((row: number, entities: Entity[], accessors: RowAccessor[], optionalAccessors?: (RowAccessor | undefined)[]) => {
         const entity = entities[row];
-        const requiredComponents = cols.map(col => col[row]);
-        const optionalComponents = optionalCols ?
-          optionalCols.map(col => col ? col[row] : undefined) : [];
+        const requiredComponents = accessors.map(accessor => accessor(row));
+        const optionalComponents = optionalAccessors ?
+          optionalAccessors.map(accessor => accessor ? accessor(row) : undefined) : [];
         const allComponents = [...requiredComponents, ...optionalComponents];
 
         result = [entity, ...allComponents] as [Entity, ...ReqTuple];
