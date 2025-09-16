@@ -19,6 +19,8 @@ import { Recorder } from '../replay/Recorder';
 import { TagBitSet, TagMaskManager } from './TagBitSet';
 import { PRNG } from '../determinism/PRNG';
 import type { Prefab, SpawnOptions } from '../prefab/Prefab';
+import { f } from '../math/fixed';
+import type { FX } from '../math/fixed';
 
 /**
  * Component base interface (placeholder)
@@ -920,5 +922,54 @@ export class World {
         query._notifyEntityChanged(entity);
       }
     }
+  }
+
+  // ================== Fixed-Point Physics Extensions ==================
+  // 定点物理引擎扩展
+
+  /**
+   * Fixed timestep for physics (in seconds)
+   * 物理引擎的固定时间步长（秒）
+   */
+  private fixedDt = 1 / 60; // Default 60 FPS
+
+  /**
+   * Internal fixed timestep cache (fixed-point)
+   * 内部固定时间步长缓存（定点）
+   */
+  private _fixedDtFX: FX | undefined;
+
+  /**
+   * Get fixed timestep in fixed-point format
+   * 获取定点格式的固定时间步长
+   */
+  getFixedDtFX(): FX {
+    // Use cached value if available
+    // 如果可用，使用缓存值
+    if (this._fixedDtFX !== undefined) {
+      return this._fixedDtFX;
+    }
+
+    // Convert to fixed-point and cache
+    // 转换为定点数并缓存
+    this._fixedDtFX = f(this.fixedDt);
+    return this._fixedDtFX;
+  }
+
+  /**
+   * Set fixed timestep for physics (in seconds)
+   * 设置物理引擎的固定时间步长（秒）
+   */
+  setFixedDt(dtSeconds: number): void {
+    this.fixedDt = dtSeconds;
+    this._fixedDtFX = f(dtSeconds);
+  }
+
+  /**
+   * Get fixed timestep in seconds
+   * 获取固定时间步长（秒）
+   */
+  getFixedDt(): number {
+    return this.fixedDt;
   }
 }

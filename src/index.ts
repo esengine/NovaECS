@@ -159,3 +159,12 @@ export * from './replay';
 
 // Core Types
 export * from './utils/Types';
+
+// Fixed-Point Math
+export * from './math/fixed';
+
+// Physics Components
+export { Body2D, createStaticBody, createDynamicBody } from './components/Body2D';
+
+// Physics Systems
+export { IntegrateVelocitiesSystem } from './systems/IntegrateVelocitiesSystem';
