@@ -469,7 +469,16 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
     if (this.useArchetype && this.requireTags.length === 0 && this.forbidTags.length === 0) {
       this.forEachArchetypeRaw(callback);
     } else {
-      this.forEachSparseStoreRaw(callback);
+      // Sparse store path: convert to single-entity semantics
+      this.forEachSparseStore((entity, ...components) => {
+        // Create single-entity accessors for forEachRaw interface
+        const accessors: RowAccessor[] = components.slice(0, this.required.length).map(comp => () => comp);
+        const optionalAccessors: (RowAccessor | undefined)[] | undefined =
+          this.optionalTypes.length > 0 ?
+            components.slice(this.required.length).map(comp => comp !== undefined ? () => comp : undefined) : undefined;
+
+        callback(0, [entity], accessors, optionalAccessors);
+      });
     }
   }
 
@@ -480,21 +489,27 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
   forEach(callback: (entity: Entity, ...components: ReqTuple) => void): void {
     if (this.required.length === 0) return;
 
-    this.forEachRaw((row: number, entities: Entity[], accessors: RowAccessor[], optionalAccessors?: (RowAccessor | undefined)[]) => {
-      const entity = entities[row];
+    if (this.useArchetype && this.requireTags.length === 0 && this.forbidTags.length === 0) {
+      // Use archetype path with forEachRaw
+      this.forEachRaw((row: number, entities: Entity[], accessors: RowAccessor[], optionalAccessors?: (RowAccessor | undefined)[]) => {
+        const entity = entities[row];
 
-      // Extract required components using accessors
-      const requiredComponents = accessors.map(accessor => accessor(row));
+        // Extract required components using accessors
+        const requiredComponents = accessors.map(accessor => accessor(row));
 
-      // Extract optional components using accessors
-      const optionalComponents = optionalAccessors ?
-        optionalAccessors.map(accessor => accessor ? accessor(row) : undefined) : [];
+        // Extract optional components using accessors
+        const optionalComponents = optionalAccessors ?
+          optionalAccessors.map(accessor => accessor ? accessor(row) : undefined) : [];
 
-      // Combine required and optional components
-      const allComponents = [...requiredComponents, ...optionalComponents];
+        // Combine required and optional components
+        const allComponents = [...requiredComponents, ...optionalComponents];
 
-      callback(entity, ...allComponents as ReqTuple);
-    });
+        callback(entity, ...allComponents as ReqTuple);
+      });
+    } else {
+      // Use sparse store path with direct entity callback
+      this.forEachSparseStore(callback);
+    }
   }
 
   /**
@@ -561,10 +576,10 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
 
 
   /**
-   * Raw sparse store iteration
-   * 原始稀疏存储迭代
+   * Sparse store iteration with direct per-entity callback
+   * 稀疏存储迭代，直接的单实体回调
    */
-  private forEachSparseStoreRaw(callback: (row: number, entities: Entity[], accessors: RowAccessor[], optionalAccessors?: (RowAccessor | undefined)[]) => void): void {
+  private forEachSparseStore(callback: (entity: Entity, ...components: ReqTuple) => void): void {
     this.buildTagMasksIfNeeded();
 
     let anchorType = this.required[0];
@@ -585,19 +600,6 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
 
     this.world._enterIteration();
     try {
-      const tempEntities: Entity[] = [];
-      const tempCols: any[][] = [];
-      const tempOptionalCols: (any[] | undefined)[] = [];
-
-      // Pre-allocate columns for reuse
-      for (let i = 0; i < this.required.length; i++) {
-        tempCols[i] = [];
-      }
-
-      for (let i = 0; i < this.optionalTypes.length; i++) {
-        tempOptionalCols[i] = [];
-      }
-
       anchorStore.forEach((entity, _anchorValue) => {
         // Check entity is alive and enabled
         if (!this.world.isAlive(entity) || !this.world.isEnabled(entity)) {
@@ -605,7 +607,7 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
         }
 
         // Check required components and collect instances
-        const values: unknown[] = new Array(this.required.length);
+        const requiredComponents: unknown[] = new Array(this.required.length);
         let hasAll = true;
 
         for (let i = 0; i < this.required.length; i++) {
@@ -620,7 +622,7 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
             hasAll = false;
             break;
           }
-          values[i] = value;
+          requiredComponents[i] = value;
         }
 
         if (!hasAll) return;
@@ -654,22 +656,16 @@ export class Query<ReqTuple extends unknown[] = unknown[]> {
         }
 
         // Collect optional components
-        const optionalValues: (unknown | undefined)[] = [];
+        const optionalComponents: (unknown | undefined)[] = [];
         for (let i = 0; i < this.optionalTypes.length; i++) {
           const type = this.optionalTypes[i];
           const store = this.world.getStore(type);
-          optionalValues[i] = store ? store.get(entity) : undefined;
+          optionalComponents[i] = store ? store.get(entity) : undefined;
         }
 
-        // Create temporary accessors for single entity
-        tempEntities[0] = entity;
-        const tempAccessors: RowAccessor[] = values.map(value => () => value);
-        const tempOptionalAccessors: (RowAccessor | undefined)[] | undefined =
-          this.optionalTypes.length > 0 ?
-            optionalValues.map(value => value !== undefined ? () => value : undefined) : undefined;
-
-        // Call callback with single entity batch
-        callback(0, tempEntities, tempAccessors, tempOptionalAccessors);
+        // Combine components and call callback directly
+        const allComponents = [...requiredComponents, ...optionalComponents];
+        callback(entity, ...allComponents as ReqTuple);
       });
     } finally {
       this.world._leaveIteration();
