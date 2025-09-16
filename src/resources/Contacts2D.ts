@@ -60,6 +60,18 @@ export interface Contact1 {
    * 用于warm-start的累积切向冲量
    */
   jt: FX;
+
+  /**
+   * Speculative contact flag (1 = speculative, 0 or undefined = regular)
+   * 推测接触标志（1=推测接触，0或undefined=常规接触）
+   */
+  speculative?: 0 | 1;
+
+  /**
+   * Time of impact in frame-relative units [0..ONE]
+   * 帧内冲击时间，范围[0..ONE]，即(t_hit/dt)
+   */
+  toi?: FX;
 }
 
 /**

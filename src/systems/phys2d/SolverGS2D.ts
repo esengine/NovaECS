@@ -156,7 +156,14 @@ export const SolverGS2D = system(
       // Combined material properties (deterministic: average)
       // 组合材质属性（确定性：平均值）
       const mu = div(add(ba.friction, bb.friction), f(2));
-      const e = ba.restitution > bb.restitution ? ba.restitution : bb.restitution;
+      let e = ba.restitution > bb.restitution ? ba.restitution : bb.restitution;
+
+      // Speculative contacts should not bounce (prevent premature rebound)
+      // 推测接触不应产生回弹（防止过早反弹）
+      const isSpeculative = (c as any).speculative === 1;
+      if (isSpeculative) {
+        e = ZERO; // No restitution for speculative contacts
+      }
 
       precomp[i] = { rax, ray, rbx, rby, tx, ty, mN, mT, mu, e };
     }
