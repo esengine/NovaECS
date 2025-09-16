@@ -165,6 +165,15 @@ export * from './math/fixed';
 
 // Physics Components
 export { Body2D, createStaticBody, createDynamicBody } from './components/Body2D';
+export { ShapeCircle, createCircleShape, getCircleArea, pointInCircle, circleDistance } from './components/ShapeCircle';
+export { AABB2D, aabbOverlap, aabbArea } from './components/AABB2D';
+export { Guid, createGuid, createGuidFromValues, createZeroGuid, compareGuid, guidEquals, isZeroGuid } from './components/Guid';
+
+// Physics Resources
+export { BroadphasePairs } from './resources/BroadphasePairs';
+export type { Pair } from './resources/BroadphasePairs';
 
 // Physics Systems
 export { IntegrateVelocitiesSystem } from './systems/IntegrateVelocitiesSystem';
+export { SyncAABBSystem, SyncAABBSystemDirect } from './systems/phys2d/SyncAABBSystem';
+export { BroadphaseSAP } from './systems/phys2d/BroadphaseSAP';
