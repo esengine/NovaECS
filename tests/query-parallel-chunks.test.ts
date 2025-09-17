@@ -204,7 +204,7 @@ describe('Query Parallel Chunks', () => {
       for (let i = 0; i < 6; i++) { // Modify half of the entities
         const entities = world.query(Position, Velocity).toArray();
         const entity = entities[i][0];
-        world.setComponent(entity, Position, { x: i * 100, y: i * 50 });
+        world.replaceComponent(entity, Position, { x: i * 100, y: i * 50 });
       }
 
       const chunks = world.query(Position, Velocity)
@@ -341,7 +341,7 @@ describe('Query Parallel Chunks', () => {
       entitiesToModify.forEach(index => {
         if (index < allEntities.length) {
           const entity = allEntities[index][0];
-          world.setComponent(entity, Position, { x: index * 1000, y: index * 500 });
+          world.replaceComponent(entity, Position, { x: index * 1000, y: index * 500 });
         }
       });
 

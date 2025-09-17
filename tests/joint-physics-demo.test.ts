@@ -166,7 +166,7 @@ describe('Distance Joint Physics Demo', () => {
     // Apply force to body A (push right)
     const bodyDataA = world.getComponent(bodyA, Body2D) as Body2D;
     bodyDataA.vx = f(2.0); // Push A to the right
-    world.setComponent(bodyA, Body2D, bodyDataA);
+    world.replaceComponent(bodyA, Body2D, bodyDataA);
 
     const initialStateA = captureState().bodyA;
     const initialStateB = captureState().bodyB;
@@ -197,7 +197,7 @@ describe('Distance Joint Physics Demo', () => {
     const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
     joint.gamma = ZERO;
     joint.beta = f(0.2); // Strong position correction
-    world.setComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, JointDistance2D, joint);
 
     // Initialize
     runPhysicsStep();
@@ -205,7 +205,7 @@ describe('Distance Joint Physics Demo', () => {
     // Apply strong force to body A
     const bodyDataA = world.getComponent(bodyA, Body2D) as Body2D;
     bodyDataA.vx = f(5.0);
-    world.setComponent(bodyA, Body2D, bodyDataA);
+    world.replaceComponent(bodyA, Body2D, bodyDataA);
 
     // Run physics
     for (let i = 0; i < 15; i++) {
@@ -227,7 +227,7 @@ describe('Distance Joint Physics Demo', () => {
     const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
     joint.gamma = f(0.3);
     joint.beta = f(0.05); // Weaker position correction
-    world.setComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, JointDistance2D, joint);
 
     // Initialize
     runCompletePhysicsStep();
@@ -235,7 +235,7 @@ describe('Distance Joint Physics Demo', () => {
     // Apply strong force to body A
     const bodyDataA = world.getComponent(bodyA, Body2D) as Body2D;
     bodyDataA.vx = f(10.0); // Stronger force
-    world.setComponent(bodyA, Body2D, bodyDataA);
+    world.replaceComponent(bodyA, Body2D, bodyDataA);
 
     // Run physics
     for (let i = 0; i < 15; i++) {
@@ -258,7 +258,7 @@ describe('Distance Joint Physics Demo', () => {
     const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
     joint.breakImpulse = f(5.0); // Break threshold
     joint.gamma = ZERO; // Hard constraint for maximum impulse
-    world.setComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, JointDistance2D, joint);
 
     // Initialize
     runPhysicsStep();
@@ -266,7 +266,7 @@ describe('Distance Joint Physics Demo', () => {
     // Apply very strong force to body A (should break the joint)
     const bodyDataA = world.getComponent(bodyA, Body2D) as Body2D;
     bodyDataA.vx = f(50.0); // Very strong force
-    world.setComponent(bodyA, Body2D, bodyDataA);
+    world.replaceComponent(bodyA, Body2D, bodyDataA);
 
     let breakEventFired = false;
     let frameWhenBroken = 0;
@@ -340,7 +340,7 @@ describe('Distance Joint Physics Demo', () => {
       const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
       joint.gamma = f(0.05);
       joint.breakImpulse = f(5.0);
-      world.setComponent(jointEntity, JointDistance2D, joint);
+      world.replaceComponent(jointEntity, JointDistance2D, joint);
 
       // Initialize
       runPhysicsStep();
@@ -348,7 +348,7 @@ describe('Distance Joint Physics Demo', () => {
       // Apply force
       const bodyDataA = world.getComponent(bodyA, Body2D) as Body2D;
       bodyDataA.vx = f(3.0);
-      world.setComponent(bodyA, Body2D, bodyDataA);
+      world.replaceComponent(bodyA, Body2D, bodyDataA);
 
       // Run deterministic simulation
       for (let step = 0; step < 20; step++) {
@@ -397,7 +397,7 @@ describe('Distance Joint Physics Demo', () => {
       const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
       joint.breakImpulse = f(5.0);
       joint.gamma = ZERO;
-      world.setComponent(jointEntity, JointDistance2D, joint);
+      world.replaceComponent(jointEntity, JointDistance2D, joint);
 
       // Initialize
       runPhysicsStep();
@@ -405,7 +405,7 @@ describe('Distance Joint Physics Demo', () => {
       // Apply same strong force as successful test
       const bodyDataA = world.getComponent(bodyA, Body2D) as Body2D;
       bodyDataA.vx = f(50.0);
-      world.setComponent(bodyA, Body2D, bodyDataA);
+      world.replaceComponent(bodyA, Body2D, bodyDataA);
 
       // Run for a few steps and capture final state
       for (let i = 0; i < 10; i++) {
@@ -444,7 +444,7 @@ describe('Distance Joint Physics Demo', () => {
     joint.gamma = f(0.02); // Slightly soft
     joint.beta = f(0.15);  // Moderate position correction
     joint.breakImpulse = f(8.0); // Moderate break threshold
-    world.setComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, JointDistance2D, joint);
 
     const timeline: Array<{
       frame: number;
@@ -481,7 +481,7 @@ describe('Distance Joint Physics Demo', () => {
     // Phase 2: Gentle push
     const bodyDataA = world.getComponent(bodyA, Body2D) as Body2D;
     bodyDataA.vx = f(2.0);
-    world.setComponent(bodyA, Body2D, bodyDataA);
+    world.replaceComponent(bodyA, Body2D, bodyDataA);
 
     for (let i = 0; i < 8; i++) {
       runPhysicsStep();
@@ -494,7 +494,7 @@ describe('Distance Joint Physics Demo', () => {
     // Phase 3: Strong pull (should break joint)
     const bodyDataA2 = world.getComponent(bodyA, Body2D) as Body2D;
     bodyDataA2.vx = f(50.0); // Much stronger force
-    world.setComponent(bodyA, Body2D, bodyDataA2);
+    world.replaceComponent(bodyA, Body2D, bodyDataA2);
 
     let jointBrokeAt = -1;
     for (let i = 0; i < 15; i++) {

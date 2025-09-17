@@ -110,7 +110,7 @@ export const JointSolver2D = system(
         joint.initialized = 1;
 
         // Update component in world
-        world.setComponent(jointEntity, JointDistance2D, joint);
+        world.replaceComponent(jointEntity, JointDistance2D, joint);
       }
 
       // Skip if rest length is still invalid
@@ -138,14 +138,14 @@ export const JointSolver2D = system(
             ba.vy = sub(ba.vy, mul(Py, ba.invMass));
             const dwA = mul(cross_r_v(rax, ray, Px, Py), ba.invI);
             ba.w = sub(ba.w, dwA);
-            world.setComponent(joint.a, Body2D, ba);
+            world.replaceComponent(joint.a, Body2D, ba);
           }
           if (!isStatic(bb)) {
             bb.vx = add(bb.vx, mul(Px, bb.invMass));
             bb.vy = add(bb.vy, mul(Py, bb.invMass));
             const dwB = mul(cross_r_v(rbx, rby, Px, Py), bb.invI);
             bb.w = add(bb.w, dwB);
-            world.setComponent(joint.b, Body2D, bb);
+            world.replaceComponent(joint.b, Body2D, bb);
           }
         }
       }
@@ -255,13 +255,13 @@ export const JointSolver2D = system(
             ba.vx = sub(ba.vx, mul(Px, ba.invMass));
             ba.vy = sub(ba.vy, mul(Py, ba.invMass));
             ba.w = sub(ba.w, mul(cross_r_v(pc.rax, pc.ray, Px, Py), ba.invI));
-            world.setComponent(joint.a, Body2D, ba);
+            world.replaceComponent(joint.a, Body2D, ba);
           }
           if (!isStatic(bb)) {
             bb.vx = add(bb.vx, mul(Px, bb.invMass));
             bb.vy = add(bb.vy, mul(Py, bb.invMass));
             bb.w = add(bb.w, mul(cross_r_v(pc.rbx, pc.rby, Px, Py), bb.invI));
-            world.setComponent(joint.b, Body2D, bb);
+            world.replaceComponent(joint.b, Body2D, bb);
           }
           joint.jn = jnNew;
 
@@ -276,7 +276,7 @@ export const JointSolver2D = system(
           }
 
           // Update component in world
-          world.setComponent(jointEntity, JointDistance2D, joint);
+          world.replaceComponent(jointEntity, JointDistance2D, joint);
         }
       }
     }

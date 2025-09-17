@@ -65,8 +65,8 @@ const wakeBody = (world: any, entityId: number, sleep: Sleep2D, body: Body2D): v
     body.awake = 1;
 
     // Update components in world
-    world.setComponent(entityId, Sleep2D, sleep);
-    world.setComponent(entityId, Body2D, body);
+    world.replaceComponent(entityId, Sleep2D, sleep);
+    world.replaceComponent(entityId, Body2D, body);
   }
 };
 
@@ -182,7 +182,7 @@ export const BuildJointsDistance2D = system(
         jd.initialized = 1;
 
         // Update component in world
-        world.setComponent(jid, JointDistance2D, jd);
+        world.replaceComponent(jid, JointDistance2D, jd);
       }
 
       // Skip if rest is still invalid

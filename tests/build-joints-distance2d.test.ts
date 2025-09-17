@@ -176,8 +176,8 @@ describe('BuildJointsDistance2D System', () => {
     body1.invI = ZERO;
     body2.invMass = ZERO;
     body2.invI = ZERO;
-    world.setComponent(bodyA, Body2D, body1);
-    world.setComponent(bodyB, Body2D, body2);
+    world.replaceComponent(bodyA, Body2D, body1);
+    world.replaceComponent(bodyB, Body2D, body2);
 
     BuildJointsDistance2D.fn(ctx);
 
@@ -227,7 +227,7 @@ describe('BuildJointsDistance2D System', () => {
     const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
     joint.rest = f(-1); // Auto-initialize flag
     joint.initialized = 0;
-    world.setComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, JointDistance2D, joint);
 
     BuildJointsDistance2D.fn(ctx);
 
@@ -260,8 +260,8 @@ describe('BuildJointsDistance2D System', () => {
     const body2 = world.getComponent(bodyB, Body2D) as Body2D;
     body1.px = f(-0.5);
     body2.px = f(0.5);
-    world.setComponent(bodyA, Body2D, body1);
-    world.setComponent(bodyB, Body2D, body2);
+    world.replaceComponent(bodyA, Body2D, body1);
+    world.replaceComponent(bodyB, Body2D, body2);
 
     BuildJointsDistance2D.fn(ctx);
 
@@ -276,7 +276,7 @@ describe('BuildJointsDistance2D System', () => {
   test('should handle constraint softening parameter', () => {
     const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
     joint.gamma = f(0.1);
-    world.setComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, JointDistance2D, joint);
 
     BuildJointsDistance2D.fn(ctx);
 
@@ -291,7 +291,7 @@ describe('BuildJointsDistance2D System', () => {
   test('should handle breakable joints', () => {
     const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
     joint.breakImpulse = f(10.0);
-    world.setComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, JointDistance2D, joint);
 
     BuildJointsDistance2D.fn(ctx);
 
@@ -309,7 +309,7 @@ describe('BuildJointsDistance2D System', () => {
     joint.ay = f(0.25);
     joint.bx = f(-0.3);
     joint.by = f(-0.15);
-    world.setComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, JointDistance2D, joint);
 
     BuildJointsDistance2D.fn(ctx);
 
@@ -330,8 +330,8 @@ describe('BuildJointsDistance2D System', () => {
     body1.py = f(0.0);
     body2.px = f(1.0);
     body2.py = f(1.0);
-    world.setComponent(bodyA, Body2D, body1);
-    world.setComponent(bodyB, Body2D, body2);
+    world.replaceComponent(bodyA, Body2D, body1);
+    world.replaceComponent(bodyB, Body2D, body2);
 
     BuildJointsDistance2D.fn(ctx);
 
@@ -374,8 +374,8 @@ describe('BuildJointsDistance2D System', () => {
     body1.py = ZERO;
     body2.px = ZERO;
     body2.py = ZERO;
-    world.setComponent(bodyA, Body2D, body1);
-    world.setComponent(bodyB, Body2D, body2);
+    world.replaceComponent(bodyA, Body2D, body1);
+    world.replaceComponent(bodyB, Body2D, body2);
 
     BuildJointsDistance2D.fn(ctx);
 
@@ -392,7 +392,7 @@ describe('BuildJointsDistance2D System', () => {
     const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
     joint.rest = f(-2); // Invalid rest that won't be auto-initialized
     joint.initialized = 1; // Already initialized, so won't retry
-    world.setComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, JointDistance2D, joint);
 
     BuildJointsDistance2D.fn(ctx);
 

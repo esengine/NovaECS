@@ -3,6 +3,20 @@ import { getGuidAllocator } from '../determinism/GuidAllocator';
 import type { World } from '../core/World';
 
 /**
+ * Generate cryptographically secure random 32-bit unsigned integer
+ * 生成加密安全的32位无符号整数
+ */
+function randomU32(): number {
+  if (typeof crypto !== 'undefined' && 'getRandomValues' in crypto) {
+    const a = new Uint32Array(1);
+    crypto.getRandomValues(a);
+    return a[0] >>> 0;
+  }
+  // 退化：仍保证 32 位范围
+  return (Math.random() * 0x100000000) >>> 0;
+}
+
+/**
  * GUID component for stable entity identification
  * GUID组件用于稳定的实体标识
  *
@@ -27,14 +41,14 @@ export class Guid {
    * Original string value for backward compatibility
    * 原始字符串值用于向后兼容
    */
-  _originalValue?: string;
+  _originalValue?: string | undefined;
 
   constructor(hiOrValue?: number | string, lo?: number) {
     if (hiOrValue === undefined && lo === undefined) {
       // Generate random GUID for backward compatibility
       // 为向后兼容生成随机GUID
-      this.hi = (Math.random() * 0x100000000) >>> 0;
-      this.lo = (Math.random() * 0x100000000) >>> 0;
+      this.hi = randomU32();
+      this.lo = randomU32();
     } else if (typeof hiOrValue === 'string') {
       // Store original string for backward compatibility
       // 存储原始字符串用于向后兼容
@@ -141,11 +155,11 @@ export function createZeroGuid(): Guid {
  * 比较两个Guid的顺序（返回-1、0或1）
  */
 export function compareGuid(a: Guid, b: Guid): number {
-  const hiDiff = (a.hi >>> 0) - (b.hi >>> 0);
-  if (hiDiff !== 0) {
-    return hiDiff;
-  }
-  return (a.lo >>> 0) - (b.lo >>> 0);
+  const ahi = a.hi >>> 0, bhi = b.hi >>> 0;
+  if (ahi !== bhi) return ahi < bhi ? -1 : 1;
+  const alo = a.lo >>> 0, blo = b.lo >>> 0;
+  if (alo !== blo) return alo < blo ? -1 : 1;
+  return 0;
 }
 
 /**

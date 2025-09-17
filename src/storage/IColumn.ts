@@ -84,6 +84,13 @@ export interface IColumn {
 
   /** Get zero-allocation row accessor for debugging/Raw traversal 获取零分配行访问器，用于调试/Raw遍历 */
   getRowAccessor?(): (row: number, out?: any) => any;
+
+  /** —— View API (SAB backends only) 视图API（仅SAB后端） —— */
+  /** Get zero-copy writable view for direct field access 获取零拷贝可写视图用于直接字段访问 */
+  view?<T = any>(row: number): T;
+
+  /** Get zero-copy readonly view for safe traversal and debugging 获取零拷贝只读视图用于安全遍历和调试 */
+  viewReadonly?<T = any>(row: number): T;
 }
 
 /**

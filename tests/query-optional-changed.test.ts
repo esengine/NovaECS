@@ -76,7 +76,7 @@ describe('Query optional() and changed() functionality', () => {
     world.beginFrame();
 
     // 修改entity1的Position
-    world.setComponent(entity1, Position, { x: 15, y: 25 });
+    world.replaceComponent(entity1, Position, { x: 15, y: 25 });
 
     const results: number[] = [];
 
@@ -105,8 +105,8 @@ describe('Query optional() and changed() functionality', () => {
     world.beginFrame();
 
     // 修改两个实体的Position
-    world.setComponent(entity1, Position, { x: 15, y: 25 });
-    world.setComponent(entity2, Position, { x: 35, y: 45 });
+    world.replaceComponent(entity1, Position, { x: 15, y: 25 });
+    world.replaceComponent(entity2, Position, { x: 35, y: 45 });
 
     const results: Array<{
       entity: number;

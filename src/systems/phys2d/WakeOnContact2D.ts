@@ -23,14 +23,14 @@ import type { Entity } from '../../utils/Types';
  * Wake up a sleeping body and mark it as changed
  * 唤醒睡眠刚体并标记为已变更
  */
-function wake(world: { setComponent: (entity: Entity, ctor: any, data: any) => void; getComponent: (entity: Entity, ctor: any) => any }, entity: Entity, sleep: Sleep2D): void {
+function wake(world: { replaceComponent: (entity: Entity, ctor: any, data: any) => void; getComponent: (entity: Entity, ctor: any) => any }, entity: Entity, sleep: Sleep2D): void {
   if (sleep.sleeping) {
-    // Create new sleep state and update via setComponent
+    // Create new sleep state and update via replaceComponent
     const newSleep = new Sleep2D();
     newSleep.sleeping = 0;
     newSleep.timer = 0 as FX;
     newSleep.keepAwake = sleep.keepAwake; // Preserve keepAwake flag
-    world.setComponent(entity, Sleep2D, newSleep);
+    world.replaceComponent(entity, Sleep2D, newSleep);
 
     // Update Body2D awake state for consistency
     const body = world.getComponent(entity, Body2D) as Body2D | undefined;
@@ -39,7 +39,7 @@ function wake(world: { setComponent: (entity: Entity, ctor: any, data: any) => v
       // Copy all body properties
       Object.assign(newBody, body);
       newBody.awake = 1;
-      world.setComponent(entity, Body2D, newBody);
+      world.replaceComponent(entity, Body2D, newBody);
     }
   }
 }

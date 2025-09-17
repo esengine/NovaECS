@@ -79,7 +79,7 @@ function spawnBatch(
 
       // Set component with custom epoch for change tracking
       // 使用自定义epoch设置组件用于变更追踪
-      world.setComponentWithEpoch(entities[i], comp.ctor, value, epoch);
+      world.replaceComponentWithEpoch(entities[i], comp.ctor, value, epoch);
     }
   }
 

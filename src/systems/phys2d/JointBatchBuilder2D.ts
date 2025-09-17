@@ -95,7 +95,7 @@ export const JointBatchBuilder2D = system(
 
         joint.rest = currentDist;
         joint.initialized = 1;
-        world.setComponent(jointEntity, JointDistance2D, joint);
+        world.replaceComponent(jointEntity, JointDistance2D, joint);
       }
 
       // Skip if rest length is still invalid

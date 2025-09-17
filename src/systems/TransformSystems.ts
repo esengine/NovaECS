@@ -83,7 +83,7 @@ export const TransformUpdateSystem = system('TransformUpdate', (ctx) => {
 
       const worldTransform = world.getComponent(e, WorldTransform)!;
       worldTransform.m = mat;
-      world.setComponent(e, WorldTransform, worldTransform);
+      world.replaceComponent(e, WorldTransform, worldTransform);
       world.markChanged(e, WorldTransform);
       if (hasDirty) {
         cmd.remove(e, DirtyTransform);
@@ -125,7 +125,7 @@ export function setLocalTransform(
     if (sy !== undefined) localTransform.sy = sy;
 
     // Write the modified component back to storage
-    world.setComponent(entity, LocalTransform, localTransform);
+    world.replaceComponent(entity, LocalTransform, localTransform);
 
     // Mark as changed and add dirty flag
     world.markChanged(entity, LocalTransform);

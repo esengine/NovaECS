@@ -49,6 +49,10 @@ export class ColumnSAB implements IColumn {
   private writeMaskBuf?: SharedArrayBuffer;
   private writeMask?: Uint8Array; // bitset: one bit per row 位集：一行一位
 
+  /** Active view caches for O(1) lookups 活视图缓存，用于O(1)查询 */
+  private typeMap: Record<string, FieldType> = Object.create(null);
+  private viewMap: Record<string, Float32Array|Float64Array|Int32Array|Uint32Array|Int16Array|Uint16Array|Int8Array|Uint8Array> = Object.create(null);
+
   constructor(schema: ComponentSchema, initialCap = 256) {
     this.fields = Object.entries(schema.fields);
     this.growTo(Math.max(1, initialCap));
@@ -86,6 +90,20 @@ export class ColumnSAB implements IColumn {
     this.writeMaskBuf = nbuf; this.writeMask = nview;
 
     this._cap = newCap;
+    this.rebuildMaps();
+  }
+
+  /**
+   * Rebuild type and view maps for O(1) field access
+   * 重建类型和视图映射以实现O(1)字段访问
+   */
+  private rebuildMaps(): void {
+    this.typeMap = Object.create(null);
+    this.viewMap = Object.create(null);
+    for (const [name, type] of this.fields) {
+      this.typeMap[name] = type;
+      this.viewMap[name] = this.views[name];
+    }
   }
 
   ensureCapacity(rows: number) {
@@ -244,6 +262,109 @@ export class ColumnSAB implements IColumn {
   viewOf(name: string) { return this.views[name]; }
 
   /**
+   * Fast O(1) field type lookup via active view cache
+   * 通过活视图缓存进行O(1)字段类型查询
+   */
+  getFieldType(name: string): FieldType | undefined {
+    return this.typeMap[name];
+  }
+
+  /**
+   * Fast O(1) field view lookup via active view cache
+   * 通过活视图缓存进行O(1)字段视图查询
+   */
+  getFieldView(name: string): Float32Array|Float64Array|Int32Array|Uint32Array|Int16Array|Uint16Array|Int8Array|Uint8Array | undefined {
+    return this.viewMap[name];
+  }
+
+  /**
+   * Zero-copy per-row struct view backed by SAB.
+   * 属性读写直达 TypedArray，写入自动标脏。
+   * ⚠️ 视图绑定当前 row：结构修改（swapRemove/clearRows/clear）后需重新获取。
+   */
+  view<T = any>(row: number): T {
+    if (row < 0 || row >= this._len) {
+      throw new RangeError(`Row ${row} is out of bounds (len=${this._len}).`);
+    }
+    const self = this;
+
+    return new Proxy({}, {
+      get(_t, prop) {
+        if (prop === '_row') return row;         // 便捷：暴露行号做调试
+        if (prop === '_col') return self;        // 便捷：暴露列实例
+        if (prop === '_len') return self._len;   // 便捷：当前长度
+        if (typeof prop !== 'string') return undefined;
+
+        const view = self.viewMap[prop];
+        if (!view) return undefined;
+
+        const ty = self.typeMap[prop];
+        const val = (view as any)[row];
+        return ty === 'bool' ? val === 1 : val;  // 0/1 -> boolean
+      },
+
+      set(_t, prop, value) {
+        if (typeof prop !== 'string') return true; // 忽略非字符串属性但不报错
+
+        const view = self.viewMap[prop];
+        if (!view) return true; // 忽略不存在的字段但不报错
+
+        const ty = self.typeMap[prop];
+        (view as any)[row] = (ty === 'bool') ? (value ? 1 : 0) : Number(value);
+        self.setWrittenBit(row);
+        return true;
+      },
+
+      // 让 Object.keys/for..in 正常工作
+      ownKeys() { return self.fields.map(([n]) => n); },
+      getOwnPropertyDescriptor(_t, prop) {
+        if (typeof prop !== 'string') return undefined;
+        if (!(prop in self.viewMap)) return undefined;
+        return { enumerable: true, configurable: true, writable: true };
+      }
+    }) as T;
+  }
+
+  /**
+   * Readonly view: 只读代理，不允许写入。
+   */
+  viewReadonly<T = any>(row: number): T {
+    if (row < 0 || row >= this._len) {
+      throw new RangeError(`Row ${row} is out of bounds (len=${this._len}).`);
+    }
+    const self = this;
+
+    return new Proxy({}, {
+      get(_t, prop) {
+        if (prop === '_row') return row;         // 便捷：暴露行号做调试
+        if (prop === '_col') return self;        // 便捷：暴露列实例
+        if (prop === '_len') return self._len;   // 便捷：当前长度
+        if (typeof prop !== 'string') return undefined;
+
+        const view = self.viewMap[prop];
+        if (!view) return undefined;
+
+        const ty = self.typeMap[prop];
+        const val = (view as any)[row];
+        return ty === 'bool' ? val === 1 : val;  // 0/1 -> boolean
+      },
+
+      set() {
+        // 静默忽略写入操作，不会实际修改数据
+        return true;
+      },
+
+      // 让 Object.keys/for..in 正常工作
+      ownKeys() { return self.fields.map(([n]) => n); },
+      getOwnPropertyDescriptor(_t, prop) {
+        if (typeof prop !== 'string') return undefined;
+        if (!(prop in self.viewMap)) return undefined;
+        return { enumerable: true, configurable: true, writable: false }; // 标记为不可写
+      }
+    }) as T;
+  }
+
+  /**
    * Get write mask for change detection (read-only, doesn't clear)
    * 获取写掩码用于变更检测（只读，不清空）
    */
@@ -372,5 +493,9 @@ export class ColumnSAB implements IColumn {
     if (this.writeMask) {
       this.writeMask.fill(0);
     }
+
+    // Rebuild maps to ensure consistency
+    // 重建映射以确保一致性
+    this.rebuildMaps();
   }
 }

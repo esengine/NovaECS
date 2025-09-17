@@ -39,7 +39,7 @@ describe('Query Change Tracking', () => {
       world.beginFrame();
 
       // Modify only entity2's position
-      world.setComponent(entity2, Position, { x: 35, y: 45 });
+      world.replaceComponent(entity2, Position, { x: 35, y: 45 });
 
       // Query for entities with changed Position
       const changedEntities: number[] = [];
@@ -66,11 +66,11 @@ describe('Query Change Tracking', () => {
       world.beginFrame();
 
       // Modify both Position and Velocity for entity1
-      world.setComponent(entity1, Position, { x: 15, y: 25 });
-      world.setComponent(entity1, Velocity, { dx: 2, dy: 3 });
+      world.replaceComponent(entity1, Position, { x: 15, y: 25 });
+      world.replaceComponent(entity1, Velocity, { dx: 2, dy: 3 });
 
       // Modify only Velocity for entity2
-      world.setComponent(entity2, Velocity, { dx: 4, dy: 5 });
+      world.replaceComponent(entity2, Velocity, { dx: 4, dy: 5 });
 
       // Query for entities with changed Position OR Velocity (ANY semantic)
       const changedEntities: number[] = [];
@@ -101,7 +101,7 @@ describe('Query Change Tracking', () => {
       // Modify every 10th entity's position
       const modifiedEntities: number[] = [];
       for (let i = 0; i < entities.length; i += 10) {
-        world.setComponent(entities[i], Position, { x: i + 1000, y: i + 1000 });
+        world.replaceComponent(entities[i], Position, { x: i + 1000, y: i + 1000 });
         modifiedEntities.push(entities[i]);
       }
 
@@ -152,7 +152,7 @@ describe('Query Change Tracking', () => {
       world.addComponent(entity, Position, { x: 10, y: 20 });
 
       world.beginFrame();
-      world.setComponent(entity, Position, { x: 15, y: 25 });
+      world.replaceComponent(entity, Position, { x: 15, y: 25 });
 
       // Should find changed entity in current frame
       let changedEntities: number[] = [];
@@ -171,7 +171,7 @@ describe('Query Change Tracking', () => {
       expect(changedEntities).toHaveLength(0);
 
       // Make another change
-      world.setComponent(entity, Position, { x: 20, y: 30 });
+      world.replaceComponent(entity, Position, { x: 20, y: 30 });
 
       // Should find changed entity again
       changedEntities = [];

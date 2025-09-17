@@ -43,7 +43,7 @@ export class WorldSerializer {
         }
       }
 
-      const guidValue = getGuidValue(guid);
+      const guidValue = getGuidValue(guid) || '00000000-00000000';
       out.entities.push({ guid: guidValue, comps });
     });
     return out;

@@ -87,7 +87,10 @@ function buildKeyMap(world: World): Map<number, Key> {
   const map = new Map<number, Key>();
   // 查询一次 Guid，预填所有有 Guid 的实体
   world.query(Guid).forEach((e, g: any) => {
-    map.set(e as unknown as number, { isGuid: true, u32: 0, str: String(g?.value ?? '') });
+    // Handle both proper Guid instances and plain objects from serialization
+    // 处理真正的Guid实例和序列化产生的普通对象
+    const guidStr = g?.value ?? g?._originalValue ?? '';
+    map.set(e as unknown as number, { isGuid: true, u32: 0, str: String(guidStr) });
   });
   return map;
 }
@@ -250,7 +253,7 @@ function heapPeekItem(_world: World, it: ArchetypeIterator, keyMap: Map<number, 
   if (it.index >= it.sortedIndices.length) return null;
   const row = it.sortedIndices[it.index];
   const ent = it.archetype.entities[row];
-  const comp = it.archetype.getComponent(ent, it.typeId);
+  const comp = it.archetype.getComponentSnapshot(ent, it.typeId);
   return { it, entity: ent, comp, key: keyOf(keyMap, ent) };
 }
 

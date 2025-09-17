@@ -253,7 +253,7 @@ describe('CheckpointRing Integration', () => {
     world.beginFrame();
     const pos2 = world.getComponent(entity1, Position)!;
     pos2.x = 10;
-    world.setComponent(entity1, Position, pos2);
+    world.replaceComponent(entity1, Position, pos2);
     recorder.endFrame();
 
     // Frame 3: Add velocity
@@ -266,7 +266,7 @@ describe('CheckpointRing Integration', () => {
     const pos = world.getComponent(entity1, Position)!;
     pos.x = 20;
     pos.y = 15;
-    world.setComponent(entity1, Position, pos);
+    world.replaceComponent(entity1, Position, pos);
     recorder.endFrame();
 
     // Frame 5: Take another checkpoint

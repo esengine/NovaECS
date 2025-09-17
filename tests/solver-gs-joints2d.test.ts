@@ -123,15 +123,15 @@ describe('SolverGSJoints2D System', () => {
   test('should apply warm-start impulses', () => {
     const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
     joint.jn = f(0.5); // Previous accumulated impulse
-    world.setComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, JointDistance2D, joint);
 
     // Create constraint violation to trigger solving
     const body1 = world.getComponent(bodyA, Body2D) as Body2D;
     const body2 = world.getComponent(bodyB, Body2D) as Body2D;
     body1.vx = f(0.1); // Small relative velocity
     body2.vx = f(-0.1);
-    world.setComponent(bodyA, Body2D, body1);
-    world.setComponent(bodyB, Body2D, body2);
+    world.replaceComponent(bodyA, Body2D, body1);
+    world.replaceComponent(bodyB, Body2D, body2);
 
     const row = createBasicJointRow();
     batch.addRow(row);
@@ -155,8 +155,8 @@ describe('SolverGSJoints2D System', () => {
     const body2 = world.getComponent(bodyB, Body2D) as Body2D;
     body1.vx = f(1.0); // Moving toward each other
     body2.vx = f(-1.0);
-    world.setComponent(bodyA, Body2D, body1);
-    world.setComponent(bodyB, Body2D, body2);
+    world.replaceComponent(bodyA, Body2D, body1);
+    world.replaceComponent(bodyB, Body2D, body2);
 
     const row = createBasicJointRow();
     row.bias = f(0.1); // Position correction bias
@@ -181,8 +181,8 @@ describe('SolverGSJoints2D System', () => {
     const body2 = world.getComponent(bodyB, Body2D) as Body2D;
     body1.vx = f(2.0);
     body2.vx = f(-2.0);
-    world.setComponent(bodyA, Body2D, body1);
-    world.setComponent(bodyB, Body2D, body2);
+    world.replaceComponent(bodyA, Body2D, body1);
+    world.replaceComponent(bodyB, Body2D, body2);
 
     const row = createBasicJointRow();
     row.bias = f(0.5);
@@ -204,8 +204,8 @@ describe('SolverGSJoints2D System', () => {
     const body2 = world.getComponent(bodyB, Body2D) as Body2D;
     body1.vx = f(1.0);
     body2.vx = f(-1.0);
-    world.setComponent(bodyA, Body2D, body1);
-    world.setComponent(bodyB, Body2D, body2);
+    world.replaceComponent(bodyA, Body2D, body1);
+    world.replaceComponent(bodyB, Body2D, body2);
 
     const row = createBasicJointRow();
     row.gamma = f(0.1); // Soft constraint
@@ -224,7 +224,7 @@ describe('SolverGSJoints2D System', () => {
   test('should skip broken joints', () => {
     const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
     joint.broken = 1;
-    world.setComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, JointDistance2D, joint);
 
     const row = createBasicJointRow();
     batch.addRow(row);
@@ -250,8 +250,8 @@ describe('SolverGSJoints2D System', () => {
     body1.invI = ZERO;
     body2.invMass = ZERO;
     body2.invI = ZERO;
-    world.setComponent(bodyA, Body2D, body1);
-    world.setComponent(bodyB, Body2D, body2);
+    world.replaceComponent(bodyA, Body2D, body1);
+    world.replaceComponent(bodyB, Body2D, body2);
 
     const row = createBasicJointRow();
     batch.addRow(row);
@@ -274,12 +274,12 @@ describe('SolverGSJoints2D System', () => {
     const body1 = world.getComponent(bodyA, Body2D) as Body2D;
     body1.invMass = ZERO;
     body1.invI = ZERO;
-    world.setComponent(bodyA, Body2D, body1);
+    world.replaceComponent(bodyA, Body2D, body1);
 
     // Set initial velocity on dynamic body
     const body2 = world.getComponent(bodyB, Body2D) as Body2D;
     body2.vx = f(2.0);
-    world.setComponent(bodyB, Body2D, body2);
+    world.replaceComponent(bodyB, Body2D, body2);
 
     const row = createBasicJointRow();
     row.bias = f(0.2);
@@ -308,8 +308,8 @@ describe('SolverGSJoints2D System', () => {
     const body2 = world.getComponent(bodyB, Body2D) as Body2D;
     body1.vx = f(10.0); // High relative velocity
     body2.vx = f(-10.0);
-    world.setComponent(bodyA, Body2D, body1);
-    world.setComponent(bodyB, Body2D, body2);
+    world.replaceComponent(bodyA, Body2D, body1);
+    world.replaceComponent(bodyB, Body2D, body2);
 
     const row = createBasicJointRow();
     row.breakImpulse = f(0.5); // Low break threshold
@@ -332,7 +332,7 @@ describe('SolverGSJoints2D System', () => {
   test('should not break joint when impulse is below threshold', () => {
     const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
     joint.jn = f(2.0);
-    world.setComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, JointDistance2D, joint);
 
     const row = createBasicJointRow();
     row.breakImpulse = f(5.0); // High break threshold
@@ -354,8 +354,8 @@ describe('SolverGSJoints2D System', () => {
     const body2 = world.getComponent(bodyB, Body2D) as Body2D;
     body1.vx = f(-10.0); // Opposite direction high velocity
     body2.vx = f(10.0);
-    world.setComponent(bodyA, Body2D, body1);
-    world.setComponent(bodyB, Body2D, body2);
+    world.replaceComponent(bodyA, Body2D, body1);
+    world.replaceComponent(bodyB, Body2D, body2);
 
     const row = createBasicJointRow();
     row.breakImpulse = f(0.5);
@@ -398,8 +398,8 @@ describe('SolverGSJoints2D System', () => {
     const body2 = world.getComponent(bodyB, Body2D) as Body2D;
     body1.vx = f(2.0);
     body2.vx = f(-2.0);
-    world.setComponent(bodyA, Body2D, body1);
-    world.setComponent(bodyB, Body2D, body2);
+    world.replaceComponent(bodyA, Body2D, body1);
+    world.replaceComponent(bodyB, Body2D, body2);
 
     SolverGSJoints2D.fn(ctx);
 
@@ -419,8 +419,8 @@ describe('SolverGSJoints2D System', () => {
     body2.w = f(-2.0);
     body1.vx = f(1.0);
     body2.vx = f(-1.0);
-    world.setComponent(bodyA, Body2D, body1);
-    world.setComponent(bodyB, Body2D, body2);
+    world.replaceComponent(bodyA, Body2D, body1);
+    world.replaceComponent(bodyB, Body2D, body2);
 
     // Use offset anchors to create angular coupling
     const row = createBasicJointRow();

@@ -106,7 +106,7 @@ export class World {
 
         const archetype = this.entityArchetype.get(entity);
         if (archetype) {
-          archetype.setComponent(entity, getComponentType(comp.ctor).id, finalValue, epoch);
+          archetype.replaceComponent(entity, getComponentType(comp.ctor).id, finalValue, epoch);
         }
       }
     }
@@ -248,7 +248,7 @@ export class World {
         // Copy component data before removing
         const componentData = new Map<number, unknown>();
         for (const typeId of current.types) {
-          componentData.set(typeId, current.getComponent(e, typeId));
+          componentData.set(typeId, current.getComponentSnapshot(e, typeId));
         }
 
         current.swapRemove(row);
@@ -259,7 +259,7 @@ export class World {
         // Restore actual component data (without marking as changed - this is migration)
         for (const [typeId, data] of componentData) {
           if (target.types.includes(typeId)) {
-            target.setComponent(e, typeId, data); // No epoch - migration shouldn't count as change
+            target.replaceComponent(e, typeId, data); // No epoch - migration shouldn't count as change
           }
         }
       }
@@ -350,7 +350,7 @@ export class World {
       // Copy the actual component data to archetype
       const archetype = this.entityArchetype.get(e);
       if (archetype) {
-        archetype.setComponent(e, type.id, c);
+        archetype.replaceComponent(e, type.id, c);
       }
     }
 
@@ -465,30 +465,31 @@ export class World {
     const type = getComponentType(ctor);
     const archetype = this.entityArchetype.get(e);
     if (!archetype) return undefined;
-    return archetype.getComponent<T>(e, type.id);
+    return archetype.getComponentSnapshot<T>(e, type.id);
   }
 
   /**
    * Set component data for entity (convenience method)
    * 为实体设置组件数据（便捷方法）
    */
-  setComponent<T>(e: Entity, ctor: ComponentCtor<T>, data: T): void {
+  replaceComponent<T>(e: Entity, ctor: ComponentCtor<T>, data: T): void {
     const type = getComponentType(ctor);
     const archetype = this.entityArchetype.get(e);
     if (!archetype) return;
-    archetype.setComponent(e, type.id, data, this.frame);
+    archetype.replaceComponent(e, type.id, data, this.frame);
   }
 
   /**
    * Set component data with custom epoch for change tracking
    * 使用自定义epoch设置组件数据用于变更追踪
    */
-  setComponentWithEpoch<T>(e: Entity, ctor: ComponentCtor<T>, data: T, epoch: number): void {
+  replaceComponentWithEpoch<T>(e: Entity, ctor: ComponentCtor<T>, data: T, epoch: number): void {
     const type = getComponentType(ctor);
     const archetype = this.entityArchetype.get(e);
     if (!archetype) return;
-    archetype.setComponent(e, type.id, data, epoch);
+    archetype.replaceComponent(e, type.id, data, epoch);
   }
+
 
   /**
    * Check if entity has component (convenience method)
@@ -508,7 +509,7 @@ export class World {
   getEntityComponent<T>(e: Entity, type: ComponentType<T>): T | undefined {
     const archetype = this.entityArchetype.get(e);
     if (!archetype) return undefined;
-    return archetype.getComponent<T>(e, type.id);
+    return archetype.getComponentSnapshot<T>(e, type.id);
   }
 
   /**
@@ -531,7 +532,7 @@ export class World {
     if (!archetype) return components;
 
     for (const typeId of archetype.types) {
-      const component = archetype.getComponent(e, typeId);
+      const component = archetype.getComponentSnapshot(e, typeId);
       if (component) {
         components.push(component as Component);
       }
@@ -549,7 +550,7 @@ export class World {
     if (!archetype) return components;
 
     for (const typeId of archetype.types) {
-      const component = archetype.getComponent(e, typeId);
+      const component = archetype.getComponentSnapshot(e, typeId);
       if (component) {
         components.push({ typeId, component });
       }

@@ -21,6 +21,85 @@ import { ColumnArray } from '../storage/ColumnArray';
 import { getSchema } from '../sab/Schema';
 import { getSABAvailability } from '../sab/Environment';
 
+/**
+ * Backend-agnostic component handle for get/set operations
+ * Compatible with all column types, but slower than direct views
+ * 后端无关的组件句柄，支持get/set操作
+ * 兼容所有列类型，但比直接视图慢
+ */
+export class ComponentHandle<T = any> {
+  constructor(
+    private col: IColumn,
+    private row: number
+  ) {}
+
+  /**
+   * Get current component value (creates a copy)
+   * 获取当前组件值（创建副本）
+   */
+  get(): T {
+    return this.col.readToObject(this.row) as T;
+  }
+
+  /**
+   * Set component value (replaces entirely)
+   * 设置组件值（完全替换）
+   */
+  set(value: T, epoch?: number): void {
+    this.col.writeFromObject(this.row, value, epoch);
+  }
+
+  /**
+   * Update component using a modifier function
+   * 使用修改函数更新组件
+   */
+  update(modifier: (current: T) => T, epoch?: number): void {
+    const current = this.get();
+    const updated = modifier(current);
+    this.set(updated, epoch);
+  }
+
+  /**
+   * Check if the handle is still valid (row exists)
+   * 检查句柄是否仍然有效（行是否存在）
+   */
+  isValid(): boolean {
+    return this.row >= 0 && this.row < this.col.length();
+  }
+
+  /**
+   * Get the current row index (for debugging)
+   * WARNING: Row index may change after structural operations!
+   * 获取当前行索引（用于调试）
+   * 警告：行索引在结构操作后可能改变！
+   */
+  getRow(): number {
+    return this.row;
+  }
+}
+
+/**
+ * Read-write helper result types
+ * 读写助手结果类型
+ */
+export type ViewRW<T> = { type: 'view'; v: T };
+export type HandleRW<T> = { type: 'handle'; h: ComponentHandle<T> };
+export type RWResult<T> = ViewRW<T> | HandleRW<T>;
+
+/**
+ * Get read-write access to component with automatic backend detection
+ * Returns view for SAB backend (fastest), handle for others (compatible)
+ * 获取组件的读写访问，自动检测后端
+ * SAB后端返回视图（最快），其他后端返回句柄（兼容）
+ */
+export function getRW<T>(arch: Archetype, e: Entity, typeId: number): RWResult<T> | undefined {
+  const v = arch.getComponentView<T>(e, typeId);
+  if (v) return { type: 'view', v };
+  const h = arch.getComponentHandle<T>(e, typeId);
+  if (h) return { type: 'handle', h };
+  return undefined;
+}
+
 export class Archetype {
   entities: Entity[] = [];
   /** Component columns using IColumn interface 使用IColumn接口的组件列 */
@@ -171,10 +250,41 @@ export class Archetype {
   }
 
   /**
-   * Get component for entity and type
-   * 获取实体指定类型的组件
+   * Replace component data entirely for entity and type
+   * 完全替换实体指定类型的组件数据
    */
-  getComponent<T>(e: Entity, typeId: number): T | undefined {
+  replaceComponent<T>(e: Entity, typeId: number, value: T, epoch?: number): void {
+    const row = this.rowOf.get(e);
+    if (row === undefined) return;
+    const col = this.cols.get(typeId);
+    if (!col) return;
+
+    // Write with epoch for change tracking
+    col.writeFromObject(row, value, epoch);
+  }
+
+  /**
+   * Get backend-agnostic component handle for get/set operations
+   * Compatible with all column types (SAB/Array), but slower than views
+   * 获取后端无关的组件句柄，支持get/set操作
+   * 兼容所有列类型（SAB/数组），但比视图慢
+   */
+  getComponentHandle<T>(e: Entity, typeId: number): ComponentHandle<T> | undefined {
+    const row = this.rowOf.get(e);
+    if (row === undefined) return undefined;
+    const col = this.cols.get(typeId);
+    if (!col) return undefined;
+
+    return new ComponentHandle<T>(col, row);
+  }
+
+  /**
+   * Get component snapshot (immutable copy)
+   * Use this when you specifically need a detached copy
+   * 获取组件快照（不可变副本）
+   * 当你明确需要独立副本时使用此方法
+   */
+  getComponentSnapshot<T>(e: Entity, typeId: number): T | undefined {
     const row = this.rowOf.get(e);
     if (row === undefined) return undefined;
     const col = this.cols.get(typeId);
@@ -183,17 +293,49 @@ export class Archetype {
   }
 
   /**
-   * Set component for entity and type
-   * 设置实体指定类型的组件
+   * Get zero-copy component view for direct field access
+   * WARNING: View is bound to current row - must be refreshed after structural changes (swapRemove/clearRows/clear)
+   * Returns undefined if backend doesn't support zero-copy views (use getComponentHandle instead)
+   * 获取零拷贝组件视图，支持直接字段访问
+   * 警告：视图绑定到当前行 - 结构修改后（swapRemove/clearRows/clear）必须重新获取
+   * 如果后端不支持零拷贝视图则返回undefined（请使用getComponentHandle）
    */
-  setComponent<T>(e: Entity, typeId: number, value: T, epoch?: number): void {
+  getComponentView<T>(e: Entity, typeId: number): T | undefined {
     const row = this.rowOf.get(e);
-    if (row === undefined) return;
+    if (row === undefined) return undefined;
     const col = this.cols.get(typeId);
-    if (!col) return;
+    if (!col) return undefined;
 
-    // Write with epoch for change tracking
-    col.writeFromObject(row, value, epoch);
+    // Only ColumnSAB supports view method; other backends return undefined
+    // 仅ColumnSAB支持view方法；其他后端返回undefined
+    if (col.view) {
+      return col.view<T>(row);
+    }
+    return undefined;
+  }
+
+  /**
+   * Get readonly component view for safe traversal and debugging
+   * WARNING: View is bound to current row - must be refreshed after structural changes (swapRemove/clearRows/clear)
+   * Falls back to snapshot for non-SAB backends (still safe for readonly access)
+   * 获取只读组件视图，用于安全遍历和调试
+   * 警告：视图绑定到当前行 - 结构修改后（swapRemove/clearRows/clear）必须重新获取
+   * 对于非SAB后端回退到快照（对只读访问仍然安全）
+   */
+  getComponentViewReadonly<T>(e: Entity, typeId: number): T | undefined {
+    const row = this.rowOf.get(e);
+    if (row === undefined) return undefined;
+    const col = this.cols.get(typeId);
+    if (!col) return undefined;
+
+    // ColumnSAB supports viewReadonly method; other backends fall back to snapshot
+    // ColumnSAB支持viewReadonly方法；其他后端回退到快照
+    if (col.viewReadonly) {
+      return col.viewReadonly<T>(row);
+    }
+    // Fallback: return immutable snapshot (safe for readonly access)
+    // 回退：返回不可变快照（对只读访问安全）
+    return col.readToObject(row) as T;
   }
 
   /**

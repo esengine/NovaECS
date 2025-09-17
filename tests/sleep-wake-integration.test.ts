@@ -22,7 +22,7 @@ describe('Sleep/Wake System Integration', () => {
   let contacts: Contacts2D;
   let config: PhysicsSleepConfig;
   let ctx: SystemContext;
-  let mockSetComponent: any;
+  let mockReplaceComponent: any;
 
   beforeEach(() => {
     world = new World();
@@ -66,11 +66,11 @@ describe('Sleep/Wake System Integration', () => {
     world.frame = 1;
     world.getStore = () => ({ markChanged: vi.fn() });
 
-    // Mock setComponent to track system behavior
-    mockSetComponent = vi.fn();
-    const originalSetComponent = world.setComponent;
-    world.setComponent = vi.fn((entity, ctor, data) => {
-      mockSetComponent(entity, ctor, data);
+    // Mock replaceComponent to track system behavior
+    mockReplaceComponent = vi.fn();
+    const originalSetComponent = world.replaceComponent;
+    world.replaceComponent = vi.fn((entity, ctor, data) => {
+      mockReplaceComponent(entity, ctor, data);
       return originalSetComponent.call(world, entity, ctor, data);
     });
 
@@ -120,11 +120,11 @@ describe('Sleep/Wake System Integration', () => {
     bodyB.vy = f(vyB);
     bodyB.w = f(wB);
 
-    world.setComponent(entityA, Body2D, bodyA);
-    world.setComponent(entityB, Body2D, bodyB);
+    world.replaceComponent(entityA, Body2D, bodyA);
+    world.replaceComponent(entityB, Body2D, bodyB);
 
     // Reset mock after setup
-    mockSetComponent.mockClear();
+    mockReplaceComponent.mockClear();
   }
 
   function setupSleepStates(sleepAState: 0 | 1, sleepBState: 0 | 1, timerA = 0, timerB = 0) {
@@ -136,8 +136,8 @@ describe('Sleep/Wake System Integration', () => {
     sleepB.sleeping = sleepBState;
     sleepB.timer = f(timerB);
 
-    world.setComponent(entityA, Sleep2D, sleepA);
-    world.setComponent(entityB, Sleep2D, sleepB);
+    world.replaceComponent(entityA, Sleep2D, sleepA);
+    world.replaceComponent(entityB, Sleep2D, sleepB);
 
     // Sync body awake state
     const bodyA = new Body2D();
@@ -148,11 +148,11 @@ describe('Sleep/Wake System Integration', () => {
     Object.assign(bodyB, world.getComponent(entityB, Body2D));
     bodyB.awake = sleepBState === 0 ? 1 : 0;
 
-    world.setComponent(entityA, Body2D, bodyA);
-    world.setComponent(entityB, Body2D, bodyB);
+    world.replaceComponent(entityA, Body2D, bodyA);
+    world.replaceComponent(entityB, Body2D, bodyB);
 
     // Reset mock after setup
-    mockSetComponent.mockClear();
+    mockReplaceComponent.mockClear();
   }
 
   test('should update components when bodies enter sleep', () => {
@@ -164,13 +164,13 @@ describe('Sleep/Wake System Integration', () => {
     SleepUpdate2D.fn(ctx);
 
     // Should have updated both entities to sleeping state
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entityA,
       Sleep2D,
       expect.objectContaining({ sleeping: 1 })
     );
 
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entityA,
       Body2D,
       expect.objectContaining({
@@ -191,7 +191,7 @@ describe('Sleep/Wake System Integration', () => {
     SleepUpdate2D.fn(ctx);
 
     // Should reset timers and keep awake
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entityA,
       Sleep2D,
       expect.objectContaining({
@@ -200,7 +200,7 @@ describe('Sleep/Wake System Integration', () => {
       })
     );
 
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entityA,
       Body2D,
       expect.objectContaining({ awake: 1 })
@@ -219,8 +219,8 @@ describe('Sleep/Wake System Integration', () => {
     WakeOnContact2D.fn(ctx);
 
     // Should wake sleeping body B (2 component updates: Sleep2D and Body2D)
-    expect(mockSetComponent).toHaveBeenCalledTimes(2);
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledTimes(2);
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entityB,
       Sleep2D,
       expect.objectContaining({
@@ -244,13 +244,13 @@ describe('Sleep/Wake System Integration', () => {
     WakeOnContact2D.fn(ctx);
 
     // Should wake both bodies (4 component updates total)
-    expect(mockSetComponent).toHaveBeenCalledTimes(4);
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entityA,
       Sleep2D,
       expect.objectContaining({ sleeping: 0, timer: ZERO })
     );
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entityB,
       Sleep2D,
       expect.objectContaining({ sleeping: 0, timer: ZERO })
@@ -271,7 +271,7 @@ describe('Sleep/Wake System Integration', () => {
     WakeOnContact2D.fn(ctx);
 
     // Should not wake any body
-    expect(mockSetComponent).not.toHaveBeenCalled();
+    expect(mockReplaceComponent).not.toHaveBeenCalled();
   });
 
   test('should wake on deep penetration', () => {
@@ -289,7 +289,7 @@ describe('Sleep/Wake System Integration', () => {
     WakeOnContact2D.fn(ctx);
 
     // Should wake both bodies
-    expect(mockSetComponent).toHaveBeenCalledTimes(4);
+    expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
   });
 
   test('should handle sleep/wake system interaction', () => {
@@ -305,7 +305,7 @@ describe('Sleep/Wake System Integration', () => {
     WakeOnContact2D.fn(ctx);
 
     // Should wake B due to contact with awake A
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entityB,
       Sleep2D,
       expect.objectContaining({ sleeping: 0, timer: ZERO })
@@ -313,7 +313,7 @@ describe('Sleep/Wake System Integration', () => {
 
     // Clear contacts and slow down A
     contacts.list.length = 0;
-    mockSetComponent.mockClear();
+    mockReplaceComponent.mockClear();
     setupBodiesWithVelocity(0.01, 0.01, 0.02, 0.01, 0.01, 0.02);
     setupSleepStates(0, 0, 0.48, 0.49); // High timer values
 
@@ -322,13 +322,13 @@ describe('Sleep/Wake System Integration', () => {
 
     // Both entities should have their sleep states updated
     // Entity B should enter sleep state (timer was higher)
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entityB,
       Sleep2D,
       expect.objectContaining({ sleeping: 1 })
     );
     // Entity A may or may not sleep depending on timer accumulation, but should be updated
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entityA,
       Sleep2D,
       expect.any(Object)
@@ -351,16 +351,16 @@ describe('Sleep/Wake System Integration', () => {
     WakeOnContact2D.fn(ctx);
 
     // Should not wake due to higher threshold
-    expect(mockSetComponent).not.toHaveBeenCalled();
+    expect(mockReplaceComponent).not.toHaveBeenCalled();
 
     // Test impulse above new threshold
     contact.jn = f(0.025);
-    mockSetComponent.mockClear();
+    mockReplaceComponent.mockClear();
 
     WakeOnContact2D.fn(ctx);
 
     // Should wake both bodies
-    expect(mockSetComponent).toHaveBeenCalledTimes(4);
+    expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
   });
 
   test('should have correct system configuration', () => {
@@ -376,16 +376,16 @@ describe('Sleep/Wake System Integration', () => {
     Object.assign(bodyA, world.getComponent(entityA, Body2D));
     bodyA.invMass = ZERO; // Static body
     bodyA.invI = ZERO;
-    world.setComponent(entityA, Body2D, bodyA);
+    world.replaceComponent(entityA, Body2D, bodyA);
 
     setupSleepStates(1, 0); // A sleeping (but static), B awake
-    mockSetComponent.mockClear();
+    mockReplaceComponent.mockClear();
 
     // Run sleep update - static body should be forced awake
     SleepUpdate2D.fn(ctx);
 
     // Should update static body to awake state
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entityA,
       Sleep2D,
       expect.objectContaining({

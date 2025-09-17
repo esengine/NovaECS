@@ -21,7 +21,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
   let contacts: Contacts2D;
   let config: PhysicsSleepConfig;
   let ctx: SystemContext;
-  let mockSetComponent: any;
+  let mockReplaceComponent: any;
 
   beforeEach(() => {
     world = new World();
@@ -48,11 +48,11 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     world.frame = 1;
     world.getStore = () => ({ markChanged: vi.fn() });
 
-    // Mock setComponent to capture wake calls
-    mockSetComponent = vi.fn();
-    const originalSetComponent = world.setComponent;
-    world.setComponent = vi.fn((entity, ctor, data) => {
-      mockSetComponent(entity, ctor, data);
+    // Mock replaceComponent to capture wake calls
+    mockReplaceComponent = vi.fn();
+    const originalSetComponent = world.replaceComponent;
+    world.replaceComponent = vi.fn((entity, ctor, data) => {
+      mockReplaceComponent(entity, ctor, data);
       return originalSetComponent.call(world, entity, ctor, data);
     });
   });
@@ -82,8 +82,8 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     sleepB.sleeping = sleepBState;
     if (sleepBState) sleepB.timer = f(0.4);
 
-    world.setComponent(entityA, Sleep2D, sleepA);
-    world.setComponent(entityB, Sleep2D, sleepB);
+    world.replaceComponent(entityA, Sleep2D, sleepA);
+    world.replaceComponent(entityB, Sleep2D, sleepB);
 
     // Also need to sync Body2D awake state
     const bodyA = world.getComponent(entityA, Body2D) as Body2D;
@@ -97,11 +97,11 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     Object.assign(newBodyB, bodyB);
     newBodyB.awake = sleepBState === 0 ? 1 : 0;
 
-    world.setComponent(entityA, Body2D, newBodyA);
-    world.setComponent(entityB, Body2D, newBodyB);
+    world.replaceComponent(entityA, Body2D, newBodyA);
+    world.replaceComponent(entityB, Body2D, newBodyB);
 
     // Reset mock after setup
-    mockSetComponent.mockClear();
+    mockReplaceComponent.mockClear();
   }
 
   test('should wake sleeping body when other is awake', () => {
@@ -112,8 +112,8 @@ describe('WakeOnContact2D System (Mock-based)', () => {
 
     WakeOnContact2D.fn(ctx);
 
-    // Verify that setComponent was called to wake sleeping body
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    // Verify that replaceComponent was called to wake sleeping body
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entityB,
       Sleep2D,
       expect.objectContaining({
@@ -134,13 +134,13 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     WakeOnContact2D.fn(ctx);
 
     // Verify both bodies were woken (2 entities × 2 components each = 4 calls)
-    expect(mockSetComponent).toHaveBeenCalledTimes(4);
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entityA,
       Sleep2D,
       expect.objectContaining({ sleeping: 0, timer: ZERO })
     );
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entityB,
       Sleep2D,
       expect.objectContaining({ sleeping: 0, timer: ZERO })
@@ -157,7 +157,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
 
     WakeOnContact2D.fn(ctx);
 
-    expect(mockSetComponent).toHaveBeenCalledTimes(4);
+    expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
   });
 
   test('should wake on negative impulse (absolute value)', () => {
@@ -170,7 +170,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
 
     WakeOnContact2D.fn(ctx);
 
-    expect(mockSetComponent).toHaveBeenCalledTimes(4);
+    expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
   });
 
   test('should wake on deep penetration', () => {
@@ -184,7 +184,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
 
     WakeOnContact2D.fn(ctx);
 
-    expect(mockSetComponent).toHaveBeenCalledTimes(4);
+    expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
   });
 
   test('should not wake on weak impulse', () => {
@@ -198,7 +198,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     WakeOnContact2D.fn(ctx);
 
     // No wake calls should be made
-    expect(mockSetComponent).not.toHaveBeenCalled();
+    expect(mockReplaceComponent).not.toHaveBeenCalled();
   });
 
   test('should not wake on speculative penetration', () => {
@@ -212,7 +212,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
 
     WakeOnContact2D.fn(ctx);
 
-    expect(mockSetComponent).not.toHaveBeenCalled();
+    expect(mockReplaceComponent).not.toHaveBeenCalled();
   });
 
   test('should not wake on shallow penetration', () => {
@@ -226,7 +226,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
 
     WakeOnContact2D.fn(ctx);
 
-    expect(mockSetComponent).not.toHaveBeenCalled();
+    expect(mockReplaceComponent).not.toHaveBeenCalled();
   });
 
   test('should handle custom impulse threshold', () => {
@@ -240,15 +240,15 @@ describe('WakeOnContact2D System (Mock-based)', () => {
 
     WakeOnContact2D.fn(ctx);
 
-    expect(mockSetComponent).not.toHaveBeenCalled();
+    expect(mockReplaceComponent).not.toHaveBeenCalled();
 
     // Test above new threshold
-    mockSetComponent.mockClear();
+    mockReplaceComponent.mockClear();
     contact.jn = f(0.06);
 
     WakeOnContact2D.fn(ctx);
 
-    expect(mockSetComponent).toHaveBeenCalledTimes(4);
+    expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
   });
 
   test('should not process when no contacts exist', () => {
@@ -257,7 +257,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
 
     WakeOnContact2D.fn(ctx);
 
-    expect(mockSetComponent).not.toHaveBeenCalled();
+    expect(mockReplaceComponent).not.toHaveBeenCalled();
   });
 
   test('should handle multiple contacts correctly', () => {
@@ -271,7 +271,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     WakeOnContact2D.fn(ctx);
 
     // Should wake due to strong contact (2 entities × 2 components each = 4 calls)
-    expect(mockSetComponent).toHaveBeenCalledTimes(4);
+    expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
   });
 
   test('should have correct system configuration', () => {

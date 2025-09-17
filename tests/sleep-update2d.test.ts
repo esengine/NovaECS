@@ -18,7 +18,7 @@ describe('SleepUpdate2D System', () => {
   let entity: number;
   let config: PhysicsSleepConfig;
   let ctx: SystemContext;
-  let mockSetComponent: any;
+  let mockReplaceComponent: any;
 
   beforeEach(() => {
     world = new World();
@@ -48,11 +48,11 @@ describe('SleepUpdate2D System', () => {
     world.frame = 1;
     world.getStore = () => ({ markChanged: vi.fn() });
 
-    // Mock setComponent to capture system behavior
-    mockSetComponent = vi.fn();
-    const originalSetComponent = world.setComponent;
-    world.setComponent = vi.fn((entityId, ctor, data) => {
-      mockSetComponent(entityId, ctor, data);
+    // Mock replaceComponent to capture system behavior
+    mockReplaceComponent = vi.fn();
+    const originalSetComponent = world.replaceComponent;
+    world.replaceComponent = vi.fn((entityId, ctor, data) => {
+      mockReplaceComponent(entityId, ctor, data);
       return originalSetComponent.call(world, entityId, ctor, data);
     });
 
@@ -75,8 +75,8 @@ describe('SleepUpdate2D System', () => {
     body.vx = f(vx);
     body.vy = f(vy);
     body.w = f(w);
-    world.setComponent(entity, Body2D, body);
-    mockSetComponent.mockClear();
+    world.replaceComponent(entity, Body2D, body);
+    mockReplaceComponent.mockClear();
   }
 
   function setupSleepState(sleeping: 0 | 1, timer = 0, keepAwake = 0) {
@@ -84,8 +84,8 @@ describe('SleepUpdate2D System', () => {
     sleep.sleeping = sleeping;
     sleep.timer = f(timer);
     sleep.keepAwake = keepAwake;
-    world.setComponent(entity, Sleep2D, sleep);
-    mockSetComponent.mockClear();
+    world.replaceComponent(entity, Sleep2D, sleep);
+    mockReplaceComponent.mockClear();
   }
 
   function makeBodyStatic() {
@@ -93,8 +93,8 @@ describe('SleepUpdate2D System', () => {
     Object.assign(body, world.getComponent(entity, Body2D));
     body.invMass = ZERO;
     body.invI = ZERO;
-    world.setComponent(entity, Body2D, body);
-    mockSetComponent.mockClear();
+    world.replaceComponent(entity, Body2D, body);
+    mockReplaceComponent.mockClear();
   }
 
   test('should force wake static bodies', () => {
@@ -104,7 +104,7 @@ describe('SleepUpdate2D System', () => {
     SleepUpdate2D.fn(ctx);
 
     // Should force wake static body
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entity,
       Sleep2D,
       expect.objectContaining({
@@ -112,7 +112,7 @@ describe('SleepUpdate2D System', () => {
         timer: ZERO
       })
     );
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entity,
       Body2D,
       expect.any(Object)
@@ -125,7 +125,7 @@ describe('SleepUpdate2D System', () => {
     SleepUpdate2D.fn(ctx);
 
     // Should force wake due to keepAwake flag
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entity,
       Sleep2D,
       expect.objectContaining({
@@ -142,7 +142,7 @@ describe('SleepUpdate2D System', () => {
     SleepUpdate2D.fn(ctx);
 
     // Should accumulate timer but not enter sleep yet
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entity,
       Sleep2D,
       expect.objectContaining({
@@ -159,7 +159,7 @@ describe('SleepUpdate2D System', () => {
     SleepUpdate2D.fn(ctx);
 
     // Should reset timer and stay awake
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entity,
       Sleep2D,
       expect.objectContaining({
@@ -167,7 +167,7 @@ describe('SleepUpdate2D System', () => {
         timer: ZERO
       })
     );
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entity,
       Body2D,
       expect.objectContaining({ awake: 1 })
@@ -181,12 +181,12 @@ describe('SleepUpdate2D System', () => {
     SleepUpdate2D.fn(ctx);
 
     // Should enter sleep and clear velocities
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entity,
       Sleep2D,
       expect.objectContaining({ sleeping: 1 })
     );
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entity,
       Body2D,
       expect.objectContaining({
@@ -205,7 +205,7 @@ describe('SleepUpdate2D System', () => {
     SleepUpdate2D.fn(ctx);
 
     // Should enter sleep and clear all velocities
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entity,
       Body2D,
       expect.objectContaining({
@@ -224,7 +224,7 @@ describe('SleepUpdate2D System', () => {
     SleepUpdate2D.fn(ctx);
 
     // Should reset timer due to high angular velocity
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entity,
       Sleep2D,
       expect.objectContaining({
@@ -247,7 +247,7 @@ describe('SleepUpdate2D System', () => {
     SleepUpdate2D.fn(ctx);
 
     // Should accumulate timer but not sleep yet
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entity,
       Sleep2D,
       expect.objectContaining({
@@ -258,12 +258,12 @@ describe('SleepUpdate2D System', () => {
 
     // Now test with timer exceeding new threshold
     setupSleepState(0, 0.35);
-    mockSetComponent.mockClear();
+    mockReplaceComponent.mockClear();
 
     SleepUpdate2D.fn(ctx);
 
     // Should enter sleep with new threshold
-    expect(mockSetComponent).toHaveBeenCalledWith(
+    expect(mockReplaceComponent).toHaveBeenCalledWith(
       entity,
       Sleep2D,
       expect.objectContaining({ sleeping: 1 })
@@ -309,6 +309,6 @@ describe('SleepUpdate2D System', () => {
     SleepUpdate2D.fn(ctx);
 
     // Optimized system should NOT update when state is already correct
-    expect(mockSetComponent).not.toHaveBeenCalled();
+    expect(mockReplaceComponent).not.toHaveBeenCalled();
   });
 });

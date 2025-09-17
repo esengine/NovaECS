@@ -120,7 +120,7 @@ export const SolverGSJoints2D = system(
           ba.vx = sub(ba.vx, mul(Px, ba.invMass));
           ba.vy = sub(ba.vy, mul(Py, ba.invMass));
           ba.w = sub(ba.w, mul(cross_r_v(row.rax, row.ray, Px, Py), ba.invI));
-          world.setComponent(row.a, Body2D, ba);
+          world.replaceComponent(row.a, Body2D, ba);
         }
 
         // Apply impulse to body B (positive direction)
@@ -129,7 +129,7 @@ export const SolverGSJoints2D = system(
           bb.vx = add(bb.vx, mul(Px, bb.invMass));
           bb.vy = add(bb.vy, mul(Py, bb.invMass));
           bb.w = add(bb.w, mul(cross_r_v(row.rbx, row.rby, Px, Py), bb.invI));
-          world.setComponent(row.b, Body2D, bb);
+          world.replaceComponent(row.b, Body2D, bb);
         }
       }
     }
@@ -175,7 +175,7 @@ export const SolverGSJoints2D = system(
             ba.vx = sub(ba.vx, mul(Px, ba.invMass));
             ba.vy = sub(ba.vy, mul(Py, ba.invMass));
             ba.w = sub(ba.w, mul(cross_r_v(row.rax, row.ray, Px, Py), ba.invI));
-            world.setComponent(row.a, Body2D, ba);
+            world.replaceComponent(row.a, Body2D, ba);
           }
 
           // Apply impulse to body B (positive direction)
@@ -184,13 +184,13 @@ export const SolverGSJoints2D = system(
             bb.vx = add(bb.vx, mul(Px, bb.invMass));
             bb.vy = add(bb.vy, mul(Py, bb.invMass));
             bb.w = add(bb.w, mul(cross_r_v(row.rbx, row.rby, Px, Py), bb.invI));
-            world.setComponent(row.b, Body2D, bb);
+            world.replaceComponent(row.b, Body2D, bb);
           }
 
           // Update joint accumulated impulse
           // 更新关节累积冲量
           jd.jn = jnNew;
-          world.setComponent(row.e, JointDistance2D, jd);
+          world.replaceComponent(row.e, JointDistance2D, jd);
         }
       }
     }
@@ -209,7 +209,7 @@ export const SolverGSJoints2D = system(
           // 标记关节为断裂
           jd.broken = 1;
           jd.jn = ZERO;
-          world.setComponent(row.e, JointDistance2D, jd);
+          world.replaceComponent(row.e, JointDistance2D, jd);
 
           // Fire break event
           // 触发断裂事件

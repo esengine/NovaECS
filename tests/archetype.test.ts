@@ -55,10 +55,10 @@ describe('Archetype System', () => {
       expect(archetype.getEntities()).toEqual([1, 2]);
 
       // Check component data
-      const pos1 = archetype.getComponent<Position>(1, 1);
+      const pos1 = archetype.getComponentSnapshot<Position>(1, 1);
       expect(pos1).toEqual({ x: 10, y: 20 });
 
-      const vel2 = archetype.getComponent<Velocity>(2, 2);
+      const vel2 = archetype.getComponentSnapshot<Velocity>(2, 2);
       expect(vel2).toEqual({ dx: 1, dy: 2 });
     });
 
@@ -93,7 +93,7 @@ describe('Archetype System', () => {
       expect(archetype.getRow(20)).toBeUndefined();
 
       // Check component data integrity
-      const pos30 = archetype.getComponent<Position>(30, 1);
+      const pos30 = archetype.getComponentSnapshot<Position>(30, 1);
       expect(pos30).toEqual({ x: 10, y: 20 }); // Default values based on typeId=1
     });
 
@@ -118,12 +118,12 @@ describe('Archetype System', () => {
       archetype.push(1, () => ({}));
 
       // Set components
-      archetype.setComponent(1, 1, new Position(100, 200));
-      archetype.setComponent(1, 2, new Velocity(5, 10));
+      archetype.replaceComponent(1, 1, new Position(100, 200));
+      archetype.replaceComponent(1, 2, new Velocity(5, 10));
 
       // Get components
-      const pos = archetype.getComponent<Position>(1, 1);
-      const vel = archetype.getComponent<Velocity>(1, 2);
+      const pos = archetype.getComponentSnapshot<Position>(1, 1);
+      const vel = archetype.getComponentSnapshot<Velocity>(1, 2);
 
       expect(pos).toEqual({ x: 100, y: 200 });
       expect(vel).toEqual({ dx: 5, dy: 10 });
@@ -172,7 +172,7 @@ describe('Archetype System', () => {
       // Add new data should work without recreating columns
       archetype.push(3, () => new Position(10, 20));
       expect(archetype.size()).toBe(1);
-      expect(archetype.getComponent<Position>(3, 1)).toEqual({ x: 10, y: 20 });
+      expect(archetype.getComponentSnapshot<Position>(3, 1)).toEqual({ x: 10, y: 20 });
 
       // clear: completely destroy columns
       archetype.clear();
@@ -208,13 +208,13 @@ describe('Archetype System', () => {
         const entity = entities[i];
         expect(archetype.getRow(entity)).toBe(i);
 
-        const pos = archetype.getComponent<Position>(entity, 1);
+        const pos = archetype.getComponentSnapshot<Position>(entity, 1);
         expect(pos).toEqual({ x: 10, y: 20 });
 
-        const vel = archetype.getComponent<Velocity>(entity, 2);
+        const vel = archetype.getComponentSnapshot<Velocity>(entity, 2);
         expect(vel).toEqual({ dx: 2, dy: 4 });
 
-        const health = archetype.getComponent<Health>(entity, 3);
+        const health = archetype.getComponentSnapshot<Health>(entity, 3);
         expect(health).toEqual({ hp: 150 });
       }
     });
@@ -330,7 +330,7 @@ describe('Archetype System', () => {
       expect(archetype.verify()).toBe(true); // Still consistent
 
       // Original entity should be unaffected
-      const pos1 = archetype.getComponent<Position>(1, 1);
+      const pos1 = archetype.getComponentSnapshot<Position>(1, 1);
       expect(pos1).toEqual({ x: 10, y: 20 });
 
       // Subsequent normal operation should work
@@ -384,7 +384,7 @@ describe('Archetype System', () => {
       expect(Object.isFrozen(entities2)).toBe(true);
     });
 
-    test('should support epoch consistency between push and setComponent', () => {
+    test('should support epoch consistency between push and replaceComponent', () => {
       const archetype = new Archetype('key1', [1, 2], [Position, Velocity]);
 
       const testEpoch = 42;
@@ -411,8 +411,8 @@ describe('Archetype System', () => {
         expect(epochs?.[0]).toBe(testEpoch);
       }
 
-      // setComponent should work with same epoch semantics
-      archetype.setComponent(1, 1, new Position(30, 40), testEpoch + 1);
+      // replaceComponent should work with same epoch semantics
+      archetype.replaceComponent(1, 1, new Position(30, 40), testEpoch + 1);
 
       if (posCol?.getRowEpochs) {
         const epochs = posCol.getRowEpochs();
@@ -420,8 +420,8 @@ describe('Archetype System', () => {
       }
 
       // Verify data consistency
-      expect(archetype.getComponent<Position>(1, 1)).toEqual({ x: 30, y: 40 });
-      expect(archetype.getComponent<Velocity>(1, 2)).toEqual({ dx: 1, dy: 2 });
+      expect(archetype.getComponentSnapshot<Position>(1, 1)).toEqual({ x: 30, y: 40 });
+      expect(archetype.getComponentSnapshot<Velocity>(1, 2)).toEqual({ dx: 1, dy: 2 });
     });
   });
 

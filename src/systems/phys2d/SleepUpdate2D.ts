@@ -55,7 +55,7 @@ export const SleepUpdate2D = system(
     // Use fixed timestep or provided deltaTime
     const dt = world.getFixedDtFX ? world.getFixedDtFX() : f(deltaTime);
 
-    // Component stores are handled by setComponent calls
+    // Component stores are handled by replaceComponent calls
 
     // Process all bodies with sleep components
     world.query(Body2D, Sleep2D).forEach((e, b: Body2D, s: Sleep2D) => {
@@ -131,8 +131,8 @@ export const SleepUpdate2D = system(
 
       // Update components if changes were made
       if (needsUpdate) {
-        world.setComponent(e, Sleep2D, newSleep);
-        world.setComponent(e, Body2D, newBody);
+        world.replaceComponent(e, Sleep2D, newSleep);
+        world.replaceComponent(e, Body2D, newBody);
       }
     });
   }
