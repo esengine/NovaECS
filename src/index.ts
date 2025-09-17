@@ -167,16 +167,27 @@ export * from './math/fixed';
 export { Body2D, createStaticBody, createDynamicBody } from './components/Body2D';
 export { ShapeCircle, createCircleShape, getCircleArea, pointInCircle, circleDistance } from './components/ShapeCircle';
 export { AABB2D, aabbOverlap, aabbArea } from './components/AABB2D';
+export { Sleep2D } from './components/Sleep2D';
+export { JointDistance2D, createDistanceJoint, createBreakableDistanceJoint, createSoftDistanceJoint } from './components/JointDistance2D';
 export { Guid, createGuid, createGuidFromValues, createZeroGuid, compareGuid, guidEquals, isZeroGuid } from './components/Guid';
 
 // Physics Resources
 export { BroadphasePairs } from './resources/BroadphasePairs';
 export type { Pair } from './resources/BroadphasePairs';
 export { Contacts2D, type Contact1 } from './resources/Contacts2D';
+export { PhysicsSleepConfig } from './resources/PhysicsSleepConfig';
+export { JointConstraints2D } from './resources/JointConstraints2D';
+export { JointBatch2D } from './resources/JointBatch2D';
+export type { JointRow } from './resources/JointBatch2D';
 
 // Physics Systems
 export { IntegrateVelocitiesSystem } from './systems/IntegrateVelocitiesSystem';
 export { SyncAABBSystem } from './systems/phys2d/SyncAABBSystem';
 export { BroadphaseSAP } from './systems/phys2d/BroadphaseSAP';
 export { NarrowphaseCircle } from './systems/phys2d/NarrowphaseCircle';
+export { JointBatchBuilder2D } from './systems/phys2d/JointBatchBuilder2D';
+export { BuildJointsDistance2D } from './systems/phys2d/BuildJointsDistance2D';
+export { JointSolver2D } from './systems/phys2d/JointSolver2D';
+export { SolverGSJoints2D, JointBrokenEvent, JointEvents2D } from './systems/phys2d/SolverGSJoints2D';
+export { JointEventHandler2D } from './systems/phys2d/JointEventHandler2D';
 export { updateContactCache, clearContactCache, getContactStats } from './systems/phys2d/ContactCacheUtils';
