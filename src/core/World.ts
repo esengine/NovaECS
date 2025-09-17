@@ -7,7 +7,7 @@ import { EntityManager } from './EntityManager';
 import { Entity } from '../utils/Types';
 import { getComponentType, ComponentType, ComponentCtor, getCtorByTypeId } from './ComponentRegistry';
 import { SparseSetStore, IComponentStore } from './SparseSetStore';
-import { Query } from './Query';
+import { Query, QueryOptions } from './Query';
 import { CommandBuffer } from './CommandBuffer';
 import { EventChannel } from '../events/EventChannel';
 import { AddedEvent, RemovedEvent, Added, Removed } from '../events/Types';
@@ -604,6 +604,18 @@ export class World {
   query(...ctors: ComponentCtor<unknown>[]): Query<unknown[]> {
     const types = ctors.map(getComponentType);
     return new Query(this, types);
+  }
+
+  /**
+   * Create query with options (new API)
+   * 使用选项创建查询（新API）
+   */
+  queryWith<T1>(opts: QueryOptions, c1: ComponentCtor<T1>): Query<[T1]>;
+  queryWith<T1, T2>(opts: QueryOptions, c1: ComponentCtor<T1>, c2: ComponentCtor<T2>): Query<[T1, T2]>;
+  queryWith<T1, T2, T3>(opts: QueryOptions, c1: ComponentCtor<T1>, c2: ComponentCtor<T2>, c3: ComponentCtor<T3>): Query<[T1, T2, T3]>;
+  queryWith(opts: QueryOptions, ...ctors: ComponentCtor<unknown>[]): Query<unknown[]> {
+    const types = ctors.map(getComponentType);
+    return new Query(this, types, opts);
   }
 
   /**

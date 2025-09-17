@@ -237,7 +237,7 @@ describe('Tag System', () => {
 
       // Query entities with Position component and 'enemy' tag
       const results: Array<{ entity: number; pos: Position }> = [];
-      world.query(Position).where(['enemy']).forEach((entity, pos) => {
+      world.queryWith({ withTags: ['enemy'] }, Position).forEach((entity, pos) => {
         results.push({ entity, pos: pos as Position });
       });
 
@@ -265,7 +265,7 @@ describe('Tag System', () => {
 
       // Query entities with Position but forbid 'boss' tag
       const results: number[] = [];
-      world.query(Position).where([], ['boss']).forEach((entity) => {
+      world.queryWith({ withoutTags: ['boss'] }, Position).forEach((entity) => {
         results.push(entity);
       });
 
@@ -297,7 +297,7 @@ describe('Tag System', () => {
 
       // Query enemies that are not bosses
       const results: number[] = [];
-      world.query(Position).where(['enemy'], ['boss']).forEach((entity) => {
+      world.queryWith({ withTags: ['enemy'], withoutTags: ['boss'] }, Position).forEach((entity) => {
         results.push(entity);
       });
 
@@ -327,7 +327,7 @@ describe('Tag System', () => {
 
       // Query moving enemies (have both Position and Velocity, and 'enemy' tag)
       const results: Array<{ entity: number; pos: Position; vel: Velocity }> = [];
-      world.query(Position, Velocity).where(['enemy']).forEach((entity, pos, vel) => {
+      world.queryWith({ withTags: ['enemy'] }, Position, Velocity).forEach((entity, pos, vel) => {
         results.push({ entity, pos: pos as Position, vel: vel as Velocity });
       });
 
@@ -345,7 +345,7 @@ describe('Tag System', () => {
 
       // Query with empty tag filters should behave like normal query
       const results: number[] = [];
-      world.query(Position).where().forEach((entity) => {
+      world.query(Position).forEach((entity) => {
         results.push(entity);
       });
 

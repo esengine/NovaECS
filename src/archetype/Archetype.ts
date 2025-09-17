@@ -347,6 +347,22 @@ export class Archetype {
   }
 
   /**
+   * Get entity count (hot path accessor)
+   * 获取实体数量（热路径访问器）
+   */
+  length(): number {
+    return this.entities.length;
+  }
+
+  /**
+   * Get entity at row (hot path accessor, no bounds checking)
+   * 获取指定行的实体（热路径访问器，无边界检查）
+   */
+  entityAt(row: number): Entity {
+    return this.entities[row];
+  }
+
+  /**
    * Check if archetype is empty
    * 检查原型是否为空
    */

@@ -158,8 +158,7 @@ describe('Tag BitSet Filtering', () => {
       const results: number[] = [];
 
       // Query for Active Players only
-      world.query(Position)
-        .where(['Player', 'Active'], [])
+      world.queryWith({ withTags: ['Player', 'Active'] }, Position)
         .forEach((entity) => {
           results.push(entity);
         });
@@ -187,8 +186,7 @@ describe('Tag BitSet Filtering', () => {
       const results: number[] = [];
 
       // Query for entities without Dead tag
-      world.query(Position)
-        .where([], ['Dead'])
+      world.queryWith({ withoutTags: ['Dead'] }, Position)
         .forEach((entity) => {
           results.push(entity);
         });
@@ -218,8 +216,7 @@ describe('Tag BitSet Filtering', () => {
       const results: number[] = [];
 
       // Query for alive players (require Player + Alive, forbid Dead)
-      world.query(Position)
-        .where(['Player', 'Alive'], ['Dead'])
+      world.queryWith({ withTags: ['Player', 'Alive'], withoutTags: ['Dead'] }, Position)
         .forEach((entity) => {
           results.push(entity);
         });
@@ -241,13 +238,9 @@ describe('Tag BitSet Filtering', () => {
 
       let movingEntityCount = 0;
 
-      world.query(Position, Velocity)
-        .where(['Moving'], [])
-        .forEachRaw((row, entities, cols) => {
+      world.queryWith({ withTags: ['Moving'] }, Position, Velocity)
+        .forEach((entity, position, velocity) => {
           movingEntityCount++;
-          const entity = entities[row];
-          const position = cols[0].readToObject(row);
-          const velocity = cols[1].readToObject(row);
 
           expect(entity).toBe(entity1);
           expect(position.x).toBe(10);
@@ -277,8 +270,7 @@ describe('Tag BitSet Filtering', () => {
       const start = performance.now();
 
       const results: number[] = [];
-      world.query(Position)
-        .where(['Even', 'DivisibleBy3'], ['DivisibleBy5'])
+      world.queryWith({ withTags: ['Even', 'DivisibleBy3'], withoutTags: ['DivisibleBy5'] }, Position)
         .forEach((entity) => {
           results.push(entity);
         });

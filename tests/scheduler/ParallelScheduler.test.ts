@@ -263,8 +263,8 @@ describe('ParallelScheduler', () => {
 
       // 创建实体
       const entity = world.createEntity();
-      world.add(entity, Position, { x: 0, y: 0 });
-      world.add(entity, Velocity, { dx: 10, dy: 5 });
+      world.addComponent(entity, Position, { x: 0, y: 0 });
+      world.addComponent(entity, Velocity, { dx: 10, dy: 5 });
 
       const movementSystem = system('MovementSystem', ctx => {
         const query = ctx.world.query(Position, Velocity);
@@ -290,7 +290,7 @@ describe('ParallelScheduler', () => {
       });
 
       const entity = world.createEntity();
-      world.add(entity, Position, { x: 0, y: 0 });
+      world.addComponent(entity, Position, { x: 0, y: 0 });
 
       const addVelocitySystem = system('AddVelocitySystem', ctx => {
         const query = ctx.world.query(Position);
