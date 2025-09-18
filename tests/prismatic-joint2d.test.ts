@@ -169,7 +169,7 @@ describe('滑门物理测试', () => {
       // 运行物理系统
       BuildPrismatic2D.fn(ctx);
       SolverGSPrismatic2D.fn(ctx);
-      IntegrateVelocitiesSystem.build().fn(ctx);
+      IntegrateVelocitiesSystem.fn(ctx);
 
       // 记录状态
       const bodyAData = world.getComponent(bodyA, Body2D) as Body2D;
@@ -316,7 +316,7 @@ describe('电机驱动测试', () => {
 
       BuildPrismatic2D.fn(ctx);
       SolverGSPrismatic2D.fn(ctx);
-      IntegrateVelocitiesSystem.build().fn(ctx);
+      IntegrateVelocitiesSystem.fn(ctx);
 
       const bodyAData = world.getComponent(bodyA, Body2D) as Body2D;
       states.push({
@@ -659,7 +659,7 @@ describe('关节断裂测试', () => {
       world.beginFrame();
       BuildPrismatic2D.fn(ctx);
       SolverGSPrismatic2D.fn(ctx);
-      IntegrateVelocitiesSystem.build().fn(ctx);
+      IntegrateVelocitiesSystem.fn(ctx);
       ctx.frame = world.frame;
     }
 

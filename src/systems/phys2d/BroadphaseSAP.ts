@@ -166,4 +166,5 @@ export const BroadphaseSAP = system(
 )
   .stage('update')
   .after('phys.syncAABB')
-  .inSet('physics');
+  .inSet('physics')
+  .build();

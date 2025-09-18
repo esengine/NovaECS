@@ -59,7 +59,7 @@ function wake(world: { replaceComponent: (entity: Entity, ctor: any, data: any) 
  * - 非推测接触中的深度穿透
  */
 export const WakeOnContact2D = system(
-  'phys.sleep.wakeOnContact',
+  'phys.wake.contact',
   (ctx: SystemContext) => {
     const { world } = ctx;
 
@@ -111,5 +111,6 @@ export const WakeOnContact2D = system(
   }
 )
   .stage('update')
-  .after('phys.narrowphase')
-  .before('phys.solver.gs');
+  .after('phys.poscor.split')
+  .before('phys.sleep.update')
+  .build();

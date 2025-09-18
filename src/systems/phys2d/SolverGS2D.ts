@@ -290,4 +290,8 @@ export const SolverGS2D = system(
       }
     }
   }
-);
+)
+  .stage('update')
+  .after('phys.ccd.spec')
+  .before('phys.joint.build.distance')
+  .build();

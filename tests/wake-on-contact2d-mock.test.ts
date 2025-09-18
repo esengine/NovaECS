@@ -110,7 +110,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     const contact = createContact();
     contacts.addContact(contact);
 
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     // Verify that replaceComponent was called to wake sleeping body
     expect(mockReplaceComponent).toHaveBeenCalledWith(
@@ -131,7 +131,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     });
     contacts.addContact(contact);
 
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     // Verify both bodies were woken (2 entities × 2 components each = 4 calls)
     expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
@@ -155,7 +155,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     });
     contacts.addContact(contact);
 
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
   });
@@ -168,7 +168,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     });
     contacts.addContact(contact);
 
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
   });
@@ -182,7 +182,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     });
     contacts.addContact(contact);
 
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
   });
@@ -195,7 +195,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     });
     contacts.addContact(contact);
 
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     // No wake calls should be made
     expect(mockReplaceComponent).not.toHaveBeenCalled();
@@ -210,7 +210,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     });
     contacts.addContact(contact);
 
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     expect(mockReplaceComponent).not.toHaveBeenCalled();
   });
@@ -224,7 +224,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     });
     contacts.addContact(contact);
 
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     expect(mockReplaceComponent).not.toHaveBeenCalled();
   });
@@ -238,7 +238,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     });
     contacts.addContact(contact);
 
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     expect(mockReplaceComponent).not.toHaveBeenCalled();
 
@@ -246,7 +246,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     mockReplaceComponent.mockClear();
     contact.jn = f(0.06);
 
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
   });
@@ -255,7 +255,7 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     setupSleepStates(1, 1);
     // No contacts added
 
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     expect(mockReplaceComponent).not.toHaveBeenCalled();
   });
@@ -268,17 +268,17 @@ describe('WakeOnContact2D System (Mock-based)', () => {
     // Add strong contact
     contacts.addContact(createContact({ jn: f(0.02) }));
 
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     // Should wake due to strong contact (2 entities × 2 components each = 4 calls)
     expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
   });
 
   test('should have correct system configuration', () => {
-    const builtSystem = WakeOnContact2D.build();
-    expect(builtSystem.name).toBe('phys.sleep.wakeOnContact');
+    const builtSystem = WakeOnContact2D;
+    expect(builtSystem.name).toBe('phys.wake.contact');
     expect(builtSystem.stage).toBe('update');
-    expect(builtSystem.after).toContain('phys.narrowphase');
-    expect(builtSystem.before).toContain('phys.solver.gs');
+    expect(builtSystem.after).toContain('phys.poscor.split');
+    expect(builtSystem.before).toContain('phys.sleep.update');
   });
 });

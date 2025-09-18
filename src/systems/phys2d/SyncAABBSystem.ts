@@ -48,5 +48,6 @@ export const SyncAABBSystem = system(
 )
   .stage('update')
   .after('phys.integrateVelocities')
-  .inSet('physics');
+  .inSet('physics')
+  .build();
 

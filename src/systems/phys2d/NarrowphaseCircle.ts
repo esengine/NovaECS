@@ -193,4 +193,5 @@ export const NarrowphaseCircle = system(
 )
   .stage('update')
   .after('phys.broadphase.sap')
-  .inSet('physics');
+  .before('phys.ccd.spec')
+  .build();

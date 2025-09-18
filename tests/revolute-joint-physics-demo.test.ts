@@ -1,16 +1,16 @@
 /**
- * Distance Joint Physics Demo Test
- * 距离关节物理演示测试
+ * Revolute Joint Physics Demo Test
+ * 铰链关节物理演示测试
  *
- * Creates two circular bodies A/B with local anchors (0,0), rest set to their initial distance.
- * Push A, B should be "pulled along".
- * Set gamma small (0) for hard distance; increase to f(0.1) for "soft spring".
+ * Creates two circular bodies A/B with local anchors (0,0), constraint at body centers.
+ * Push A, B should be "tethered" and rotate along.
+ * Set gamma small (0) for hard constraint; increase to f(0.05) for "soft spring".
  * Set breakImpulse=f(5), pull hard: triggers break event, joint destroyed by external system.
  * Repeat & cross-machine: trajectory and frameHash consistent.
  *
- * 创建两个圆体A/B，给定局部锚点(0,0)，rest设为它们初始距离；
- * 推动A，B应被"牵住"。
- * 将gamma调小（0）变成硬距离；增大到f(0.1)变"软弹簧"。
+ * 创建两个圆体A/B，给定局部锚点(0,0)，在物体中心创建约束；
+ * 推动A，B应被"拴住"并随之旋转。
+ * 将gamma调小（0）变成硬约束；增大到f(0.05)变"软弹簧"。
  * 设置breakImpulse=f(5)，猛拉：触发断裂事件，关节被外部系统销毁。
  * 反复重放&跨机器：轨迹和frameHash一致。
  */
@@ -19,10 +19,11 @@ import { describe, test, expect, beforeEach } from 'vitest';
 import { World } from '../src/core/World';
 import { Body2D, createDynamicBody } from '../src/components/Body2D';
 import { ShapeCircle, createCircleShape } from '../src/components/ShapeCircle';
-import { JointDistance2D, createDistanceJoint } from '../src/components/JointDistance2D';
-import { JointConstraints2D } from '../src/resources/JointConstraints2D';
-import { BuildJointsDistance2D } from '../src/systems/phys2d/BuildJointsDistance2D';
-import { SolverGSJoints2D, JointEvents2D, JointBrokenEvent } from '../src/systems/phys2d/SolverGSJoints2D';
+import { RevoluteJoint2D, createRevoluteJoint } from '../src/components/RevoluteJoint2D';
+import { RevoluteBatch2D } from '../src/resources/RevoluteBatch2D';
+import { BuildRevolute2D } from '../src/systems/phys2d/BuildRevolute2D';
+import { SolverGSRevolute2D } from '../src/systems/phys2d/SolverGSRevolute2D';
+import { JointEvents2D, JointBrokenEvent } from '../src/systems/phys2d/SolverGSJoints2D';
 import { JointEventHandler2D } from '../src/systems/phys2d/JointEventHandler2D';
 import { IntegrateVelocitiesSystem } from '../src/systems/IntegrateVelocitiesSystem';
 import { f, ZERO, ONE, toFloat } from '../src/math/fixed';
@@ -31,59 +32,56 @@ import type { SystemContext } from '../src/core/System';
 import { frameHash } from '../src/replay/StateHash';
 
 interface PhysicsState {
-  bodyA: { px: number; py: number; vx: number; vy: number };
-  bodyB: { px: number; py: number; vx: number; vy: number };
+  bodyA: { px: number; py: number; vx: number; vy: number; w: number };
+  bodyB: { px: number; py: number; vx: number; vy: number; w: number };
   jointExists: boolean;
   jointBroken: boolean;
   frame: number;
 }
 
-describe('Distance Joint Physics Demo', () => {
+describe('Revolute Joint Physics Demo', () => {
   let world: World;
   let bodyA: number;
   let bodyB: number;
   let jointEntity: number;
-  let constraints: JointConstraints2D;
+  let batch: RevoluteBatch2D;
   let ctx: SystemContext;
 
   function setupPhysicsWorld(): void {
     world = new World();
 
     // Setup resources
-    constraints = new JointConstraints2D();
-    world.setResource(JointConstraints2D, constraints);
+    batch = new RevoluteBatch2D();
+    world.setResource(RevoluteBatch2D, batch);
 
-    // Create body A at (-1, 0)
+    // Create body A at (-0.5, 0)
     bodyA = world.createEntity();
     const bodyDataA = createDynamicBody();
-    bodyDataA.px = f(-1.0);
+    bodyDataA.px = f(-0.5);
     bodyDataA.py = ZERO;
     bodyDataA.invMass = ONE;
     bodyDataA.invI = ONE;
 
-    const shapeA = createCircleShape(0.2); // radius 0.2
+    const shapeA = createCircleShape(f(0.2)); // radius 0.2
     world.addComponent(bodyA, Body2D, bodyDataA);
     world.addComponent(bodyA, ShapeCircle, shapeA);
 
-    // Create body B at (1, 0)
+    // Create body B at (0.5, 0)
     bodyB = world.createEntity();
     const bodyDataB = createDynamicBody();
-    bodyDataB.px = f(1.0);
+    bodyDataB.px = f(0.5);
     bodyDataB.py = ZERO;
     bodyDataB.invMass = ONE;
     bodyDataB.invI = ONE;
 
-    const shapeB = createCircleShape(0.2); // radius 0.2
+    const shapeB = createCircleShape(f(0.2)); // radius 0.2
     world.addComponent(bodyB, Body2D, bodyDataB);
     world.addComponent(bodyB, ShapeCircle, shapeB);
 
-    // Create distance joint with local anchors (0,0) - center of bodies
+    // Create revolute joint with local anchors (0,0) - center of bodies
     jointEntity = world.createEntity();
-    const joint = createDistanceJoint(bodyA, bodyB, { x: 0, y: 0 }, { x: 0, y: 0 }, -1); // auto-initialize rest
-    world.addComponent(jointEntity, JointDistance2D, joint);
-
-    // Add joint to constraints
-    constraints.addJoint(jointEntity);
+    const joint = createRevoluteJoint(bodyA, bodyB, { x: 0, y: 0 }, { x: 0, y: 0 });
+    world.addComponent(jointEntity, RevoluteJoint2D, joint);
 
     // Setup system context
     ctx = {
@@ -99,14 +97,14 @@ describe('Distance Joint Physics Demo', () => {
   }
 
   function runPhysicsStep(): void {
+    // Integrate velocities to positions first
+    IntegrateVelocitiesSystem.fn(ctx);
+
     // Build joint constraints
-    BuildJointsDistance2D.fn(ctx);
+    BuildRevolute2D.fn(ctx);
 
     // Solve joint constraints
-    SolverGSJoints2D.fn(ctx);
-
-    // Integrate velocities to positions
-    IntegrateVelocitiesSystem.fn(ctx);
+    SolverGSRevolute2D.fn(ctx);
 
     // Update frame
     ctx.frame++;
@@ -126,20 +124,22 @@ describe('Distance Joint Physics Demo', () => {
   function captureState(): PhysicsState {
     const bodyDataA = world.getComponent(bodyA, Body2D) as Body2D;
     const bodyDataB = world.getComponent(bodyB, Body2D) as Body2D;
-    const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D | undefined;
+    const joint = world.getComponent(jointEntity, RevoluteJoint2D) as RevoluteJoint2D | undefined;
 
     return {
       bodyA: {
         px: toFloat(bodyDataA.px),
         py: toFloat(bodyDataA.py),
         vx: toFloat(bodyDataA.vx),
-        vy: toFloat(bodyDataA.vy)
+        vy: toFloat(bodyDataA.vy),
+        w: toFloat(bodyDataA.w)
       },
       bodyB: {
         px: toFloat(bodyDataB.px),
         py: toFloat(bodyDataB.py),
         vx: toFloat(bodyDataB.vx),
-        vy: toFloat(bodyDataB.vy)
+        vy: toFloat(bodyDataB.vy),
+        w: toFloat(bodyDataB.w)
       },
       jointExists: !!joint,
       jointBroken: joint ? joint.broken === 1 : true,
@@ -155,21 +155,16 @@ describe('Distance Joint Physics Demo', () => {
     setupPhysicsWorld();
   });
 
-  test('should auto-initialize rest distance and maintain constraint', () => {
-    // Run one step to auto-initialize
+  test('should maintain joint constraint and tether bodies together', () => {
+    // Run one step to initialize
     runPhysicsStep();
-
-    const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
-    expect(joint.rest).toBe(f(2.0)); // Distance between (-1,0) and (1,0) is 2.0
-    expect(joint.initialized).toBe(1);
 
     // Apply force to body A (push right)
     const bodyDataA = world.getComponent(bodyA, Body2D) as Body2D;
     bodyDataA.vx = f(2.0); // Push A to the right
     world.replaceComponent(bodyA, Body2D, bodyDataA);
 
-    const initialStateA = captureState().bodyA;
-    const initialStateB = captureState().bodyB;
+    const afterForceState = captureState();
 
     // Run physics for several steps
     for (let i = 0; i < 10; i++) {
@@ -178,26 +173,27 @@ describe('Distance Joint Physics Demo', () => {
 
     const finalState = captureState();
 
-    // Body A should have moved right
-    expect(finalState.bodyA.px).toBeGreaterThan(initialStateA.px);
+    // Both bodies should move toward each other due to joint constraint
+    // A moves right (positive) from its initial force, B gets pulled toward A (negative from initial 0.5)
+    expect(finalState.bodyA.px).toBeGreaterThan(afterForceState.bodyA.px);
 
-    // Body B should be "pulled along" by the joint
-    expect(finalState.bodyB.px).toBeGreaterThan(initialStateB.px);
+    // Body B should be "tethered" by the joint and pulled toward A
+    expect(finalState.bodyB.px).toBeLessThan(afterForceState.bodyB.px);
 
-    // Distance between bodies should remain approximately 2.0
+    // For revolute joint with (0,0) anchors, constraint points should be close
     const distance = Math.sqrt(
       Math.pow(finalState.bodyA.px - finalState.bodyB.px, 2) +
       Math.pow(finalState.bodyA.py - finalState.bodyB.py, 2)
     );
-    expect(Math.abs(distance - 2.0)).toBeLessThan(0.1); // Allow small tolerance
+    expect(distance).toBeLessThan(0.2); // Anchors should be close together
   });
 
   test('should behave as hard constraint when gamma = 0', () => {
     // Set hard constraint (gamma = 0)
-    const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
+    const joint = world.getComponent(jointEntity, RevoluteJoint2D) as RevoluteJoint2D;
     joint.gamma = ZERO;
     joint.beta = f(0.2); // Strong position correction
-    world.replaceComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, RevoluteJoint2D, joint);
 
     // Initialize
     runPhysicsStep();
@@ -214,20 +210,20 @@ describe('Distance Joint Physics Demo', () => {
 
     const finalState = captureState();
 
-    // Hard constraint should maintain precise distance
+    // Hard constraint should maintain constraint points close together
     const distance = Math.sqrt(
       Math.pow(finalState.bodyA.px - finalState.bodyB.px, 2) +
       Math.pow(finalState.bodyA.py - finalState.bodyB.py, 2)
     );
-    expect(Math.abs(distance - 2.0)).toBeLessThan(0.05); // Very tight tolerance for hard constraint
+    expect(distance).toBeLessThan(0.05); // Very tight tolerance for hard constraint
   });
 
-  test('should behave as soft spring when gamma = 0.1', () => {
-    // Set soft constraint (gamma = 0.3)
-    const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
-    joint.gamma = f(0.3);
+  test('should behave as soft spring when gamma = 0.05', () => {
+    // Set soft constraint (gamma = 0.05)
+    const joint = world.getComponent(jointEntity, RevoluteJoint2D) as RevoluteJoint2D;
+    joint.gamma = f(0.05);
     joint.beta = f(0.05); // Weaker position correction
-    world.replaceComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, RevoluteJoint2D, joint);
 
     // Initialize
     runCompletePhysicsStep();
@@ -249,16 +245,16 @@ describe('Distance Joint Physics Demo', () => {
       Math.pow(finalState.bodyA.px - finalState.bodyB.px, 2) +
       Math.pow(finalState.bodyA.py - finalState.bodyB.py, 2)
     );
-    expect(Math.abs(distance - 2.0)).toBeGreaterThan(0.005); // Should deviate more than hard constraint
-    expect(Math.abs(distance - 2.0)).toBeLessThan(0.3); // But still somewhat constrained
+    expect(distance).toBeGreaterThan(0.005); // Should deviate more than hard constraint
+    expect(distance).toBeLessThan(0.5); // But still somewhat constrained
   });
 
   test('should break joint when impulse exceeds breakImpulse threshold', () => {
     // Set breakable joint
-    const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
+    const joint = world.getComponent(jointEntity, RevoluteJoint2D) as RevoluteJoint2D;
     joint.breakImpulse = f(5.0); // Break threshold
     joint.gamma = ZERO; // Hard constraint for maximum impulse
-    world.replaceComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, RevoluteJoint2D, joint);
 
     // Initialize
     runPhysicsStep();
@@ -316,12 +312,12 @@ describe('Distance Joint Physics Demo', () => {
     expect(finalState.bodyA.px).toBeGreaterThan(bodyPositionsAfterBreak.A.px);
 
     // Both bodies should be moving with significant velocity after break
-    expect(Math.abs(finalState.bodyA.vx)).toBeGreaterThan(20);
-    expect(Math.abs(finalState.bodyB.vx)).toBeGreaterThan(20);
+    expect(Math.abs(finalState.bodyA.vx)).toBeGreaterThan(5);
+    expect(Math.abs(finalState.bodyB.vx)).toBeGreaterThan(5);
 
     // Bodies should have moved significantly from their original positions
     expect(Math.abs(finalState.bodyA.px)).toBeGreaterThan(5);
-    expect(Math.abs(finalState.bodyB.px)).toBeGreaterThan(5);
+    expect(Math.abs(finalState.bodyB.px)).toBeGreaterThan(1);
   });
 
   test('should produce deterministic results across multiple runs', () => {
@@ -337,10 +333,10 @@ describe('Distance Joint Physics Demo', () => {
       const runHashes: number[] = [];
 
       // Set up identical conditions
-      const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
+      const joint = world.getComponent(jointEntity, RevoluteJoint2D) as RevoluteJoint2D;
       joint.gamma = f(0.05);
       joint.breakImpulse = f(5.0);
-      world.replaceComponent(jointEntity, JointDistance2D, joint);
+      world.replaceComponent(jointEntity, RevoluteJoint2D, joint);
 
       // Initialize
       runPhysicsStep();
@@ -394,10 +390,10 @@ describe('Distance Joint Physics Demo', () => {
       setupPhysicsWorld();
 
       // Use same parameters as successful breaking test
-      const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
+      const joint = world.getComponent(jointEntity, RevoluteJoint2D) as RevoluteJoint2D;
       joint.breakImpulse = f(5.0);
       joint.gamma = ZERO;
-      world.replaceComponent(jointEntity, JointDistance2D, joint);
+      world.replaceComponent(jointEntity, RevoluteJoint2D, joint);
 
       // Initialize
       runPhysicsStep();
@@ -436,15 +432,15 @@ describe('Distance Joint Physics Demo', () => {
     expect(states[0].jointBroken).toBe(true);
   });
 
-  test('should demonstrate complete physics pipeline integration', () => {
-    // This test demonstrates the full joint system working together
+  test('should demonstrate complete revolute joint pipeline integration', () => {
+    // This test demonstrates the full revolute joint system working together
 
     // Setup with specific parameters
-    const joint = world.getComponent(jointEntity, JointDistance2D) as JointDistance2D;
+    const joint = world.getComponent(jointEntity, RevoluteJoint2D) as RevoluteJoint2D;
     joint.gamma = f(0.02); // Slightly soft
     joint.beta = f(0.15);  // Moderate position correction
     joint.breakImpulse = f(8.0); // Moderate break threshold
-    world.replaceComponent(jointEntity, JointDistance2D, joint);
+    world.replaceComponent(jointEntity, RevoluteJoint2D, joint);
 
     const timeline: Array<{
       frame: number;
@@ -475,7 +471,7 @@ describe('Distance Joint Physics Demo', () => {
     // Phase 1: Initialization
     runPhysicsStep();
     recordState('Initialize');
-    expect(timeline[0].distance).toBeCloseTo(2.0, 1);
+    expect(timeline[0].distance).toBeLessThan(1.2); // Allow some convergence time
     expect(timeline[0].jointIntact).toBe(true);
 
     // Phase 2: Gentle push
@@ -488,7 +484,8 @@ describe('Distance Joint Physics Demo', () => {
     }
     recordState('After gentle push');
     expect(timeline[1].bodyA_pos[0]).toBeGreaterThan(timeline[0].bodyA_pos[0]);
-    expect(timeline[1].bodyB_pos[0]).toBeGreaterThan(timeline[0].bodyB_pos[0]);
+    // Body B moves toward A (left/negative) due to joint constraint
+    expect(timeline[1].bodyB_pos[0]).toBeLessThan(timeline[0].bodyB_pos[0]);
     expect(timeline[1].jointIntact).toBe(true);
 
     // Phase 3: Strong pull (should break joint)

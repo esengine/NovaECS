@@ -73,17 +73,17 @@ describe('Speculative CCD Determinism', () => {
     world.setFixedDt(1/60);
 
     // 构建物理管线
-    scheduler.add(IntegrateVelocitiesSystem.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
+    scheduler.add(IntegrateVelocitiesSystem);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
 
     if (withCCD) {
-      scheduler.add(SpeculativeCCD2D.build()); // 可选：启用CCD
+      scheduler.add(SpeculativeCCD2D); // 可选：启用CCD
     }
 
-    scheduler.add(SolverGS2D.build());
-    scheduler.add(PositionCorrection2D.build());
+    scheduler.add(SolverGS2D);
+    scheduler.add(PositionCorrection2D);
 
     // 创建高速子弹
     const bullet = world.createEntity();
@@ -286,12 +286,12 @@ describe('Speculative CCD Determinism', () => {
 
     world.setFixedDt(1/60);
 
-    scheduler.add(IntegrateVelocitiesSystem.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
-    scheduler.add(SpeculativeCCD2D.build());
-    scheduler.add(SolverGS2D.build());
+    scheduler.add(IntegrateVelocitiesSystem);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
+    scheduler.add(SpeculativeCCD2D);
+    scheduler.add(SolverGS2D);
 
     // 创建一个小球和一个静态目标，确保会碰撞
     const bullet = world.createEntity();
@@ -343,12 +343,12 @@ describe('Speculative CCD Determinism', () => {
     const scheduler2 = new Scheduler(world2);
     world2.setFixedDt(1/60);
 
-    scheduler2.add(IntegrateVelocitiesSystem.build());
-    scheduler2.add(SyncAABBSystem.build());
-    scheduler2.add(BroadphaseSAP.build());
-    scheduler2.add(NarrowphaseCircle.build());
-    scheduler2.add(SpeculativeCCD2D.build());
-    scheduler2.add(SolverGS2D.build());
+    scheduler2.add(IntegrateVelocitiesSystem);
+    scheduler2.add(SyncAABBSystem);
+    scheduler2.add(BroadphaseSAP);
+    scheduler2.add(NarrowphaseCircle);
+    scheduler2.add(SpeculativeCCD2D);
+    scheduler2.add(SolverGS2D);
 
     const bullet2 = world2.createEntity();
     const bulletBody2 = createDynamicBody(f(-1.5), ZERO, f(0.5), f(0.2));
@@ -396,12 +396,12 @@ describe('Speculative CCD Determinism', () => {
 
     world.setFixedDt(1/60);
 
-    scheduler.add(IntegrateVelocitiesSystem.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
-    scheduler.add(SpeculativeCCD2D.build());
-    scheduler.add(SolverGS2D.build());
+    scheduler.add(IntegrateVelocitiesSystem);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
+    scheduler.add(SpeculativeCCD2D);
+    scheduler.add(SolverGS2D);
 
     // 创建两个同心圆，具有相对速度
     const entity1 = world.createEntity();

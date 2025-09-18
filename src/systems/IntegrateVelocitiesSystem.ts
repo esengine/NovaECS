@@ -68,7 +68,8 @@ export const IntegrateVelocitiesSystem = system(
   }
 )
   .stage('update')
-  .inSet('physics');
+  .inSet('physics')
+  .build();
 
 /**
  * Get fixed-point timestep from World

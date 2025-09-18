@@ -78,14 +78,14 @@ describe('Position Correction Determinism', () => {
     world.setFixedDt(dt);
 
     // 完整的物理管线，包含位置校正
-    scheduler.add(IntegrateVelocitiesSystem.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
-    scheduler.add(SolverGS2D.build());
-    scheduler.add(PositionCorrection2D.build());
+    scheduler.add(IntegrateVelocitiesSystem);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
+    scheduler.add(SolverGS2D);
+    scheduler.add(PositionCorrection2D);
     // 可选：在位置校正后再次同步AABB
-    scheduler.add(SyncAABBSystem.build());
+    scheduler.add(SyncAABBSystem);
 
     // 根据场景创建不同的测试环境
     if (scenario === 'stack') {
@@ -385,11 +385,11 @@ describe('Position Correction Determinism', () => {
     const scheduler = new Scheduler(world);
     world.setFixedDt(1/60);
 
-    scheduler.add(IntegrateVelocitiesSystem.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
-    scheduler.add(SolverGS2D.build());
+    scheduler.add(IntegrateVelocitiesSystem);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
+    scheduler.add(SolverGS2D);
     // 注意：没有PositionCorrection2D
 
     // 创建简单测试场景
@@ -542,11 +542,11 @@ describe('Position Correction Determinism', () => {
       const scheduler = new Scheduler(world);
       world.setFixedDt(1/60);
 
-      scheduler.add(IntegrateVelocitiesSystem.build());
-      scheduler.add(SyncAABBSystem.build());
-      scheduler.add(BroadphaseSAP.build());
-      scheduler.add(NarrowphaseCircle.build());
-      scheduler.add(SolverGS2D.build());
+      scheduler.add(IntegrateVelocitiesSystem);
+      scheduler.add(SyncAABBSystem);
+      scheduler.add(BroadphaseSAP);
+      scheduler.add(NarrowphaseCircle);
+      scheduler.add(SolverGS2D);
       scheduler.add(CustomPositionCorrection.build());
 
       // 创建堆叠场景
@@ -719,11 +719,11 @@ describe('Position Correction Determinism', () => {
       const scheduler = new Scheduler(world);
       world.setFixedDt(1/60);
 
-      scheduler.add(IntegrateVelocitiesSystem.build());
-      scheduler.add(SyncAABBSystem.build());
-      scheduler.add(BroadphaseSAP.build());
-      scheduler.add(NarrowphaseCircle.build());
-      scheduler.add(SolverGS2D.build());
+      scheduler.add(IntegrateVelocitiesSystem);
+      scheduler.add(SyncAABBSystem);
+      scheduler.add(BroadphaseSAP);
+      scheduler.add(NarrowphaseCircle);
+      scheduler.add(SolverGS2D);
       scheduler.add(CustomPositionCorrection.build());
 
       // 创建两个相接触的圆（稍微重叠）

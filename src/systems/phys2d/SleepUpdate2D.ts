@@ -139,4 +139,5 @@ export const SleepUpdate2D = system(
 )
   .stage('postUpdate')
   .after('phys.solver.gs')
-  .before('cleanup');
+  .before('cleanup')
+  .build();

@@ -99,14 +99,14 @@ describe('Sleep/Wake System Determinism', () => {
     world.setResource(PhysicsSleepConfig, sleepConfig);
 
     // 完整的物理管线，包含睡眠/唤醒系统
-    scheduler.add(IntegrateVelocitiesSystem.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
-    scheduler.add(WakeOnContact2D.build()); // 先唤醒
-    scheduler.add(SolverGS2D.build());
-    scheduler.add(PositionCorrection2D.build());
-    scheduler.add(SleepUpdate2D.build()); // 后更新睡眠状态
+    scheduler.add(IntegrateVelocitiesSystem);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
+    scheduler.add(WakeOnContact2D); // 先唤醒
+    scheduler.add(SolverGS2D);
+    scheduler.add(PositionCorrection2D);
+    scheduler.add(SleepUpdate2D); // 后更新睡眠状态
 
     // 创建地面（静态）
     const ground = world.createEntity();
@@ -332,14 +332,14 @@ describe('Sleep/Wake System Determinism', () => {
     Object.assign(sleepConfig, chainSleepConfig);
     world.setResource(PhysicsSleepConfig, sleepConfig);
 
-    scheduler.add(IntegrateVelocitiesSystem.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
-    scheduler.add(WakeOnContact2D.build());
-    scheduler.add(SolverGS2D.build());
-    scheduler.add(PositionCorrection2D.build());
-    scheduler.add(SleepUpdate2D.build());
+    scheduler.add(IntegrateVelocitiesSystem);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
+    scheduler.add(WakeOnContact2D);
+    scheduler.add(SolverGS2D);
+    scheduler.add(PositionCorrection2D);
+    scheduler.add(SleepUpdate2D);
 
     // 重建稳定状态
     const ground = world.createEntity();
@@ -582,13 +582,13 @@ describe('Sleep/Wake System Determinism', () => {
       sleepConfig.timeToSleep = f(0.3); // 较短的睡眠时间以加快测试
       world.setResource(PhysicsSleepConfig, sleepConfig);
 
-      scheduler.add(IntegrateVelocitiesSystem.build());
-      scheduler.add(SyncAABBSystem.build());
-      scheduler.add(BroadphaseSAP.build());
-      scheduler.add(NarrowphaseCircle.build());
+      scheduler.add(IntegrateVelocitiesSystem);
+      scheduler.add(SyncAABBSystem);
+      scheduler.add(BroadphaseSAP);
+      scheduler.add(NarrowphaseCircle);
       scheduler.add(WakeOnContact2D);
-      scheduler.add(SolverGS2D.build());
-      scheduler.add(PositionCorrection2D.build());
+      scheduler.add(SolverGS2D);
+      scheduler.add(PositionCorrection2D);
       scheduler.add(SleepUpdate2D);
 
       // 创建一个在斜面上缓慢滚动的圆

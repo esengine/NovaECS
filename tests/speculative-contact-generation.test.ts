@@ -104,8 +104,7 @@ describe('Speculative Contact Generation', () => {
     console.log(`预测分离: ${predictedSeparation}`);
 
     // 运行推测CCD系统
-    const ccdConfig = SpeculativeCCD2D.build();
-    ccdConfig.fn({ world } as SystemContext);
+    SpeculativeCCD2D.fn({ world } as SystemContext);
 
     // 验证推测接触生成
     const contactsRes = world.getResource(Contacts2D) as Contacts2D;
@@ -175,8 +174,7 @@ describe('Speculative Contact Generation', () => {
     console.log(`当前分离: ${currentSep}`);
     console.log(`预测分离: ${predictedSep}`);
 
-    const ccdConfig = SpeculativeCCD2D.build();
-    ccdConfig.fn({ world } as SystemContext);
+    SpeculativeCCD2D.fn({ world } as SystemContext);
 
     const contactsRes = world.getResource(Contacts2D) as Contacts2D;
     expect(contactsRes).toBeDefined();
@@ -222,8 +220,7 @@ describe('Speculative Contact Generation', () => {
     const currentSep = 0.2 - 0.3; // -0.1 < 0 (重叠)
     console.log(`当前分离: ${currentSep} (应该 < 0)`);
 
-    const ccdConfig = SpeculativeCCD2D.build();
-    ccdConfig.fn({ world } as SystemContext);
+    SpeculativeCCD2D.fn({ world } as SystemContext);
 
     const contactsRes = world.getResource(Contacts2D) as Contacts2D;
     expect(contactsRes).toBeDefined();

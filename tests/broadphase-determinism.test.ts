@@ -57,9 +57,9 @@ describe('Broadphase Determinism', () => {
 
       // Add physics systems in correct order
       // 按正确顺序添加物理系统
-      scheduler.add(IntegrateVelocitiesSystem.build());
-      scheduler.add(SyncAABBSystem.build());
-      scheduler.add(BroadphaseSAP.build());
+      scheduler.add(IntegrateVelocitiesSystem);
+      scheduler.add(SyncAABBSystem);
+      scheduler.add(BroadphaseSAP);
 
       // Create test bodies with deterministic initial conditions
       // 创建具有确定性初始条件的测试物体
@@ -137,8 +137,8 @@ describe('Broadphase Determinism', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
 
     // Run with no entities
     // 没有实体时运行
@@ -155,8 +155,8 @@ describe('Broadphase Determinism', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
 
     // Create single entity
     // 创建单个实体
@@ -181,8 +181,8 @@ describe('Broadphase Determinism', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
 
     // Create two overlapping circles
     // 创建两个重叠的圆
@@ -218,8 +218,8 @@ describe('Broadphase Determinism', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
 
     // Create two distant circles
     // 创建两个距离较远的圆
@@ -250,8 +250,8 @@ describe('Broadphase Determinism', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
 
     // Create multiple entities in a grid pattern
     // 以网格模式创建多个实体
@@ -288,8 +288,8 @@ describe('Broadphase Determinism', () => {
       const scheduler = new Scheduler(world);
 
       world.setFixedDt(1 / 60);
-      scheduler.add(SyncAABBSystem.build());
-      scheduler.add(BroadphaseSAP.build());
+      scheduler.add(SyncAABBSystem);
+      scheduler.add(BroadphaseSAP);
 
       // Use fixed seed for deterministic random positions
       // 使用固定种子生成确定性随机位置
@@ -387,8 +387,8 @@ describe('Broadphase Determinism', () => {
       const scheduler = new Scheduler(world);
 
       world.setFixedDt(1 / 60);
-      scheduler.add(SyncAABBSystem.build());
-      scheduler.add(BroadphaseSAP.build());
+      scheduler.add(SyncAABBSystem);
+      scheduler.add(BroadphaseSAP);
 
       // Create deterministic set of entities
       // 创建确定性的实体集合

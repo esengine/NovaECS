@@ -42,9 +42,9 @@ describe('Narrowphase Circle Collision Detection', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
 
     // Create two overlapping circles
     const entity1 = world.createEntity();
@@ -84,9 +84,9 @@ describe('Narrowphase Circle Collision Detection', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
 
     // Create two distant circles
     const entity1 = world.createEntity();
@@ -116,9 +116,9 @@ describe('Narrowphase Circle Collision Detection', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
 
     // Create two concentric circles
     const entity1 = world.createEntity();
@@ -156,9 +156,9 @@ describe('Narrowphase Circle Collision Detection', () => {
       world.setResource(PRNG, prng);
 
       world.setFixedDt(1 / 60);
-      scheduler.add(SyncAABBSystem.build());
-      scheduler.add(BroadphaseSAP.build());
-      scheduler.add(NarrowphaseCircle.build());
+      scheduler.add(SyncAABBSystem);
+      scheduler.add(BroadphaseSAP);
+      scheduler.add(NarrowphaseCircle);
 
       // Create multiple overlapping circles with GUIDs
       const entities = [];
@@ -209,9 +209,9 @@ describe('Narrowphase Circle Collision Detection', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
 
     // Create overlapping circles
     const entity1 = world.createEntity();
@@ -259,9 +259,9 @@ describe('Narrowphase Circle Collision Detection', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
 
     // Create overlapping circles
     const entity1 = world.createEntity();
@@ -306,9 +306,9 @@ describe('Narrowphase Circle Collision Detection', () => {
     world.setResource(PRNG, prng);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
 
     // Create multiple overlapping pairs
     const entities = [];
@@ -349,9 +349,9 @@ describe('Narrowphase Circle Collision Detection', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
 
     // Create one circle and one without circle shape
     const entity1 = world.createEntity();
@@ -389,9 +389,9 @@ describe('Narrowphase Circle Collision Detection', () => {
       world.setResource(PRNG, prng);
 
       world.setFixedDt(1 / 60);
-      scheduler.add(SyncAABBSystem.build());
-      scheduler.add(BroadphaseSAP.build());
-      scheduler.add(NarrowphaseCircle.build());
+      scheduler.add(SyncAABBSystem);
+      scheduler.add(BroadphaseSAP);
+      scheduler.add(NarrowphaseCircle);
 
       // Use deterministic RNG for positions
       // 使用确定性随机数生成器生成位置
@@ -496,9 +496,9 @@ describe('Narrowphase Circle Collision Detection', () => {
       world.setResource(PRNG, prng);
 
       world.setFixedDt(1 / 60);
-      scheduler.add(SyncAABBSystem.build());
-      scheduler.add(BroadphaseSAP.build());
-      scheduler.add(NarrowphaseCircle.build());
+      scheduler.add(SyncAABBSystem);
+      scheduler.add(BroadphaseSAP);
+      scheduler.add(NarrowphaseCircle);
 
       // Create deterministic overlapping circles
       // 创建确定性重叠圆形
@@ -626,9 +626,9 @@ describe('Narrowphase Circle Collision Detection', () => {
       world.setResource(PRNG, prng);
 
       world.setFixedDt(1 / 60);
-      scheduler.add(SyncAABBSystem.build());
-      scheduler.add(BroadphaseSAP.build());
-      scheduler.add(NarrowphaseCircle.build());
+      scheduler.add(SyncAABBSystem);
+      scheduler.add(BroadphaseSAP);
+      scheduler.add(NarrowphaseCircle);
 
       // Configure test based on density
       // 根据密度配置测试

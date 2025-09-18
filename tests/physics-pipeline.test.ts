@@ -46,10 +46,10 @@ describe('Physics Pipeline Integration', () => {
 
     // Set up physics pipeline in correct order
     world.setFixedDt(1 / 60);
-    scheduler.add(IntegrateVelocitiesSystem.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
+    scheduler.add(IntegrateVelocitiesSystem);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
 
     // Create two moving circles that will collide
     const entity1 = world.createEntity();
@@ -106,10 +106,10 @@ describe('Physics Pipeline Integration', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(IntegrateVelocitiesSystem.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
+    scheduler.add(IntegrateVelocitiesSystem);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
 
     // Create overlapping circles
     const entity1 = world.createEntity();
@@ -152,10 +152,10 @@ describe('Physics Pipeline Integration', () => {
       world.setResource(PRNG, prng);
 
       world.setFixedDt(1 / 60);
-      scheduler.add(IntegrateVelocitiesSystem.build());
-      scheduler.add(SyncAABBSystem.build());
-      scheduler.add(BroadphaseSAP.build());
-      scheduler.add(NarrowphaseCircle.build());
+      scheduler.add(IntegrateVelocitiesSystem);
+      scheduler.add(SyncAABBSystem);
+      scheduler.add(BroadphaseSAP);
+      scheduler.add(NarrowphaseCircle);
 
       // Create dynamic scene
       const entities = [];
@@ -209,10 +209,10 @@ describe('Physics Pipeline Integration', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(IntegrateVelocitiesSystem.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
+    scheduler.add(IntegrateVelocitiesSystem);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
 
     // Create stable collision setup
     const entity1 = world.createEntity();
@@ -271,10 +271,10 @@ describe('Physics Pipeline Integration', () => {
     world.setFixedDt(1 / 60);
 
     // Add systems in reverse order to test dependency resolution
-    scheduler.add(NarrowphaseCircle.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(IntegrateVelocitiesSystem.build());
+    scheduler.add(NarrowphaseCircle);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(IntegrateVelocitiesSystem);
 
     // Create test entities
     const entity1 = world.createEntity();
@@ -311,10 +311,10 @@ describe('Physics Pipeline Integration', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(IntegrateVelocitiesSystem.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
+    scheduler.add(IntegrateVelocitiesSystem);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
 
     // Run with no entities
     scheduler.tick(world, 16);
@@ -333,10 +333,10 @@ describe('Physics Pipeline Integration', () => {
     world.setResource(PRNG, prng);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(IntegrateVelocitiesSystem.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
+    scheduler.add(IntegrateVelocitiesSystem);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
 
     // Create cluster of overlapping circles
     const entities = [];

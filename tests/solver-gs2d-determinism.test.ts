@@ -77,11 +77,11 @@ describe('SolverGS2D Determinism', () => {
 
     world.setFixedDt(dt);
 
-    scheduler.add(IntegrateVelocitiesSystem.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
-    scheduler.add(SolverGS2D.build());
+    scheduler.add(IntegrateVelocitiesSystem);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
+    scheduler.add(SolverGS2D);
 
     for (let i = 0; i < numBodies; i++) {
       const entity = world.createEntity();
@@ -270,11 +270,11 @@ describe('SolverGS2D Determinism', () => {
 
     world.setFixedDt(1/60);
 
-    scheduler.add(IntegrateVelocitiesSystem.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
-    scheduler.add(SolverGS2D.build());
+    scheduler.add(IntegrateVelocitiesSystem);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
+    scheduler.add(SolverGS2D);
 
     // 创建两个重叠的圆形，初始时有相对运动
     const entity1 = world.createEntity();
@@ -322,11 +322,11 @@ describe('SolverGS2D Determinism', () => {
 
     world.setFixedDt(1/60);
 
-    scheduler.add(IntegrateVelocitiesSystem.build());
-    scheduler.add(SyncAABBSystem.build());
-    scheduler.add(BroadphaseSAP.build());
-    scheduler.add(NarrowphaseCircle.build());
-    scheduler.add(SolverGS2D.build());
+    scheduler.add(IntegrateVelocitiesSystem);
+    scheduler.add(SyncAABBSystem);
+    scheduler.add(BroadphaseSAP);
+    scheduler.add(NarrowphaseCircle);
+    scheduler.add(SolverGS2D);
 
     // 创建一个高速碰撞场景来测试迭代限制
     const entity1 = world.createEntity();
@@ -362,7 +362,7 @@ describe('SolverGS2D Determinism', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1/60);
-    scheduler.add(SolverGS2D.build());
+    scheduler.add(SolverGS2D);
 
     // 运行时没有任何实体
     expect(() => {
@@ -418,11 +418,11 @@ describe('SolverGS2D Determinism', () => {
 
       world.setFixedDt(1 / 60);
 
-      scheduler.add(IntegrateVelocitiesSystem.build());
-      scheduler.add(SyncAABBSystem.build());
-      scheduler.add(BroadphaseSAP.build());
-      scheduler.add(NarrowphaseCircle.build());
-      scheduler.add(SolverGS2D.build());
+      scheduler.add(IntegrateVelocitiesSystem);
+      scheduler.add(SyncAABBSystem);
+      scheduler.add(BroadphaseSAP);
+      scheduler.add(NarrowphaseCircle);
+      scheduler.add(SolverGS2D);
 
       // Create random circles with initial velocities
       // 创建具有初始速度的随机圆形
@@ -557,11 +557,11 @@ describe('SolverGS2D Determinism', () => {
 
       world.setFixedDt(1 / 60);
 
-      scheduler.add(IntegrateVelocitiesSystem.build());
-      scheduler.add(SyncAABBSystem.build());
-      scheduler.add(BroadphaseSAP.build());
-      scheduler.add(NarrowphaseCircle.build());
-      scheduler.add(SolverGS2D.build());
+      scheduler.add(IntegrateVelocitiesSystem);
+      scheduler.add(SyncAABBSystem);
+      scheduler.add(BroadphaseSAP);
+      scheduler.add(NarrowphaseCircle);
+      scheduler.add(SolverGS2D);
 
       // Create tightly packed entities for high contact count
       // 创建紧密排列的实体产生高接触数量
@@ -653,10 +653,10 @@ describe('SolverGS2D Determinism', () => {
 
       world.setFixedDt(1 / 60);
 
-      scheduler.add(IntegrateVelocitiesSystem.build());
-      scheduler.add(SyncAABBSystem.build());
-      scheduler.add(BroadphaseSAP.build());
-      scheduler.add(NarrowphaseCircle.build());
+      scheduler.add(IntegrateVelocitiesSystem);
+      scheduler.add(SyncAABBSystem);
+      scheduler.add(BroadphaseSAP);
+      scheduler.add(NarrowphaseCircle);
 
       // Create a custom solver with modified parameters for testing
       // 创建具有修改参数的自定义解算器用于测试
@@ -728,7 +728,7 @@ describe('SolverGS2D Determinism', () => {
         }
       );
 
-      scheduler.add(CustomSolverGS2D.build());
+      scheduler.add(CustomSolverGS2D);
 
       // Create stress test scenario: high-speed collision
       // 创建压力测试场景：高速碰撞

@@ -161,7 +161,7 @@ describe('Sleep/Wake System Integration', () => {
     setupSleepStates(0, 0, 0.49, 0.48); // Just below timeToSleep (0.5)
 
     // Run sleep update system
-    SleepUpdate2D.build().fn(ctx);
+    SleepUpdate2D.fn(ctx);
 
     // Should have updated both entities to sleeping state
     expect(mockReplaceComponent).toHaveBeenCalledWith(
@@ -188,7 +188,7 @@ describe('Sleep/Wake System Integration', () => {
     setupSleepStates(0, 0, 0.49, 0.48);
 
     // Run sleep update system
-    SleepUpdate2D.build().fn(ctx);
+    SleepUpdate2D.fn(ctx);
 
     // Should reset timers and keep awake
     expect(mockReplaceComponent).toHaveBeenCalledWith(
@@ -216,7 +216,7 @@ describe('Sleep/Wake System Integration', () => {
     contacts.addContact(contact);
 
     // Run wake system
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     // Should wake sleeping body B (2 component updates: Sleep2D and Body2D)
     expect(mockReplaceComponent).toHaveBeenCalledTimes(2);
@@ -241,7 +241,7 @@ describe('Sleep/Wake System Integration', () => {
     contacts.addContact(contact);
 
     // Run wake system
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     // Should wake both bodies (4 component updates total)
     expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
@@ -268,7 +268,7 @@ describe('Sleep/Wake System Integration', () => {
     contacts.addContact(contact);
 
     // Run wake system
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     // Should not wake any body
     expect(mockReplaceComponent).not.toHaveBeenCalled();
@@ -286,7 +286,7 @@ describe('Sleep/Wake System Integration', () => {
     contacts.addContact(contact);
 
     // Run wake system
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     // Should wake both bodies
     expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
@@ -302,7 +302,7 @@ describe('Sleep/Wake System Integration', () => {
     contacts.addContact(contact);
 
     // Run wake system - should wake B
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     // Should wake B due to contact with awake A
     expect(mockReplaceComponent).toHaveBeenCalledWith(
@@ -318,7 +318,7 @@ describe('Sleep/Wake System Integration', () => {
     setupSleepStates(0, 0, 0.48, 0.49); // High timer values
 
     // Run sleep update - both should enter sleep
-    SleepUpdate2D.build().fn(ctx);
+    SleepUpdate2D.fn(ctx);
 
     // Both entities should have their sleep states updated
     // Entity B should enter sleep state (timer was higher)
@@ -348,7 +348,7 @@ describe('Sleep/Wake System Integration', () => {
     });
     contacts.addContact(contact);
 
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     // Should not wake due to higher threshold
     expect(mockReplaceComponent).not.toHaveBeenCalled();
@@ -357,18 +357,18 @@ describe('Sleep/Wake System Integration', () => {
     contact.jn = f(0.025);
     mockReplaceComponent.mockClear();
 
-    WakeOnContact2D.build().fn(ctx);
+    WakeOnContact2D.fn(ctx);
 
     // Should wake both bodies
     expect(mockReplaceComponent).toHaveBeenCalledTimes(4);
   });
 
   test('should have correct system configuration', () => {
-    const sleepSystem = SleepUpdate2D.build();
-    const wakeSystem = WakeOnContact2D.build();
+    const sleepSystem = SleepUpdate2D;
+    const wakeSystem = WakeOnContact2D;
     expect(sleepSystem.name).toBe('phys.sleep.update');
     expect(sleepSystem.stage).toBe('postUpdate');
-    expect(wakeSystem.name).toBe('phys.sleep.wakeOnContact');
+    expect(wakeSystem.name).toBe('phys.wake.contact');
     expect(wakeSystem.stage).toBe('update');
   });
 
@@ -384,7 +384,7 @@ describe('Sleep/Wake System Integration', () => {
     mockReplaceComponent.mockClear();
 
     // Run sleep update - static body should be forced awake
-    SleepUpdate2D.build().fn(ctx);
+    SleepUpdate2D.fn(ctx);
 
     // Should update static body to awake state
     expect(mockReplaceComponent).toHaveBeenCalledWith(

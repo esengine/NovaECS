@@ -40,7 +40,7 @@ describe('Fixed-Point Physics Determinism', () => {
 
       // Add the physics integration system
       // 添加物理积分系统
-      scheduler.add(IntegrateVelocitiesSystem.build());
+      scheduler.add(IntegrateVelocitiesSystem);
 
       // Create test bodies with deterministic initial conditions
       // 创建具有确定性初始条件的测试物体
@@ -95,7 +95,7 @@ describe('Fixed-Point Physics Determinism', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(IntegrateVelocitiesSystem.build());
+    scheduler.add(IntegrateVelocitiesSystem);
 
     // Create a single body with small velocity
     // 创建单个小速度物体
@@ -128,7 +128,7 @@ describe('Fixed-Point Physics Determinism', () => {
     const world2 = new World();
     const scheduler2 = new Scheduler(world2);
     world2.setFixedDt(1 / 60);
-    scheduler2.add(IntegrateVelocitiesSystem.build());
+    scheduler2.add(IntegrateVelocitiesSystem);
     const entity2 = world2.createEntity();
     const body2 = createDynamicBody();
     body2.vx = f(0.01);
@@ -149,7 +149,7 @@ describe('Fixed-Point Physics Determinism', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(IntegrateVelocitiesSystem.build());
+    scheduler.add(IntegrateVelocitiesSystem);
 
     // Create awake and sleeping bodies
     // 创建唤醒和休眠的物体
@@ -194,7 +194,7 @@ describe('Fixed-Point Physics Determinism', () => {
     const scheduler = new Scheduler(world);
 
     world.setFixedDt(1 / 60);
-    scheduler.add(IntegrateVelocitiesSystem.build());
+    scheduler.add(IntegrateVelocitiesSystem);
 
     // Create body with angular velocity
     // 创建有角速度的物体

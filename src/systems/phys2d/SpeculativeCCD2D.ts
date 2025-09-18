@@ -209,4 +209,8 @@ export const SpeculativeCCD2D = system(
       return aDiff !== 0 ? aDiff : (contactA.b as number) - (contactB.b as number);
     });
   }
-);
+)
+  .stage('update')
+  .after('phys.narrow.circle')
+  .before('phys.solver.gs2d')
+  .build();

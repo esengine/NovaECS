@@ -138,4 +138,8 @@ export const PositionCorrection2D = system(
       }
     }
   }
-);
+)
+  .stage('update')
+  .after('phys.solver.joint.revolute')
+  .before('phys.wake.contact')
+  .build();
