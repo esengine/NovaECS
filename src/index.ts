@@ -169,6 +169,7 @@ export { ShapeCircle, createCircleShape, getCircleArea, pointInCircle, circleDis
 export { AABB2D, aabbOverlap, aabbArea } from './components/AABB2D';
 export { Sleep2D } from './components/Sleep2D';
 export { JointDistance2D, createDistanceJoint, createBreakableDistanceJoint, createSoftDistanceJoint } from './components/JointDistance2D';
+export { PrismaticJoint2D, createPrismaticJoint, createLimitedPrismaticJoint, createMotorizedPrismaticJoint, createBreakablePrismaticJoint, createSoftPrismaticJoint } from './components/PrismaticJoint2D';
 export { Guid, createGuid, createGuidFromValues, createZeroGuid, compareGuid, guidEquals, isZeroGuid } from './components/Guid';
 
 // Physics Resources
@@ -179,6 +180,8 @@ export { PhysicsSleepConfig } from './resources/PhysicsSleepConfig';
 export { JointConstraints2D } from './resources/JointConstraints2D';
 export { JointBatch2D } from './resources/JointBatch2D';
 export type { JointRow } from './resources/JointBatch2D';
+export { PrismaticBatch2D } from './resources/PrismaticBatch2D';
+export type { PrismaticRow } from './resources/PrismaticBatch2D';
 
 // Physics Systems
 export { IntegrateVelocitiesSystem } from './systems/IntegrateVelocitiesSystem';
@@ -190,4 +193,6 @@ export { BuildJointsDistance2D } from './systems/phys2d/BuildJointsDistance2D';
 export { JointSolver2D } from './systems/phys2d/JointSolver2D';
 export { SolverGSJoints2D, JointBrokenEvent, JointEvents2D } from './systems/phys2d/SolverGSJoints2D';
 export { JointEventHandler2D } from './systems/phys2d/JointEventHandler2D';
+export { BuildPrismatic2D } from './systems/phys2d/BuildPrismatic2D';
+export { SolverGSPrismatic2D } from './systems/phys2d/SolverGSPrismatic2D';
 export { updateContactCache, clearContactCache, getContactStats } from './systems/phys2d/ContactCacheUtils';
