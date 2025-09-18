@@ -378,4 +378,361 @@ describe('Narrowphase Circle Collision Detection', () => {
     expect(broadphase!.pairs.length).toBeGreaterThan(0); // Broadphase detects overlap
     expect(contacts!.list).toHaveLength(0); // Narrowphase skips non-circle
   });
+
+  test('should handle random N circles with deterministic contacts', () => {
+    // Test different scales of random circle arrangements
+    // 测试不同规模的随机圆形排列
+    const runRandomCircleTest = (entityCount: number, areaSize: number, seed: number) => {
+      const world = new World();
+      const scheduler = new Scheduler(world);
+      const prng = new PRNG(seed);
+      world.setResource(PRNG, prng);
+
+      world.setFixedDt(1 / 60);
+      scheduler.add(SyncAABBSystem.build());
+      scheduler.add(BroadphaseSAP.build());
+      scheduler.add(NarrowphaseCircle.build());
+
+      // Use deterministic RNG for positions
+      // 使用确定性随机数生成器生成位置
+      let rng = seed;
+      const nextRandom = () => {
+        rng = (rng * 1664525 + 1013904223) % 4294967296;
+        return rng / 4294967296;
+      };
+
+      // Create random circles
+      // 创建随机圆形
+      for (let i = 0; i < entityCount; i++) {
+        const entity = world.createEntity();
+
+        // Random position within area
+        // 区域内的随机位置
+        const x = f((nextRandom() - 0.5) * areaSize);
+        const y = f((nextRandom() - 0.5) * areaSize);
+
+        const body = createDynamicBody(x, y, ONE, ONE);
+
+        // Small random velocity for movement
+        // 小的随机速度用于移动
+        body.vx = f((nextRandom() - 0.5) * 0.5);
+        body.vy = f((nextRandom() - 0.5) * 0.5);
+
+        // Variable radius for diverse overlaps
+        // 可变半径产生不同程度的重叠
+        const radius = f(0.3 + nextRandom() * 0.4); // 0.3-0.7
+        const circle = createCircleShape(radius);
+        const aabb = new AABB2D();
+
+        world.addComponent(entity, Body2D, body);
+        world.addComponent(entity, ShapeCircle, circle);
+        world.addComponent(entity, AABB2D, aabb);
+
+        // Add GUID for stable sorting
+        // 添加GUID用于稳定排序
+        const guid = new Guid(seed >>> 0, (i << 16 | (seed & 0xFFFF)));
+        world.addComponent(entity, Guid, guid);
+      }
+
+      // Run a few frames to let objects move and create contacts
+      // 运行几帧让物体移动并创建接触
+      for (let frame = 0; frame < 3; frame++) {
+        scheduler.tick(world, 16);
+      }
+
+      const broadphase = world.getResource(BroadphasePairs)!;
+      const contacts = world.getResource(Contacts2D)!;
+
+      return {
+        broadphasePairs: broadphase.pairs.length,
+        broadphaseGenerated: broadphase.generated,
+        broadphaseCulled: broadphase.culled,
+        contactCount: contacts.list.length,
+        contactOrder: contacts.list.map(c => `${c.a}-${c.b}`),
+        worldHash: frameHash(world, true),
+        worldHashNoRng: frameHash(world, false)
+      };
+    };
+
+    // Test with different entity counts
+    // 测试不同的实体数量
+
+    // Small test: 50 entities
+    // 小规模测试：50个实体
+    const smallTest = runRandomCircleTest(50, 20, 11111);
+
+    // Medium test: 200 entities
+    // 中等规模测试：200个实体
+    const mediumTest = runRandomCircleTest(200, 30, 11111);
+
+    // Large test: 500 entities
+    // 大规模测试：500个实体
+    const largeTest = runRandomCircleTest(500, 40, 11111);
+
+    // Contact count should generally increase with entity count
+    // 接触数量通常应该随实体数量增加
+    expect(smallTest.contactCount).toBeLessThan(mediumTest.contactCount);
+    expect(mediumTest.contactCount).toBeLessThan(largeTest.contactCount);
+
+    // Broadphase pairs should increase with entity count
+    // 宽相配对数量应该随实体数量增加
+    expect(smallTest.broadphasePairs).toBeLessThan(mediumTest.broadphasePairs);
+    expect(mediumTest.broadphasePairs).toBeLessThan(largeTest.broadphasePairs);
+
+    // Contact count should be less than or equal to broadphase pairs
+    // 接触数量应该小于等于宽相配对数量
+    expect(smallTest.contactCount).toBeLessThanOrEqual(smallTest.broadphasePairs);
+    expect(mediumTest.contactCount).toBeLessThanOrEqual(mediumTest.broadphasePairs);
+    expect(largeTest.contactCount).toBeLessThanOrEqual(largeTest.broadphasePairs);
+  });
+
+  test('should maintain contact list determinism across multiple runs', () => {
+    // Test deterministic behavior of contact generation
+    // 测试接触生成的确定性行为
+    const runContactDeterminismTest = (seed: number) => {
+      const world = new World();
+      const scheduler = new Scheduler(world);
+      const prng = new PRNG(seed);
+      world.setResource(PRNG, prng);
+
+      world.setFixedDt(1 / 60);
+      scheduler.add(SyncAABBSystem.build());
+      scheduler.add(BroadphaseSAP.build());
+      scheduler.add(NarrowphaseCircle.build());
+
+      // Create deterministic overlapping circles
+      // 创建确定性重叠圆形
+      const entityCount = 100;
+      let rng = seed;
+      const nextRandom = () => {
+        rng = (rng * 1664525 + 1013904223) % 4294967296;
+        return rng / 4294967296;
+      };
+
+      for (let i = 0; i < entityCount; i++) {
+        const entity = world.createEntity();
+
+        // Clustered positioning for more overlaps
+        // 聚集式定位产生更多重叠
+        const clusterX = Math.floor(i / 10) * 5;
+        const clusterY = Math.floor(i / 20) * 5;
+        const x = f(clusterX + (nextRandom() - 0.5) * 3);
+        const y = f(clusterY + (nextRandom() - 0.5) * 3);
+
+        const body = createDynamicBody(x, y, ONE, ONE);
+
+        // Small movements for frame-to-frame variation
+        // 小幅移动产生帧间变化
+        body.vx = f((nextRandom() - 0.5) * 0.2);
+        body.vy = f((nextRandom() - 0.5) * 0.2);
+
+        const radius = f(0.8); // Fixed radius for predictable overlaps
+        const circle = createCircleShape(radius);
+        const aabb = new AABB2D();
+
+        world.addComponent(entity, Body2D, body);
+        world.addComponent(entity, ShapeCircle, circle);
+        world.addComponent(entity, AABB2D, aabb);
+
+        // Stable GUID for consistent sorting
+        // 稳定的GUID用于一致性排序
+        const guid = new Guid(seed >>> 0, (i << 16 | (seed & 0xFFFF)));
+        world.addComponent(entity, Guid, guid);
+      }
+
+      // Run multiple frames to establish contacts
+      // 运行多帧建立接触
+      for (let frame = 0; frame < 5; frame++) {
+        scheduler.tick(world, 16);
+      }
+
+      const broadphase = world.getResource(BroadphasePairs)!;
+      const contacts = world.getResource(Contacts2D)!;
+
+      return {
+        contactCount: contacts.list.length,
+        contactOrder: contacts.list.map(c => `${c.a}-${c.b}`), // Preserve original order
+        sortedContacts: contacts.list.map(c => `${c.a}-${c.b}`).sort(),
+        broadphasePairs: broadphase.pairs.length,
+        worldHashWithRng: frameHash(world, true),
+        worldHashNoRng: frameHash(world, false),
+        contactDetails: contacts.list.map(c => ({
+          a: c.a,
+          b: c.b,
+          pen: c.pen,
+          nx: c.nx,
+          ny: c.ny,
+          jn: c.jn,
+          jt: c.jt
+        }))
+      };
+    };
+
+    // Run same test multiple times
+    // 多次运行相同测试
+    const result1 = runContactDeterminismTest(22222);
+    const result2 = runContactDeterminismTest(22222);
+    const result3 = runContactDeterminismTest(22222);
+
+    // All runs should produce identical results
+    // 所有运行应产生相同结果
+
+    // Contact count should be identical
+    // 接触数量应该相同
+    expect(result2.contactCount).toBe(result1.contactCount);
+    expect(result3.contactCount).toBe(result1.contactCount);
+
+    // Contact order should be identical (deterministic)
+    // 接触顺序应该相同（确定性）
+    expect(result2.contactOrder).toEqual(result1.contactOrder);
+    expect(result3.contactOrder).toEqual(result1.contactOrder);
+
+    // Sorted contacts should also be identical
+    // 排序后的接触也应该相同
+    expect(result2.sortedContacts).toEqual(result1.sortedContacts);
+    expect(result3.sortedContacts).toEqual(result1.sortedContacts);
+
+    // Broadphase pairs should be identical
+    // 宽相配对应该相同
+    expect(result2.broadphasePairs).toBe(result1.broadphasePairs);
+    expect(result3.broadphasePairs).toBe(result1.broadphasePairs);
+
+    // Frame hashes should be identical
+    // 帧哈希应该相同
+    expect(result2.worldHashWithRng).toBe(result1.worldHashWithRng);
+    expect(result3.worldHashWithRng).toBe(result1.worldHashWithRng);
+    expect(result2.worldHashNoRng).toBe(result1.worldHashNoRng);
+    expect(result3.worldHashNoRng).toBe(result1.worldHashNoRng);
+
+    // Contact details should be identical
+    // 接触详情应该相同
+    expect(result2.contactDetails).toEqual(result1.contactDetails);
+    expect(result3.contactDetails).toEqual(result1.contactDetails);
+
+    // Different seeds should produce different results
+    // 不同种子应产生不同结果
+    const differentSeedResult = runContactDeterminismTest(99999);
+    expect(differentSeedResult.worldHashWithRng).not.toBe(result1.worldHashWithRng);
+    expect(differentSeedResult.contactOrder).not.toEqual(result1.contactOrder);
+  });
+
+  test('should maintain reasonable broadphase-to-contacts ratio', () => {
+    // Test relationship between broadphase pairs and generated contacts
+    // 测试宽相配对与生成接触的关系
+    const testBroadphaseContactRatio = (density: 'low' | 'medium' | 'high') => {
+      const world = new World();
+      const scheduler = new Scheduler(world);
+      const prng = new PRNG(33333);
+      world.setResource(PRNG, prng);
+
+      world.setFixedDt(1 / 60);
+      scheduler.add(SyncAABBSystem.build());
+      scheduler.add(BroadphaseSAP.build());
+      scheduler.add(NarrowphaseCircle.build());
+
+      // Configure test based on density
+      // 根据密度配置测试
+      let entityCount: number;
+      let areaSize: number;
+      let radius: number;
+
+      switch (density) {
+        case 'low':
+          entityCount = 100;
+          areaSize = 50;
+          radius = 0.5;
+          break;
+        case 'medium':
+          entityCount = 200;
+          areaSize = 40;
+          radius = 0.6;
+          break;
+        case 'high':
+          entityCount = 300;
+          areaSize = 30;
+          radius = 0.7;
+          break;
+      }
+
+      let rng = 33333;
+      const nextRandom = () => {
+        rng = (rng * 1664525 + 1013904223) % 4294967296;
+        return rng / 4294967296;
+      };
+
+      for (let i = 0; i < entityCount; i++) {
+        const entity = world.createEntity();
+
+        const x = f((nextRandom() - 0.5) * areaSize);
+        const y = f((nextRandom() - 0.5) * areaSize);
+
+        const body = createDynamicBody(x, y, ONE, ONE);
+        const circle = createCircleShape(f(radius));
+        const aabb = new AABB2D();
+
+        world.addComponent(entity, Body2D, body);
+        world.addComponent(entity, ShapeCircle, circle);
+        world.addComponent(entity, AABB2D, aabb);
+
+        const guid = new Guid(33333 >>> 0, (i << 16 | (33333 & 0xFFFF)));
+        world.addComponent(entity, Guid, guid);
+      }
+
+      scheduler.tick(world, 16);
+
+      const broadphase = world.getResource(BroadphasePairs)!;
+      const contacts = world.getResource(Contacts2D)!;
+
+      return {
+        density,
+        entityCount,
+        broadphasePairs: broadphase.pairs.length,
+        broadphaseGenerated: broadphase.generated,
+        broadphaseCulled: broadphase.culled,
+        contactCount: contacts.list.length,
+        contactRatio: contacts.list.length / Math.max(broadphase.pairs.length, 1),
+        cullRatio: broadphase.culled / Math.max(broadphase.generated, 1)
+      };
+    };
+
+    const lowDensity = testBroadphaseContactRatio('low');
+    const mediumDensity = testBroadphaseContactRatio('medium');
+    const highDensity = testBroadphaseContactRatio('high');
+
+    // Broadphase pairs should increase with density
+    // 宽相配对应随密度增加
+    expect(lowDensity.broadphasePairs).toBeLessThan(mediumDensity.broadphasePairs);
+    expect(mediumDensity.broadphasePairs).toBeLessThan(highDensity.broadphasePairs);
+
+    // Contact count should increase with density
+    // 接触数量应随密度增加
+    expect(lowDensity.contactCount).toBeLessThan(mediumDensity.contactCount);
+    expect(mediumDensity.contactCount).toBeLessThan(highDensity.contactCount);
+
+    // Contacts should never exceed broadphase pairs
+    // 接触数量不应超过宽相配对数量
+    expect(lowDensity.contactCount).toBeLessThanOrEqual(lowDensity.broadphasePairs);
+    expect(mediumDensity.contactCount).toBeLessThanOrEqual(mediumDensity.broadphasePairs);
+    expect(highDensity.contactCount).toBeLessThanOrEqual(highDensity.broadphasePairs);
+
+    // Contact ratio should be reasonable (not 0, not 1)
+    // 接触比例应该合理（非0，非1）
+    expect(lowDensity.contactRatio).toBeGreaterThan(0);
+    expect(mediumDensity.contactRatio).toBeGreaterThan(0);
+    expect(highDensity.contactRatio).toBeGreaterThan(0);
+
+    expect(lowDensity.contactRatio).toBeLessThanOrEqual(1);
+    expect(mediumDensity.contactRatio).toBeLessThanOrEqual(1);
+    expect(highDensity.contactRatio).toBeLessThanOrEqual(1);
+
+    // At higher density, contact ratio should increase
+    // 高密度时接触比例应该增加
+    expect(highDensity.contactRatio).toBeGreaterThanOrEqual(mediumDensity.contactRatio);
+
+    // Broadphase statistics should be consistent
+    // 宽相统计应该一致
+    expect(lowDensity.broadphasePairs + lowDensity.broadphaseCulled).toBe(lowDensity.broadphaseGenerated);
+    expect(mediumDensity.broadphasePairs + mediumDensity.broadphaseCulled).toBe(mediumDensity.broadphaseGenerated);
+    expect(highDensity.broadphasePairs + highDensity.broadphaseCulled).toBe(highDensity.broadphaseGenerated);
+  });
 });

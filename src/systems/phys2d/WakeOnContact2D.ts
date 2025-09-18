@@ -112,5 +112,4 @@ export const WakeOnContact2D = system(
 )
   .stage('update')
   .after('phys.narrowphase')
-  .before('phys.solver.gs')
-  .build();
+  .before('phys.solver.gs');

@@ -101,7 +101,7 @@ describe('SleepUpdate2D System', () => {
     makeBodyStatic();
     setupSleepState(1, 1.0); // Set as sleeping initially
 
-    SleepUpdate2D.fn(ctx);
+    SleepUpdate2D.build().fn(ctx);
 
     // Should force wake static body
     expect(mockReplaceComponent).toHaveBeenCalledWith(
@@ -122,7 +122,7 @@ describe('SleepUpdate2D System', () => {
   test('should force wake when keepAwake is set', () => {
     setupSleepState(1, 1.0, 1); // Sleeping with keepAwake flag
 
-    SleepUpdate2D.fn(ctx);
+    SleepUpdate2D.build().fn(ctx);
 
     // Should force wake due to keepAwake flag
     expect(mockReplaceComponent).toHaveBeenCalledWith(
@@ -139,7 +139,7 @@ describe('SleepUpdate2D System', () => {
     setupBodyVelocity(0.01, 0.01, 0.02); // Below default thresholds
     setupSleepState(0, 0.3); // Awake with some timer
 
-    SleepUpdate2D.fn(ctx);
+    SleepUpdate2D.build().fn(ctx);
 
     // Should accumulate timer but not enter sleep yet
     expect(mockReplaceComponent).toHaveBeenCalledWith(
@@ -156,7 +156,7 @@ describe('SleepUpdate2D System', () => {
     setupBodyVelocity(0.05, 0.05, 0.1); // Above thresholds
     setupSleepState(0, 0.4); // High timer
 
-    SleepUpdate2D.fn(ctx);
+    SleepUpdate2D.build().fn(ctx);
 
     // Should reset timer and stay awake
     expect(mockReplaceComponent).toHaveBeenCalledWith(
@@ -178,7 +178,7 @@ describe('SleepUpdate2D System', () => {
     setupBodyVelocity(0.01, 0.01, 0.02); // Below thresholds
     setupSleepState(0, 0.49); // Just below timeToSleep (0.5)
 
-    SleepUpdate2D.fn(ctx);
+    SleepUpdate2D.build().fn(ctx);
 
     // Should enter sleep and clear velocities
     expect(mockReplaceComponent).toHaveBeenCalledWith(
@@ -202,7 +202,7 @@ describe('SleepUpdate2D System', () => {
     setupBodyVelocity(0.01, 0.01, 0.02);
     setupSleepState(0, 0.6); // Above timeToSleep (0.5)
 
-    SleepUpdate2D.fn(ctx);
+    SleepUpdate2D.build().fn(ctx);
 
     // Should enter sleep and clear all velocities
     expect(mockReplaceComponent).toHaveBeenCalledWith(
@@ -221,7 +221,7 @@ describe('SleepUpdate2D System', () => {
     setupBodyVelocity(0.01, 0.01, 0.08); // Linear below, angular above threshold
     setupSleepState(0, 0.3);
 
-    SleepUpdate2D.fn(ctx);
+    SleepUpdate2D.build().fn(ctx);
 
     // Should reset timer due to high angular velocity
     expect(mockReplaceComponent).toHaveBeenCalledWith(
@@ -244,7 +244,7 @@ describe('SleepUpdate2D System', () => {
     setupBodyVelocity(0.03, 0.03, 0.05);
     setupSleepState(0, 0.25);
 
-    SleepUpdate2D.fn(ctx);
+    SleepUpdate2D.build().fn(ctx);
 
     // Should accumulate timer but not sleep yet
     expect(mockReplaceComponent).toHaveBeenCalledWith(
@@ -260,7 +260,7 @@ describe('SleepUpdate2D System', () => {
     setupSleepState(0, 0.35);
     mockReplaceComponent.mockClear();
 
-    SleepUpdate2D.fn(ctx);
+    SleepUpdate2D.build().fn(ctx);
 
     // Should enter sleep with new threshold
     expect(mockReplaceComponent).toHaveBeenCalledWith(
@@ -289,16 +289,17 @@ describe('SleepUpdate2D System', () => {
       return originalSetResource.call(world, type, instance);
     };
 
-    SleepUpdate2D.fn(ctx);
+    SleepUpdate2D.build().fn(ctx);
 
     expect(addedConfig).toBeInstanceOf(PhysicsSleepConfig);
   });
 
   test('should have correct system configuration', () => {
-    expect(SleepUpdate2D.name).toBe('phys.sleep.update');
-    expect(SleepUpdate2D.stage).toBe('postUpdate');
-    expect(SleepUpdate2D.after).toContain('phys.solver.gs');
-    expect(SleepUpdate2D.before).toContain('cleanup');
+    const builtSystem = SleepUpdate2D.build();
+    expect(builtSystem.name).toBe('phys.sleep.update');
+    expect(builtSystem.stage).toBe('postUpdate');
+    expect(builtSystem.after).toContain('phys.solver.gs');
+    expect(builtSystem.before).toContain('cleanup');
   });
 
   test('should optimize by not updating when no changes needed', () => {
@@ -306,7 +307,7 @@ describe('SleepUpdate2D System', () => {
     setupBodyVelocity(0.05, 0.05, 0.1); // Above thresholds
     setupSleepState(0, 0); // Already awake with zero timer
 
-    SleepUpdate2D.fn(ctx);
+    SleepUpdate2D.build().fn(ctx);
 
     // Optimized system should NOT update when state is already correct
     expect(mockReplaceComponent).not.toHaveBeenCalled();

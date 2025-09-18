@@ -279,4 +279,196 @@ describe('Broadphase Determinism', () => {
     expect(broadphasePairs?.generated).toBeGreaterThan(0);
     expect((broadphasePairs?.pairs.length ?? 0) + (broadphasePairs?.culled ?? 0)).toBe(broadphasePairs?.generated);
   });
+
+  test('should handle 2k random circles with density-based pair growth', () => {
+    // Test pair count growth with different densities
+    // 测试不同密度下配对数量的增长
+    const runDensityTest = (entityCount: number, areaSize: number, seed: number) => {
+      const world = new World();
+      const scheduler = new Scheduler(world);
+
+      world.setFixedDt(1 / 60);
+      scheduler.add(SyncAABBSystem.build());
+      scheduler.add(BroadphaseSAP.build());
+
+      // Use fixed seed for deterministic random positions
+      // 使用固定种子生成确定性随机位置
+      let rng = seed;
+      const nextRandom = () => {
+        rng = (rng * 1664525 + 1013904223) % 4294967296;
+        return rng / 4294967296;
+      };
+
+      // Create random circles within the specified area
+      // 在指定区域内创建随机圆形
+      for (let i = 0; i < entityCount; i++) {
+        const entity = world.createEntity();
+
+        // Random position within area
+        // 区域内的随机位置
+        const x = f((nextRandom() - 0.5) * areaSize);
+        const y = f((nextRandom() - 0.5) * areaSize);
+
+        const body = createDynamicBody(x, y, ONE, ONE);
+
+        // Small random velocity
+        // 小的随机速度
+        body.vx = f((nextRandom() - 0.5) * 0.1);
+        body.vy = f((nextRandom() - 0.5) * 0.1);
+
+        // Fixed radius for consistent density calculation
+        // 固定半径用于一致的密度计算
+        const radius = f(0.5);
+        const circle = createCircleShape(radius);
+        const aabb = new AABB2D();
+
+        world.addComponent(entity, Body2D, body);
+        world.addComponent(entity, ShapeCircle, circle);
+        world.addComponent(entity, AABB2D, aabb);
+
+        // Add Guid for stable sorting
+        // 添加Guid用于稳定排序
+        const guid = new Guid(
+          seed >>> 0,
+          (i << 16 | (seed & 0xFFFF))
+        );
+        world.addComponent(entity, Guid, guid);
+      }
+
+      // Run one frame to update AABB and generate pairs
+      // 运行一帧以更新AABB并生成配对
+      scheduler.tick(world, 16);
+
+      const broadphasePairs = world.getResource(BroadphasePairs);
+      return {
+        pairCount: broadphasePairs?.pairs.length ?? 0,
+        density: entityCount / (areaSize * areaSize),
+        pairs: broadphasePairs?.pairs.map(p => `${p.a}-${p.b}`).sort(),
+        worldHash: frameHash(world, true)
+      };
+    };
+
+    // Test with 2k entities at different densities
+    // 在不同密度下测试2k个实体
+    const entityCount = 2000;
+
+    // Low density: large area
+    // 低密度：大区域
+    const lowDensity = runDensityTest(entityCount, 200, 12345);
+
+    // Medium density: medium area
+    // 中等密度：中等区域
+    const mediumDensity = runDensityTest(entityCount, 100, 12345);
+
+    // High density: small area
+    // 高密度：小区域
+    const highDensity = runDensityTest(entityCount, 50, 12345);
+
+    // Pair count should increase with density
+    // 配对数量应该随密度增加
+    expect(lowDensity.pairCount).toBeLessThan(mediumDensity.pairCount);
+    expect(mediumDensity.pairCount).toBeLessThan(highDensity.pairCount);
+
+    // Verify density relationship
+    // 验证密度关系
+    expect(lowDensity.density).toBeLessThan(mediumDensity.density);
+    expect(mediumDensity.density).toBeLessThan(highDensity.density);
+
+    // At high density, we should have significant overlap
+    // 高密度时应该有显著重叠
+    expect(highDensity.pairCount).toBeGreaterThan(entityCount * 0.1); // At least 10% entities have pairs
+  });
+
+  test('should maintain deterministic pair order across multiple runs', () => {
+    // Test deterministic behavior across multiple simulation runs
+    // 测试多次仿真运行的确定性行为
+    const runSimulationWithFrameHash = (seed: number) => {
+      const world = new World();
+      const scheduler = new Scheduler(world);
+
+      world.setFixedDt(1 / 60);
+      scheduler.add(SyncAABBSystem.build());
+      scheduler.add(BroadphaseSAP.build());
+
+      // Create deterministic set of entities
+      // 创建确定性的实体集合
+      const entityCount = 500; // Smaller for faster testing
+      let rng = seed;
+      const nextRandom = () => {
+        rng = (rng * 1664525 + 1013904223) % 4294967296;
+        return rng / 4294967296;
+      };
+
+      for (let i = 0; i < entityCount; i++) {
+        const entity = world.createEntity();
+
+        const x = f((nextRandom() - 0.5) * 50);
+        const y = f((nextRandom() - 0.5) * 50);
+        const body = createDynamicBody(x, y, ONE, ONE);
+
+        body.vx = f((nextRandom() - 0.5) * 2);
+        body.vy = f((nextRandom() - 0.5) * 2);
+
+        const radius = f(0.5 + nextRandom() * 0.5); // Variable radius 0.5-1.0
+        const circle = createCircleShape(radius);
+        const aabb = new AABB2D();
+
+        world.addComponent(entity, Body2D, body);
+        world.addComponent(entity, ShapeCircle, circle);
+        world.addComponent(entity, AABB2D, aabb);
+
+        // Stable sorting with Guid
+        // 使用Guid进行稳定排序
+        const guid = new Guid(seed >>> 0, (i << 16 | (seed & 0xFFFF)));
+        world.addComponent(entity, Guid, guid);
+      }
+
+      // Run a few frames to let objects move and interact
+      // 运行几帧让物体移动和相互作用
+      for (let frame = 0; frame < 5; frame++) {
+        scheduler.tick(world, 16);
+      }
+
+      const broadphasePairs = world.getResource(BroadphasePairs);
+      return {
+        pairOrder: broadphasePairs?.pairs.map(p => `${p.a}-${p.b}`), // Preserve original order
+        sortedPairs: broadphasePairs?.pairs.map(p => `${p.a}-${p.b}`).sort(),
+        pairCount: broadphasePairs?.pairs.length ?? 0,
+        worldHash: frameHash(world, true), // Include RNG state
+        worldHashNoRng: frameHash(world, false) // Exclude RNG state
+      };
+    };
+
+    // Run same simulation multiple times
+    // 多次运行相同仿真
+    const result1 = runSimulationWithFrameHash(54321);
+    const result2 = runSimulationWithFrameHash(54321);
+    const result3 = runSimulationWithFrameHash(54321);
+
+    // All runs should produce identical results
+    // 所有运行应产生相同结果
+    expect(result2.pairOrder).toEqual(result1.pairOrder);
+    expect(result3.pairOrder).toEqual(result1.pairOrder);
+
+    expect(result2.sortedPairs).toEqual(result1.sortedPairs);
+    expect(result3.sortedPairs).toEqual(result1.sortedPairs);
+
+    expect(result2.pairCount).toBe(result1.pairCount);
+    expect(result3.pairCount).toBe(result1.pairCount);
+
+    // Hash with RNG should be identical
+    // 包含RNG的哈希应该相同
+    expect(result2.worldHash).toBe(result1.worldHash);
+    expect(result3.worldHash).toBe(result1.worldHash);
+
+    // Hash without RNG should also be identical since physics state is deterministic
+    // 不包含RNG的哈希也应该相同，因为物理状态是确定性的
+    expect(result2.worldHashNoRng).toBe(result1.worldHashNoRng);
+    expect(result3.worldHashNoRng).toBe(result1.worldHashNoRng);
+
+    // Different seeds should produce different results
+    // 不同种子应产生不同结果
+    const differentSeedResult = runSimulationWithFrameHash(98765);
+    expect(differentSeedResult.worldHash).not.toBe(result1.worldHash);
+  });
 });

@@ -237,3 +237,32 @@ export const HALF_PI: FX = f(1.5707963267948966); // π/2
 export const PI: FX = f(3.141592653589793);        // π
 export const TWO_PI: FX = f(6.283185307179586);    // 2π
 export const E: FX = f(2.718281828459045);         // e
+
+/**
+ * Vector and physics math utilities
+ * 向量和物理数学工具函数
+ */
+
+/**
+ * 2D vector dot product
+ * 2D向量点积
+ */
+export const dot = (ax: FX, ay: FX, bx: FX, by: FX): FX => add(mul(ax, bx), mul(ay, by));
+
+/**
+ * Cross product: r × v (returns scalar for 2D)
+ * 叉积：r × v（2D中返回标量）
+ */
+export const cross_r_v = (rx: FX, ry: FX, vx: FX, vy: FX): FX => sub(mul(rx, vy), mul(ry, vx));
+
+/**
+ * Cross product: w × r (returns vector for 2D)
+ * 叉积：w × r（2D中返回向量）
+ */
+export const cross_w_r = (w: FX, rx: FX, ry: FX): readonly [FX, FX] => [sub(ZERO, mul(w, ry)), mul(w, rx)];
+
+/**
+ * Cross product: r × n (alias for cross_r_v, commonly used in physics)
+ * 叉积：r × n（cross_r_v的别名，物理中常用）
+ */
+export const cross_r_n = (rx: FX, ry: FX, nx: FX, ny: FX): FX => cross_r_v(rx, ry, nx, ny);
