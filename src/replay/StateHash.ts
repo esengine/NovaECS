@@ -89,7 +89,12 @@ function buildKeyMap(world: World): Map<number, Key> {
   world.query(Guid).forEach((e, g: any) => {
     // Handle both proper Guid instances and plain objects from serialization
     // 处理真正的Guid实例和序列化产生的普通对象
-    const guidStr = g?.value ?? g?._originalValue ?? '';
+    let guidStr = g?.value ?? g?._originalValue;
+    if (guidStr === undefined || guidStr === '') {
+      // If no string value, generate hex representation from hi/lo
+      // 如果没有字符串值，从hi/lo生成十六进制表示
+      guidStr = `${(g?.hi ?? 0).toString(16).padStart(8, '0')}${(g?.lo ?? 0).toString(16).padStart(8, '0')}`;
+    }
     map.set(e as unknown as number, { isGuid: true, u32: 0, str: String(guidStr) });
   });
   return map;
