@@ -163,7 +163,8 @@ export class Archetype {
       const typeId = this.types[i];
       const ctor = this.typeCtors[i] || Object;
       this.ensureColumn(typeId, ctor);
-      const col = this.cols.get(typeId)!;
+      const col = this.cols.get(typeId);
+      if (!col) throw new Error(`Column for type ${typeId} not found after ensureColumn`);
       col.emplaceDefault(row);
       col.writeFromObject(row, componentData[i].data, epoch);
     }

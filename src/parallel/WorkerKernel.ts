@@ -67,9 +67,9 @@ export function registerKernel(id: string, kernel: KernelFunction): void {
  * Initialize worker message handler for kernel execution (only in worker context)
  * 初始化核函数执行的工作线程消息处理器（仅在工作线程上下文中）
  */
-export function initWorkerKernel() {
+export function initWorkerKernel(): void {
   if (typeof self !== 'undefined' && typeof self.onmessage !== 'undefined') {
-    self.onmessage = (ev: MessageEvent) => {
+    self.onmessage = (ev: MessageEvent): void => {
       const { id, payload } = ev.data as { id: number, payload: KernelPayload };
       
       try {

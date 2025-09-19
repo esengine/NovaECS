@@ -68,7 +68,8 @@ export const TransformUpdateSystem = system('TransformUpdate', (ctx) => {
 
   const visit = (e: Entity, parentMat: number[] | null, parentDirty: boolean): void => {
     const hasDirty = world.entityHasComponent(e, getComponentType(DirtyTransform));
-    const lt = world.getEntityComponent(e, getComponentType(LocalTransform))!;
+    const lt = world.getEntityComponent(e, getComponentType(LocalTransform));
+    if (!lt) throw new Error(`LocalTransform component not found for entity ${e}`);
     const matLocal = fromLocal(lt.x, lt.y, lt.rot, lt.sx, lt.sy);
     const mat = parentMat ? mul(parentMat, matLocal) : matLocal;
 
@@ -81,7 +82,8 @@ export const TransformUpdateSystem = system('TransformUpdate', (ctx) => {
         world.flush(cmd);
       }
 
-      const worldTransform = world.getComponent(e, WorldTransform)!;
+      const worldTransform = world.getComponent(e, WorldTransform);
+      if (!worldTransform) throw new Error(`WorldTransform component not found for entity ${e}`);
       worldTransform.m = mat;
       world.replaceComponent(e, WorldTransform, worldTransform);
       world.markChanged(e, WorldTransform);

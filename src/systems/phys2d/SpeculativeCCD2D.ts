@@ -13,6 +13,8 @@ import { BroadphasePairs } from '../../resources/BroadphasePairs';
 import { Contacts2D } from '../../resources/Contacts2D';
 import { Body2D } from '../../components/Body2D';
 import { ShapeCircle } from '../../components/ShapeCircle';
+import type { World } from '../../core/World';
+import type { Entity } from '../../utils/Types';
 import { makePairKey } from '../../determinism/PairKey';
 import {
   FX, add, sub, mul, div, abs, f, ONE, ZERO, clamp
@@ -39,7 +41,7 @@ const approxLen = (dx: FX, dy: FX): FX => {
  * Check if two entities both have circle shapes
  * 检查两个实体是否都具有圆形形状
  */
-const isCirclePair = (world: any, a: any, b: any): boolean => {
+const isCirclePair = (world: World, a: Entity, b: Entity): boolean => {
   return world.hasComponent(a, ShapeCircle) && world.hasComponent(b, ShapeCircle);
 };
 
@@ -60,7 +62,7 @@ export const SpeculativeCCD2D = system(
 
     // Get broadphase results
     // 获取宽相结果
-    const bp = world.getResource(BroadphasePairs) as BroadphasePairs | undefined;
+    const bp = world.getResource(BroadphasePairs);
     if (!bp || bp.pairs.length === 0) return;
 
     // Get fixed timestep
@@ -69,7 +71,7 @@ export const SpeculativeCCD2D = system(
 
     // Get or create contacts resource
     // 获取或创建接触资源
-    let contactsRes = world.getResource(Contacts2D) as Contacts2D | undefined;
+    let contactsRes = world.getResource(Contacts2D);
     if (!contactsRes) {
       contactsRes = new Contacts2D();
       world.setResource(Contacts2D, contactsRes);
@@ -205,8 +207,8 @@ export const SpeculativeCCD2D = system(
     // Maintain stable sorting by (a, b) entity IDs for determinism
     // 通过(a, b)实体ID保持稳定排序以确保确定性
     contactList.sort((contactA, contactB) => {
-      const aDiff = (contactA.a as number) - (contactB.a as number);
-      return aDiff !== 0 ? aDiff : (contactA.b as number) - (contactB.b as number);
+      const aDiff = (contactA.a) - (contactB.a);
+      return aDiff !== 0 ? aDiff : (contactA.b) - (contactB.b);
     });
   }
 )

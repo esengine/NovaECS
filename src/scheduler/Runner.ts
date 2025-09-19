@@ -152,7 +152,7 @@ export class ParallelRunner {
       useWorkerPool: config.useWorkerPool ?? false,
       workerPool: config.workerPool,
       enableMetrics: config.enableMetrics ?? true,
-      errorHandler: config.errorHandler ?? ((error, context) => {
+      errorHandler: config.errorHandler ?? ((error, context): void => {
         console.error(`System execution error in ${String(context.systemHandle)}:`, error);
       })
     };
@@ -386,7 +386,7 @@ export class ParallelRunner {
       const promise = executeSystem(systemHandle);
       executing.add(promise);
 
-      promise.finally(() => {
+      void promise.finally(() => {
         executing.delete(promise);
       });
     }

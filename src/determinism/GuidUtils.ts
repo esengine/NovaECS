@@ -52,7 +52,7 @@ export function stableEntityKey(world: World, e: Entity): StableKey {
     // GUID component not found, fall back to entity ID
     // 未找到GUID组件，回退到实体ID
   }
-  return { kind: 'id', id: (e as number) >>> 0 };
+  return { kind: 'id', id: (e) >>> 0 };
 }
 
 /**

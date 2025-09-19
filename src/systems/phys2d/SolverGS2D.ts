@@ -77,7 +77,7 @@ export const SolverGS2D = system(
   'phys.solver.gs2d',
   (ctx: SystemContext) => {
     const { world } = ctx;
-    const contactsRes = world.getResource(Contacts2D) as Contacts2D | undefined;
+    const contactsRes = world.getResource(Contacts2D);
     if (!contactsRes || contactsRes.list.length === 0) return;
 
     const dtFX: FX = world.getFixedDtFX ? world.getFixedDtFX() : f(1 / 60);

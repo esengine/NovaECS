@@ -16,6 +16,7 @@
 import { Body2D } from '../../components/Body2D';
 import { JointDistance2D } from '../../components/JointDistance2D';
 import { Sleep2D } from '../../components/Sleep2D';
+import type { World } from '../../core/World';
 import { JointBatch2D } from '../../resources/JointBatch2D';
 import type { JointRow } from '../../resources/JointBatch2D';
 import { makePairKey } from '../../determinism/PairKey';
@@ -58,7 +59,7 @@ const isStatic = (b: Body2D): boolean => (b.invMass | b.invI) === 0;
  * Wake up a sleeping body
  * 唤醒睡眠的物体
  */
-const wakeBody = (world: any, entityId: number, sleep: Sleep2D, body: Body2D): void => {
+const wakeBody = (world: World, entityId: number, sleep: Sleep2D, body: Body2D): void => {
   if (sleep.sleeping) {
     sleep.sleeping = 0;
     sleep.timer = ZERO;
@@ -81,7 +82,7 @@ export const BuildJointsDistance2D = system(
     const dt: FX = world.getFixedDtFX ? world.getFixedDtFX() : f(1/60);
 
     // Get or create joint batch resource
-    let batch = world.getResource(JointBatch2D) as JointBatch2D | undefined;
+    let batch = world.getResource(JointBatch2D);
     if (!batch) {
       batch = new JointBatch2D();
       world.setResource(JointBatch2D, batch);
@@ -125,8 +126,8 @@ export const BuildJointsDistance2D = system(
       const a = jd.a;
       const b = jd.b;
 
-      const ba = world.getComponent(a, Body2D) as Body2D | undefined;
-      const bb = world.getComponent(b, Body2D) as Body2D | undefined;
+      const ba = world.getComponent(a, Body2D);
+      const bb = world.getComponent(b, Body2D);
       if (!ba || !bb) continue;
 
       // Skip if both bodies are static
@@ -135,8 +136,8 @@ export const BuildJointsDistance2D = system(
 
       // Handle sleeping logic (consistent with contacts)
       // 处理睡眠逻辑（与接触一致）
-      const sa = world.getComponent(a, Sleep2D) as Sleep2D | undefined;
-      const sb = world.getComponent(b, Sleep2D) as Sleep2D | undefined;
+      const sa = world.getComponent(a, Sleep2D);
+      const sb = world.getComponent(b, Sleep2D);
 
       const aSleep = !!(sa && sa.sleeping);
       const bSleep = !!(sb && sb.sleeping);
@@ -176,7 +177,7 @@ export const BuildJointsDistance2D = system(
       // Initialize rest length if needed (rest < 0)
       // 如果需要则初始化静止长度（rest < 0）
       let rest = jd.rest;
-      if ((jd.rest as number) < 0 && jd.initialized === 0) {
+      if ((jd.rest) < 0 && jd.initialized === 0) {
         rest = dist;
         jd.rest = dist;
         jd.initialized = 1;
@@ -187,7 +188,7 @@ export const BuildJointsDistance2D = system(
 
       // Skip if rest is still invalid
       // 如果rest仍然无效则跳过
-      if ((rest as number) < 0) continue;
+      if ((rest) < 0) continue;
 
       // Calculate relative positions from body centers
       // 计算相对于物体中心的位置

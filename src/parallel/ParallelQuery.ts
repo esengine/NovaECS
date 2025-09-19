@@ -109,9 +109,9 @@ export class ParallelQuery {
  * 创建并行查询的便捷函数
  */
 export function parallel(
-  world: World, 
-  pool: WorkerPool, 
+  world: World,
+  pool: WorkerPool,
   ...ctors: ComponentCtor<any>[]
-) {
+): ParallelQuery {
   return new ParallelQuery(world, pool, ctors);
 }

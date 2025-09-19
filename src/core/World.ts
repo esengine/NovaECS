@@ -437,13 +437,9 @@ export class World {
     const type = getComponentType(ctor);
     const component = new ctor();
     if (data) {
-      // Use proper property assignment to respect getters/setters
-      // 使用正确的属性赋值以尊重getter/setter
-      for (const key in data) {
-        if (data.hasOwnProperty(key)) {
-          (component as any)[key] = data[key];
-        }
-      }
+      // Use Object.assign to copy properties efficiently
+      // 使用Object.assign高效复制属性
+      Object.assign(component as object, data);
     }
     this.addComponentToEntity(e, type, component);
   }
@@ -719,13 +715,9 @@ export class World {
     const type = getComponentType(ctor);
     const component = new ctor();
     if (data) {
-      // Use proper property assignment to respect getters/setters
-      // 使用正确的属性赋值以尊重getter/setter
-      for (const key in data) {
-        if (data.hasOwnProperty(key)) {
-          (component as any)[key] = data[key];
-        }
-      }
+      // Use Object.assign to copy properties efficiently
+      // 使用Object.assign高效复制属性
+      Object.assign(component as object, data);
     }
     this.addComponentToEntity(e, type, component);
   }

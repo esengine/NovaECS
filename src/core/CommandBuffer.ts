@@ -108,13 +108,9 @@ export class CommandBuffer {
     const type = getComponentType(ctor);
     const instance = new ctor();
     if (partial) {
-      // Use proper property assignment to respect getters/setters
-      // 使用正确的属性赋值以尊重getter/setter
-      for (const key in partial) {
-        if (partial.hasOwnProperty(key)) {
-          (instance as any)[key] = partial[key];
-        }
-      }
+      // Use Object.assign to copy properties efficiently
+      // 使用Object.assign高效复制属性
+      Object.assign(instance as object, partial);
     }
     this.queueAdd(entity, type.id, instance);
   }
@@ -136,18 +132,14 @@ export class CommandBuffer {
    * Will try to use constructor to instantiate and fill with init data
    * 会尝试用构造函数实例化并填充init数据
    */
-  addByTypeId(entity: Entity, typeId: number, init?: Record<string, unknown>): void {
+  addByTypeId<T extends Record<string, unknown>>(entity: Entity, typeId: number, init?: Partial<T>): void {
     if (this.isDestroyed(entity)) return;
     const Ctor = getCtorByTypeId(typeId);
-    const instance = Ctor ? new Ctor() : {} as Record<string, unknown>;
+    const instance = Ctor ? new Ctor() as T : {} as T;
     if (init) {
-      // Use proper property assignment to respect getters/setters
-      // 使用正确的属性赋值以尊重getter/setter
-      for (const key in init) {
-        if (init.hasOwnProperty(key)) {
-          (instance as any)[key] = init[key];
-        }
-      }
+      // Use Object.assign to copy properties efficiently
+      // 使用Object.assign高效复制属性
+      Object.assign(instance, init);
     }
     this.queueAdd(entity, typeId, instance);
   }

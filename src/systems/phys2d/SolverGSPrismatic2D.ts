@@ -52,11 +52,11 @@ export const SolverGSPrismatic2D = system(
   (ctx: SystemContext) => {
     const { world } = ctx;
 
-    const batch = world.getResource(PrismaticBatch2D) as PrismaticBatch2D | undefined;
+    const batch = world.getResource(PrismaticBatch2D);
     if (!batch || batch.list.length === 0) return;
 
     // Get or create joint events resource
-    let events = world.getResource(JointEvents2D) as JointEvents2D | undefined;
+    let events = world.getResource(JointEvents2D);
     if (!events) {
       events = new JointEvents2D();
       world.setResource(JointEvents2D, events);
@@ -69,14 +69,14 @@ export const SolverGSPrismatic2D = system(
     // Apply accumulated impulses from previous frame
     // 热启动阶段 - 应用上一帧的累积冲量
     for (const row of batch.list) {
-      const joint = world.getComponent(row.e, PrismaticJoint2D) as PrismaticJoint2D | undefined;
+      const joint = world.getComponent(row.e, PrismaticJoint2D);
       if (!joint) continue;
 
       // Skip if no accumulated impulse
       if ((joint.jPerp | joint.jAxis) === 0) continue;
 
-      const bodyA = world.getComponent(row.a, Body2D) as Body2D | undefined;
-      const bodyB = world.getComponent(row.b, Body2D) as Body2D | undefined;
+      const bodyA = world.getComponent(row.a, Body2D);
+      const bodyB = world.getComponent(row.b, Body2D);
       if (!bodyA || !bodyB) continue;
       if (isStatic(bodyA) && isStatic(bodyB)) continue;
 
@@ -139,11 +139,11 @@ export const SolverGSPrismatic2D = system(
     // 迭代求解阶段 - 固定迭代次数确保确定性结果
     for (let iteration = 0; iteration < ITER_P; iteration++) {
       for (const row of batch.list) {
-        const joint = world.getComponent(row.e, PrismaticJoint2D) as PrismaticJoint2D | undefined;
+        const joint = world.getComponent(row.e, PrismaticJoint2D);
         if (!joint) continue;
 
-        const bodyA = world.getComponent(row.a, Body2D) as Body2D | undefined;
-        const bodyB = world.getComponent(row.b, Body2D) as Body2D | undefined;
+        const bodyA = world.getComponent(row.a, Body2D);
+        const bodyB = world.getComponent(row.b, Body2D);
         if (!bodyA || !bodyB) continue;
         if (isStatic(bodyA) && isStatic(bodyB)) continue;
 
@@ -162,7 +162,7 @@ export const SolverGSPrismatic2D = system(
         // === 1) 垂直等式约束：p · rv + biasPerp == 0 ===
         {
           const vPerp = add(mul(row.px, rvx), mul(row.py, rvy)); // Perpendicular velocity
-          const rhs = sub(ZERO, add(vPerp, row.biasPerp)) as FX;
+          const rhs = sub(ZERO, add(vPerp, row.biasPerp));
           const dJ = mul(row.mPerp, rhs);
 
 
@@ -251,7 +251,7 @@ export const SolverGSPrismatic2D = system(
 
             // Set target velocity: motor speed when enabled, otherwise 0
             // 设置目标速度：启用电机时为电机速度，否则为0
-            let targetVelocity = useMotor ? joint.motorSpeed : ZERO;
+            const targetVelocity = useMotor ? joint.motorSpeed : ZERO;
             const bias = useLimit ? biasAxis : ZERO;
 
             // Velocity constraint: a·rv + bias + gamma*jAxis ≈ target
@@ -324,7 +324,7 @@ export const SolverGSPrismatic2D = system(
     // Check for joint breaking based on accumulated impulse magnitude
     // 关节断裂检测 - 基于累积冲量大小检查关节断裂
     for (const row of batch.list) {
-      const joint = world.getComponent(row.e, PrismaticJoint2D) as PrismaticJoint2D | undefined;
+      const joint = world.getComponent(row.e, PrismaticJoint2D);
       if (!joint || joint.breakImpulse <= ZERO) continue;
 
       // Simple approximation: |jPerp| + |jAxis|

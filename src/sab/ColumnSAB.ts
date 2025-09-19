@@ -58,14 +58,14 @@ export class ColumnSAB implements IColumn {
     this.growTo(Math.max(1, initialCap));
   }
 
-  length() { return this._len; }
-  capacity() { return this._cap; }
+  length(): number { return this._len; }
+  capacity(): number { return this._cap; }
 
   /**
    * Grow capacity using 2x expansion strategy
    * 使用2倍扩容策略增长容量
    */
-  private growTo(newCap: number) {
+  private growTo(newCap: number): void {
     // Expand by 2x 按2倍扩容
     newCap = Math.max(newCap, this._cap ? this._cap * 2 : 256);
 
@@ -74,7 +74,7 @@ export class ColumnSAB implements IColumn {
       const old = this.views[name] as any;
       const buf = new SharedArrayBuffer(bytes);
       const Ctor = TYPED[ty];
-      const view = new (Ctor as any)(buf) as any;
+      const view = new (Ctor as any)(buf);
 
       // Copy old data 拷贝旧数据
       if (old) view.set(old.subarray(0, this._len));
@@ -106,7 +106,7 @@ export class ColumnSAB implements IColumn {
     }
   }
 
-  ensureCapacity(rows: number) {
+  ensureCapacity(rows: number): void {
     if (rows > this._cap) this.growTo(rows);
   }
 
@@ -148,7 +148,7 @@ export class ColumnSAB implements IColumn {
     }
 
     for (const [name, type] of this.fields) {
-      const v = this.views[name] as Float32Array | Float64Array | Int32Array | Uint32Array | Int16Array | Uint16Array | Int8Array | Uint8Array;
+      const v = this.views[name];
       const value = obj?.[name] ?? 0;
 
       // Special handling for bool fields to ensure 0/1 values
@@ -178,7 +178,7 @@ export class ColumnSAB implements IColumn {
     }
 
     for (const [name, type] of this.fields) {
-      const v = this.views[name] as Float32Array | Float64Array | Int32Array | Uint32Array | Int16Array | Uint16Array | Int8Array | Uint8Array;
+      const v = this.views[name];
 
       // Special handling for bool fields to convert 0/1 back to boolean
       // 特殊处理bool字段将0/1转换回boolean
@@ -211,19 +211,19 @@ export class ColumnSAB implements IColumn {
       view: {
         kind: 'SAB',
         fields: desc,
-        writeMask: { buffer: this.writeMaskBuf!, byteOffset: 0, length: Math.ceil(this._cap/8) },
+        writeMask: this.writeMaskBuf ? { buffer: this.writeMaskBuf, byteOffset: 0, length: Math.ceil(this._cap/8) } : undefined,
         baseRow: start
       }
     };
   }
 
-  private setWrittenBit(row: number) {
+  private setWrittenBit(row: number): void {
     if (!this.writeMask) return;
     const i = row >> 3, b = row & 7;
     this.writeMask[i] |= (1 << b);
   }
 
-  markWrittenRange(start: number, end: number, epoch: number): void {
+  markWrittenRange(start: number, end: number, _epoch: number): void {
     if (!this.writeMask) return;
     // For SAB, we use write mask instead of per-row epochs
     // 对于SAB，我们使用写掩码而不是每行时代
@@ -259,7 +259,7 @@ export class ColumnSAB implements IColumn {
    * Convenience: get specific field view (for main thread local use)
    * 便捷：拿到具体字段的视图（主线程本地用）
    */
-  viewOf(name: string) { return this.views[name]; }
+  viewOf(name: string): any { return this.views[name]; }
 
   /**
    * Fast O(1) field type lookup via active view cache
@@ -286,40 +286,39 @@ export class ColumnSAB implements IColumn {
     if (row < 0 || row >= this._len) {
       throw new RangeError(`Row ${row} is out of bounds (len=${this._len}).`);
     }
-    const self = this;
 
     return new Proxy({}, {
-      get(_t, prop) {
+      get: (_t, prop): any => {
         if (prop === '_row') return row;         // 便捷：暴露行号做调试
-        if (prop === '_col') return self;        // 便捷：暴露列实例
-        if (prop === '_len') return self._len;   // 便捷：当前长度
+        if (prop === '_col') return this;        // 便捷：暴露列实例
+        if (prop === '_len') return this._len;   // 便捷：当前长度
         if (typeof prop !== 'string') return undefined;
 
-        const view = self.viewMap[prop];
+        const view = this.viewMap[prop];
         if (!view) return undefined;
 
-        const ty = self.typeMap[prop];
+        const ty = this.typeMap[prop];
         const val = (view as any)[row];
         return ty === 'bool' ? val === 1 : val;  // 0/1 -> boolean
       },
 
-      set(_t, prop, value) {
+      set: (_t, prop, value): boolean => {
         if (typeof prop !== 'string') return true; // 忽略非字符串属性但不报错
 
-        const view = self.viewMap[prop];
+        const view = this.viewMap[prop];
         if (!view) return true; // 忽略不存在的字段但不报错
 
-        const ty = self.typeMap[prop];
+        const ty = this.typeMap[prop];
         (view as any)[row] = (ty === 'bool') ? (value ? 1 : 0) : Number(value);
-        self.setWrittenBit(row);
+        this.setWrittenBit(row);
         return true;
       },
 
       // 让 Object.keys/for..in 正常工作
-      ownKeys() { return self.fields.map(([n]) => n); },
-      getOwnPropertyDescriptor(_t, prop) {
+      ownKeys: (): string[] => this.fields.map(([n]) => n),
+      getOwnPropertyDescriptor: (_t, prop): PropertyDescriptor | undefined => {
         if (typeof prop !== 'string') return undefined;
-        if (!(prop in self.viewMap)) return undefined;
+        if (!(prop in this.viewMap)) return undefined;
         return { enumerable: true, configurable: true, writable: true };
       }
     }) as T;
@@ -332,33 +331,32 @@ export class ColumnSAB implements IColumn {
     if (row < 0 || row >= this._len) {
       throw new RangeError(`Row ${row} is out of bounds (len=${this._len}).`);
     }
-    const self = this;
 
     return new Proxy({}, {
-      get(_t, prop) {
+      get: (_t, prop): any => {
         if (prop === '_row') return row;         // 便捷：暴露行号做调试
-        if (prop === '_col') return self;        // 便捷：暴露列实例
-        if (prop === '_len') return self._len;   // 便捷：当前长度
+        if (prop === '_col') return this;        // 便捷：暴露列实例
+        if (prop === '_len') return this._len;   // 便捷：当前长度
         if (typeof prop !== 'string') return undefined;
 
-        const view = self.viewMap[prop];
+        const view = this.viewMap[prop];
         if (!view) return undefined;
 
-        const ty = self.typeMap[prop];
+        const ty = this.typeMap[prop];
         const val = (view as any)[row];
         return ty === 'bool' ? val === 1 : val;  // 0/1 -> boolean
       },
 
-      set() {
+      set: (): boolean => {
         // 静默忽略写入操作，不会实际修改数据
         return true;
       },
 
       // 让 Object.keys/for..in 正常工作
-      ownKeys() { return self.fields.map(([n]) => n); },
-      getOwnPropertyDescriptor(_t, prop) {
+      ownKeys: (): string[] => this.fields.map(([n]) => n),
+      getOwnPropertyDescriptor: (_t, prop): PropertyDescriptor | undefined => {
         if (typeof prop !== 'string') return undefined;
-        if (!(prop in self.viewMap)) return undefined;
+        if (!(prop in this.viewMap)) return undefined;
         return { enumerable: true, configurable: true, writable: false }; // 标记为不可写
       }
     }) as T;

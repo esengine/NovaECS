@@ -33,7 +33,7 @@ function keyOf(world: World, e: Entity): readonly [number, number] {
     // GUID component not found, fall back to entity ID
     // 未找到GUID组件，回退到实体ID
   }
-  const id = (e as number) >>> 0;
+  const id = (e) >>> 0;
   return [0, id] as const; // No GUID fallback (hi=0)
 }
 

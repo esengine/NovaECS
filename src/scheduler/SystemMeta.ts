@@ -106,12 +106,32 @@ export class SystemMetaBuilder {
     this.meta.parallelizable = true;
   }
 
+  private ensureComponents(): ComponentAccess[] {
+    if (!this.meta.components) throw new Error('Components array not initialized');
+    return this.meta.components;
+  }
+
+  private ensureResources(): ResourceAccess[] {
+    if (!this.meta.resources) throw new Error('Resources array not initialized');
+    return this.meta.resources;
+  }
+
+  private ensureDependencies(): SystemHandle[] {
+    if (!this.meta.dependencies) throw new Error('Dependencies array not initialized');
+    return this.meta.dependencies;
+  }
+
+  private ensureDependents(): SystemHandle[] {
+    if (!this.meta.dependents) throw new Error('Dependents array not initialized');
+    return this.meta.dependents;
+  }
+
   /**
    * Add read-only component access
    * 添加只读组件访问
    */
   reads(typeId: TypeId): this {
-    this.meta.components!.push({ typeId, mode: AccessMode.Read });
+    this.ensureComponents().push({ typeId, mode: AccessMode.Read });
     return this;
   }
 
@@ -120,7 +140,7 @@ export class SystemMetaBuilder {
    * 添加写组件访问
    */
   writes(typeId: TypeId): this {
-    this.meta.components!.push({ typeId, mode: AccessMode.Write });
+    this.ensureComponents().push({ typeId, mode: AccessMode.Write });
     return this;
   }
 
@@ -129,7 +149,7 @@ export class SystemMetaBuilder {
    * 添加读写组件访问
    */
   readWrites(typeId: TypeId): this {
-    this.meta.components!.push({ typeId, mode: AccessMode.ReadWrite });
+    this.ensureComponents().push({ typeId, mode: AccessMode.ReadWrite });
     return this;
   }
 
@@ -160,7 +180,7 @@ export class SystemMetaBuilder {
    * 添加独占资源访问
    */
   exclusiveResource(resourceId: ResourceId): this {
-    this.meta.resources!.push({ resourceId, exclusive: true });
+    this.ensureResources().push({ resourceId, exclusive: true });
     return this;
   }
 
@@ -169,7 +189,7 @@ export class SystemMetaBuilder {
    * 添加共享资源访问
    */
   sharedResource(resourceId: ResourceId): this {
-    this.meta.resources!.push({ resourceId, exclusive: false });
+    this.ensureResources().push({ resourceId, exclusive: false });
     return this;
   }
 
@@ -178,7 +198,7 @@ export class SystemMetaBuilder {
    * 添加对另一个系统的依赖
    */
   dependsOn(systemHandle: SystemHandle): this {
-    this.meta.dependencies!.push(systemHandle);
+    this.ensureDependencies().push(systemHandle);
     return this;
   }
 
@@ -187,7 +207,7 @@ export class SystemMetaBuilder {
    * 添加多个依赖
    */
   dependsOnMany(systemHandles: SystemHandle[]): this {
-    this.meta.dependencies!.push(...systemHandles);
+    this.ensureDependencies().push(...systemHandles);
     return this;
   }
 
@@ -196,7 +216,7 @@ export class SystemMetaBuilder {
    * 添加依赖此系统的系统
    */
   dependentSystem(systemHandle: SystemHandle): this {
-    this.meta.dependents!.push(systemHandle);
+    this.ensureDependents().push(systemHandle);
     return this;
   }
 

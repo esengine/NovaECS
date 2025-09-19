@@ -25,7 +25,7 @@ export async function forEachChunkParallel(
   kernelId: string,
   params?: unknown,
   targetChunkSize = 4096
-) {
+): Promise<void> {
   const q = new ChunkedQuery(world, ctors);
   const tasks: KernelPayload[] = [];
   const chunks: ChunkView[] = [];

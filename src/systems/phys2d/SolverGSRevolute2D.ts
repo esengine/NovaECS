@@ -73,13 +73,13 @@ export const SolverGSRevolute2D = system(
     const { world } = ctx;
 
     // Get or create joint events resource
-    let events = world.getResource(JointEvents2D) as JointEvents2D | undefined;
+    let events = world.getResource(JointEvents2D);
     if (!events) {
       events = new JointEvents2D();
       world.setResource(JointEvents2D, events);
     }
 
-    const batch = world.getResource(RevoluteBatch2D) as RevoluteBatch2D | undefined;
+    const batch = world.getResource(RevoluteBatch2D);
     if (!batch || batch.list.length === 0) return;
 
     const bodyStore = world.getStore(getComponentType(Body2D));
@@ -89,11 +89,11 @@ export const SolverGSRevolute2D = system(
     // Apply accumulated impulses from previous frame
     // 热启动阶段：应用上一帧的累积冲量
     for (const row of batch.list) {
-      const j = world.getComponent(row.e, RevoluteJoint2D) as RevoluteJoint2D | undefined;
+      const j = world.getComponent(row.e, RevoluteJoint2D);
       if (!j || j.broken === 1) continue;
 
-      const ba = world.getComponent(row.a, Body2D) as Body2D | undefined;
-      const bb = world.getComponent(row.b, Body2D) as Body2D | undefined;
+      const ba = world.getComponent(row.a, Body2D);
+      const bb = world.getComponent(row.b, Body2D);
       if (!ba || !bb) continue;
       if (isStatic(ba) && isStatic(bb)) continue;
 
@@ -129,11 +129,11 @@ export const SolverGSRevolute2D = system(
     // 迭代约束求解阶段：固定迭代次数和稳定顺序
     for (let iteration = 0; iteration < ITER_R; iteration++) {
       for (const row of batch.list) {
-        const j = world.getComponent(row.e, RevoluteJoint2D) as RevoluteJoint2D | undefined;
+        const j = world.getComponent(row.e, RevoluteJoint2D);
         if (!j || j.broken === 1) continue;
 
-        const ba = world.getComponent(row.a, Body2D) as Body2D | undefined;
-        const bb = world.getComponent(row.b, Body2D) as Body2D | undefined;
+        const ba = world.getComponent(row.a, Body2D);
+        const bb = world.getComponent(row.b, Body2D);
         if (!ba || !bb) continue;
         if (isStatic(ba) && isStatic(bb)) continue;
 
@@ -194,7 +194,7 @@ export const SolverGSRevolute2D = system(
     // Check for joints that exceed break impulse threshold
     // 关节断裂检测阶段：检查超过断裂冲量阈值的关节
     for (const row of batch.list) {
-      const j = world.getComponent(row.e, RevoluteJoint2D) as RevoluteJoint2D | undefined;
+      const j = world.getComponent(row.e, RevoluteJoint2D);
       if (!j || j.broken === 1) continue;
 
       if (j.breakImpulse > 0) {

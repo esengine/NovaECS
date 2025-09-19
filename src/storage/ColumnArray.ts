@@ -230,7 +230,7 @@ export class ColumnArray implements IColumn {
 
     // Fast path: direct array copy for ColumnArray
     // 快速路径：对ColumnArray直接数组复制
-    const dstCA = dst as ColumnArray;
+    const dstCA = dst;
     for (let i = 0; i < n; i++) {
       dstCA.data[i] = this.data[i];
     }

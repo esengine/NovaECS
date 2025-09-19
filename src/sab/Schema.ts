@@ -27,7 +27,7 @@ const schemaMap = new Map<Function, ComponentSchema>();
  * Register a schema for a component type to enable SAB storage
  * 为组件类型注册模式以启用SAB存储
  */
-export function registerSchema<C>(ctor: new (...a: any[]) => C, schema: ComponentSchema) {
+export function registerSchema<C>(ctor: new (...a: any[]) => C, schema: ComponentSchema): void {
   schemaMap.set(ctor, schema);
 }
 
@@ -65,7 +65,7 @@ export function getFieldByteSize(type: FieldType): number {
     case 'f32': case 'i32': case 'u32': return 4;
     case 'i16': case 'u16': return 2;
     case 'i8': case 'u8': case 'bool': return 1;
-    default: throw new Error(`Unknown field type: ${type}`);
+    default: throw new Error(`Unknown field type: ${String(type)}`);
   }
 }
 
@@ -95,6 +95,6 @@ export function getTypedArrayConstructor(type: FieldType): new (buffer: ArrayBuf
     case 'u16': return Uint16Array;
     case 'i8': return Int8Array;
     case 'u8': case 'bool': return Uint8Array;
-    default: throw new Error(`Unknown field type: ${type}`);
+    default: throw new Error(`Unknown field type: ${String(type)}`);
   }
 }

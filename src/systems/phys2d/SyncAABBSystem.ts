@@ -2,21 +2,24 @@
  * AABB Synchronization System
  * AABB同步系统
  *
- * Updates axis-aligned bounding boxes for all entities with Body2D and ShapeCircle components
- * when they change. Only processes entities that have been modified since the last frame.
- * 当带有Body2D和ShapeCircle组件的所有实体发生变化时更新轴对齐包围盒。
+ * Updates axis-aligned bounding boxes for all entities with Body2D and collision shapes
+ * (ShapeCircle or ConvexHull2D). Only processes entities that have been modified since the last frame.
+ * 当带有Body2D和碰撞形状（ShapeCircle或ConvexHull2D）组件的所有实体发生变化时更新轴对齐包围盒。
  * 仅处理自上一帧以来已修改的实体。
  */
 
 import { system, SystemContext } from '../../core/System';
 import { Body2D } from '../../components/Body2D';
 import { ShapeCircle } from '../../components/ShapeCircle';
+import { ConvexHull2D } from '../../components/ConvexHull2D';
+import { HullWorld2D } from '../../components/HullWorld2D';
 import { AABB2D } from '../../components/AABB2D';
-import { sub, add } from '../../math/fixed';
+import { sub, add, min, max } from '../../math/fixed';
+import type { FX } from '../../math/fixed';
 
 /**
- * System that synchronizes AABB bounds with Body2D position and ShapeCircle radius
- * 将AABB边界与Body2D位置和ShapeCircle半径同步的系统
+ * System that synchronizes AABB bounds with Body2D position and collision shapes
+ * 将AABB边界与Body2D位置和碰撞形状同步的系统
  *
  * This system runs after physics integration to update bounding boxes
  * for broadphase collision detection. Processes all entities each frame for reliability.
@@ -27,11 +30,11 @@ export const SyncAABBSystem = system(
   (ctx: SystemContext) => {
     const { world } = ctx;
 
-    // Query all entities with the required components
-    // 查询所有具有所需组件的实体
+    // Query entities with circles
+    // 查询带有圆形的实体
     world
       .query(Body2D, ShapeCircle, AABB2D)
-      .forEach((_entity, body: Body2D, circle: ShapeCircle, aabb: AABB2D) => {
+      .forEach((entity, body: Body2D, circle: ShapeCircle, aabb: AABB2D) => {
         // Calculate AABB bounds from circle center and radius
         // 从圆心和半径计算AABB边界
         const r = circle.r;
@@ -43,11 +46,68 @@ export const SyncAABBSystem = system(
         // Update epoch for change tracking
         // 更新时期以进行变更跟踪
         aabb.epoch = world.frame;
+
+        // Save the modified AABB component back to the world
+        // 将修改后的AABB组件保存回世界
+        world.replaceComponent(entity, AABB2D, aabb);
+      });
+
+    // Query entities with convex hulls
+    // 查询带有凸包的实体
+    world
+      .query(Body2D, ConvexHull2D, HullWorld2D)
+      .forEach((entity, body: Body2D, hull: ConvexHull2D, hullWorld: HullWorld2D) => {
+        const aabb = world.getComponent(entity, AABB2D);
+        if (!aabb) return;
+
+        // Calculate AABB bounds from transformed vertices
+        // 从变换后的顶点计算AABB边界
+        if (hullWorld.count === 0) {
+          // Fallback to body position if hull not yet transformed
+          // 如果凸包尚未变换，则回退到物体位置
+          aabb.minx = body.px;
+          aabb.maxx = body.px;
+          aabb.miny = body.py;
+          aabb.maxy = body.py;
+        } else {
+          // Find min/max from world vertices
+          // 从世界顶点找到最小/最大值
+          let minX: FX = hullWorld.wverts[0];
+          let maxX: FX = hullWorld.wverts[0];
+          let minY: FX = hullWorld.wverts[1];
+          let maxY: FX = hullWorld.wverts[1];
+
+          for (let i = 1; i < hullWorld.count; i++) {
+            const x = hullWorld.wverts[i * 2];
+            const y = hullWorld.wverts[i * 2 + 1];
+            minX = min(minX, x);
+            maxX = max(maxX, x);
+            minY = min(minY, y);
+            maxY = max(maxY, y);
+          }
+
+          // Expand by hull skin radius
+          // 按凸包皮肤半径扩展
+          const skinRadius = hull.radius;
+          aabb.minx = sub(minX, skinRadius);
+          aabb.maxx = add(maxX, skinRadius);
+          aabb.miny = sub(minY, skinRadius);
+          aabb.maxy = add(maxY, skinRadius);
+
+        }
+
+        // Update epoch for change tracking
+        // 更新时期以进行变更跟踪
+        aabb.epoch = world.frame;
+
+        // Save the modified AABB component back to the world
+        // 将修改后的AABB组件保存回世界
+        world.replaceComponent(entity, AABB2D, aabb);
       });
   }
 )
   .stage('update')
-  .after('phys.integrateVelocities')
+  .after('geom.syncHullWorld2D')
   .inSet('physics')
   .build();
 

@@ -53,7 +53,7 @@ export class WorldSerializer {
    * Load world state from save data
    * 从存档数据加载世界状态
    */
-  load(world: World, data: SaveData) {
+  load(world: World, data: SaveData): void {
     const cmd = world.cmd();
     for (const ent of data.entities) {
       const e = cmd.create(true);

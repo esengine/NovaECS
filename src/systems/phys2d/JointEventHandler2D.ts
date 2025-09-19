@@ -23,10 +23,10 @@ export const JointEventHandler2D = system(
   'phys.joint.events',
   (ctx: SystemContext) => {
     const { world } = ctx;
-    const events = world.getResource(JointEvents2D) as JointEvents2D | undefined;
+    const events = world.getResource(JointEvents2D);
     if (!events || events.events.length === 0) return;
 
-    const constraints = world.getResource(JointConstraints2D) as JointConstraints2D | undefined;
+    const constraints = world.getResource(JointConstraints2D);
 
     // Process each joint broken event
     // 处理每个关节断裂事件

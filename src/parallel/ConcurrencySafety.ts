@@ -116,7 +116,9 @@ export class MemoryBarrier {
       // barrier[0] = 计数器, barrier[1..workerCount] = worker完成标志
       this.barriers.set(name, barrier);
     }
-    return this.barriers.get(name)!;
+    const barrier = this.barriers.get(name);
+    if (!barrier) throw new Error(`Barrier ${name} not found after creation`);
+    return barrier;
   }
   
   /**

@@ -30,7 +30,7 @@ export class ChildrenIndex {
    * Get parent of an entity
    * 获取实体的父实体
    */
-  parentOfEntity(e: Entity): Entity | 0 {
+  parentOfEntity(e: Entity): Entity {
     return this.parentOf.get(e) ?? 0;
   }
 
@@ -114,7 +114,7 @@ export class ChildrenIndex {
     if (!newParent || newParent === 0) return false;
     if (child === newParent) return true;
 
-    let cur: Entity | 0 | undefined = newParent;
+    let cur: Entity | undefined = newParent;
     while (cur && cur !== 0) {
       if (cur === child) return true;
       cur = this.parentOf.get(cur) ?? 0;
@@ -168,7 +168,7 @@ export class ChildrenIndex {
    */
   getDepth(e: Entity): number {
     let depth = 0;
-    let current: Entity | 0 | undefined = e;
+    let current: Entity | undefined = e;
 
     while (current && current !== 0) {
       const parent = this.parentOf.get(current);
@@ -194,7 +194,8 @@ export class ChildrenIndex {
     const stack = [...this.childrenOf(e)];
 
     while (stack.length > 0) {
-      const current = stack.pop()!;
+      const current = stack.pop();
+      if (current === undefined) break;
       descendants.push(current);
       stack.push(...this.childrenOf(current));
     }

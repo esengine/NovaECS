@@ -13,9 +13,9 @@ import type { Archetype } from '../archetype/Archetype';
 const FNV_OFF = 0x811c9dc5 >>> 0;
 const FNV_PRM = 0x01000193 >>> 0;
 
-function hU32(h: number, v: number) { h ^= (v >>> 0); return (h * FNV_PRM) >>> 0; }
-function hI32(h: number, v: number) { return hU32(h, v | 0); }
-function hStr(h: number, s: string) {
+function hU32(h: number, v: number): number { h ^= (v >>> 0); return (h * FNV_PRM) >>> 0; }
+function hI32(h: number, v: number): number { return hU32(h, v | 0); }
+function hStr(h: number, s: string): number {
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * FNV_PRM) >>> 0; }
   return h;
 }
@@ -115,7 +115,7 @@ const customHashers = new Map<Function, ComponentHasher<any>>();
  * Register component-specific hasher for optimized hashing
  * 注册组件专用哈希器用于优化哈希
  */
-export function registerComponentHasher<T>(ctor: ComponentCtor<T>, fn: ComponentHasher<T>) {
+export function registerComponentHasher<T>(ctor: ComponentCtor<T>, fn: ComponentHasher<T>): void {
   customHashers.set(ctor, fn);
 }
 
@@ -188,7 +188,10 @@ function cmpStr(a: string, b: string): number {
  * 比较两个稳定键的顺序
  */
 function compareStableKeys(a: Key, b: Key): number {
-  if (a.isGuid && b.isGuid) return cmpStr(a.str!, b.str!);
+  if (a.isGuid && b.isGuid) {
+    if (!a.str || !b.str) throw new Error('GUID key missing string value');
+    return cmpStr(a.str, b.str);
+  }
   if (a.isGuid) return -1;
   if (b.isGuid) return 1;
   return a.u32 - b.u32;
@@ -227,7 +230,8 @@ class MinHeap {
     const a = this.arr;
     if (a.length === 0) return;
     const top = a[0];
-    const last = a.pop()!;
+    const last = a.pop();
+    if (last === undefined) return top;
     if (a.length) {
       a[0] = last;
       let i = 0;
@@ -300,8 +304,15 @@ export function worldHashForComponents(world: World, ctors: ComponentCtor<any>[]
     const seen = new WeakSet<object>();
     let count = 0;
     while (heap.arr.length) {
-      const { it, comp, key } = heap.pop()!;
-      h = key.isGuid ? hStr(h, key.str!) : hU32(h, key.u32);
+      const item = heap.pop();
+      if (!item) break;
+      const { it, comp, key } = item;
+      if (key.isGuid) {
+        if (!key.str) throw new Error('GUID key missing string value');
+        h = hStr(h, key.str);
+      } else {
+        h = hU32(h, key.u32);
+      }
       h = hComponent(h, comp, seen);
       count++;
 

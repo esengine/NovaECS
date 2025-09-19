@@ -19,11 +19,6 @@ import {
 } from '../../math/fixed';
 import { system, SystemContext } from '../../core/System';
 
-/**
- * Vector dot product (2D)
- * 向量点积（2D）
- */
-const dot = (ax: FX, ay: FX, bx: FX, by: FX): FX => add(mul(ax, bx), mul(ay, by));
 
 /**
  * Cross product: r × v (returns scalar)
@@ -55,10 +50,10 @@ export const JointBatchBuilder2D = system(
   'phys.joints.batch',
   (ctx: SystemContext) => {
     const { world } = ctx;
-    const jointsRes = world.getResource(JointConstraints2D) as JointConstraints2D | undefined;
+    const jointsRes = world.getResource(JointConstraints2D);
 
     // Get or create joint batch resource
-    let batchRes = world.getResource(JointBatch2D) as JointBatch2D | undefined;
+    let batchRes = world.getResource(JointBatch2D);
     if (!batchRes) {
       batchRes = new JointBatch2D();
       world.setResource(JointBatch2D, batchRes);

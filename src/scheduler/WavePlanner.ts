@@ -280,7 +280,8 @@ export class WavePlanner {
 
     // Add explicit dependencies
     for (const system of systems) {
-      const deps = graph.get(system.handle)!;
+      const deps = graph.get(system.handle);
+      if (!deps) throw new Error(`No dependency set found for system ${String(system.handle)}`);
       for (const dep of system.dependencies) {
         deps.add(dep);
       }
@@ -293,13 +294,19 @@ export class WavePlanner {
       }
 
       // For conflicts, we need to impose ordering - use priority or handle comparison
-      const systemA = this.systems.get(conflict.systemA)!;
-      const systemB = this.systems.get(conflict.systemB)!;
+      const systemA = this.systems.get(conflict.systemA);
+      const systemB = this.systems.get(conflict.systemB);
+      if (!systemA) throw new Error(`System ${String(conflict.systemA)} not found`);
+      if (!systemB) throw new Error(`System ${String(conflict.systemB)} not found`);
 
       if (this.shouldRunFirst(systemA, systemB)) {
-        graph.get(conflict.systemB)!.add(conflict.systemA);
+        const depsB = graph.get(conflict.systemB);
+        if (!depsB) throw new Error(`No dependency set found for system ${String(conflict.systemB)}`);
+        depsB.add(conflict.systemA);
       } else {
-        graph.get(conflict.systemA)!.add(conflict.systemB);
+        const depsA = graph.get(conflict.systemA);
+        if (!depsA) throw new Error(`No dependency set found for system ${String(conflict.systemA)}`);
+        depsA.add(conflict.systemB);
       }
     }
 
@@ -365,7 +372,11 @@ export class WavePlanner {
 
       if (readySystems.length === 0) {
         // Circular dependency detected - break it by selecting highest priority system
-        const remainingSystems = Array.from(remaining).map(h => this.systems.get(h)!);
+        const remainingSystems = Array.from(remaining).map(h => {
+          const system = this.systems.get(h);
+          if (!system) throw new Error(`System ${String(h)} not found`);
+          return system;
+        });
         remainingSystems.sort((a, b) => (b.priority || 0) - (a.priority || 0));
         readySystems.push(remainingSystems[0].handle);
       }

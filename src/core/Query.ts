@@ -8,7 +8,6 @@ import type { World } from './World';
 import type { ComponentType, ComponentCtor } from './ComponentRegistry';
 import type { IColumn, IArrayColumn } from '../storage/IColumn';
 import type { Archetype } from '../archetype/Archetype';
-import { getComponentType } from './ComponentRegistry';
 import { ColumnType } from '../storage/IColumn';
 
 /**
@@ -82,7 +81,7 @@ export class Query<Ts extends unknown[]> {
    * Compile execution plan by finding matching archetypes
    * 编译执行计划，查找匹配的原型
    */
-  private compile() {
+  private compile(): void {
     const all = this.world.getArchetypeIndex().getAll();
     for (const arch of all) {
       // Check if archetype contains all required components
@@ -164,7 +163,7 @@ export class Query<Ts extends unknown[]> {
    * Iterate over matching entities with component data
    * 遍历匹配的实体及其组件数据
    */
-  forEach(cb: (e: Entity, ...args: Ts) => void) {
+  forEach(cb: (e: Entity, ...args: Ts) => void): void {
     this.world._enterIteration();
     try {
       for (const p of this.plan) {
@@ -218,11 +217,11 @@ export class Query<Ts extends unknown[]> {
   }
 
   /** Internal method for delta tracking 内部方法用于增量跟踪 */
-  _notifyEntityAdded(e: Entity)   { this.pendingAdded.push(e); }
+  _notifyEntityAdded(e: Entity): void   { this.pendingAdded.push(e); }
   /** Internal method for delta tracking 内部方法用于增量跟踪 */
-  _notifyEntityRemoved(e: Entity) { this.pendingRemoved.push(e); }
+  _notifyEntityRemoved(e: Entity): void { this.pendingRemoved.push(e); }
   /** Internal method for delta tracking 内部方法用于增量跟踪 */
-  _notifyEntityChanged(e: Entity) { this.pendingChanged.push(e); }
+  _notifyEntityChanged(e: Entity): void { this.pendingChanged.push(e); }
 
   /**
    * Count matching entities
@@ -333,9 +332,9 @@ function getComponentFromColumn(col: IColumn, row: number): any {
  * Create component handle for cross-backend get/set operations
  * 创建组件句柄，支持跨后端的get/set操作
  */
-function makeHandle(col: IColumn, row: number, epochRef: ()=>number) {
+function makeHandle(col: IColumn, row: number, epochRef: ()=>number): any {
   return {
-    get: <T>() => col.readToObject(row) as T,
-    set: <T>(next: T, epoch?: number) => col.writeFromObject(row, next as any, epoch ?? epochRef())
+    get: <T>(): T => col.readToObject(row) as T,
+    set: <T>(next: T, epoch?: number): void => col.writeFromObject(row, next as any, epoch ?? epochRef())
   };
 }

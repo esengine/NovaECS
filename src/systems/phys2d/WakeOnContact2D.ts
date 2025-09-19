@@ -18,12 +18,13 @@ import { PhysicsSleepConfig } from '../../resources/PhysicsSleepConfig';
 import { FX, abs, f } from '../../math/fixed';
 import { system, SystemContext } from '../../core/System';
 import type { Entity } from '../../utils/Types';
+import type { World } from '../../core/World';
 
 /**
  * Wake up a sleeping body and mark it as changed
  * 唤醒睡眠刚体并标记为已变更
  */
-function wake(world: { replaceComponent: (entity: Entity, ctor: any, data: any) => void; getComponent: (entity: Entity, ctor: any) => any }, entity: Entity, sleep: Sleep2D): void {
+function wake(world: World, entity: Entity, sleep: Sleep2D): void {
   if (sleep.sleeping) {
     // Create new sleep state and update via replaceComponent
     const newSleep = new Sleep2D();
@@ -76,10 +77,10 @@ export const WakeOnContact2D = system(
 
     // Process each contact
     for (const contact of contacts.list) {
-      const sleepA = world.getComponent(contact.a, Sleep2D) as Sleep2D | undefined;
-      const sleepB = world.getComponent(contact.b, Sleep2D) as Sleep2D | undefined;
-      const bodyA = world.getComponent(contact.a, Body2D) as Body2D | undefined;
-      const bodyB = world.getComponent(contact.b, Body2D) as Body2D | undefined;
+      const sleepA = world.getComponent(contact.a, Sleep2D);
+      const sleepB = world.getComponent(contact.b, Sleep2D);
+      const bodyA = world.getComponent(contact.a, Body2D);
+      const bodyB = world.getComponent(contact.b, Body2D);
 
       // Skip if either entity doesn't have required components
       if (!sleepA || !sleepB || !bodyA || !bodyB) continue;

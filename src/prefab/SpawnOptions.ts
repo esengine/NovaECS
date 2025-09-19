@@ -3,7 +3,6 @@
  * World.spawn批量实体创建选项
  */
 
-import type { Entity } from '../utils/Types';
 
 export interface SpawnOverrides {
   /** Shared overrides: applied to all instances 统一覆盖：所有实例共享 */

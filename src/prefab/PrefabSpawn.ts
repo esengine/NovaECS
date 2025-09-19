@@ -5,7 +5,6 @@
 
 import type { PrefabId, Prefab } from './Prefab';
 import { getPrefab } from './Prefab';
-import { getComponentType } from '../core/ComponentRegistry';
 import type { World } from '../core/World';
 import type { Entity } from '../utils/Types';
 import { PRNG } from '../determinism/PRNG';
@@ -36,7 +35,7 @@ export function spawnBatchFast(world: World, prefabId: PrefabId, opts: SpawnOpti
 
   const shared = opts.overrides?.shared ?? {};
   const per = opts.overrides?.perEntity;
-  const getOv = (i: number) =>
+  const getOv = (i: number): any =>
     typeof per === 'function' ? per(i) :
     Array.isArray(per) ? (per[i] ?? {}) : {};
 

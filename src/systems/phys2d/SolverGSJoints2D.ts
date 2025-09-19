@@ -18,7 +18,7 @@ import { Body2D } from '../../components/Body2D';
 import { system, SystemContext } from '../../core/System';
 import { getComponentType } from '../../core/ComponentRegistry';
 import {
-  FX, add, sub, mul, div, abs, f, ONE, ZERO
+  FX, add, sub, mul, ZERO
 } from '../../math/fixed';
 
 const ITER_J = 8; // Fixed joint iteration count
@@ -85,13 +85,13 @@ export const SolverGSJoints2D = system(
     const { world } = ctx;
 
     // Get or create joint events resource
-    let events = world.getResource(JointEvents2D) as JointEvents2D | undefined;
+    let events = world.getResource(JointEvents2D);
     if (!events) {
       events = new JointEvents2D();
       world.setResource(JointEvents2D, events);
     }
 
-    const batch = world.getResource(JointBatch2D) as JointBatch2D | undefined;
+    const batch = world.getResource(JointBatch2D);
     if (!batch || batch.list.length === 0) return;
 
     const bodyStore = world.getStore(getComponentType(Body2D));
@@ -101,11 +101,11 @@ export const SolverGSJoints2D = system(
     // Apply accumulated impulses from previous frame
     // 热启动阶段：应用上一帧的累积冲量
     for (const row of batch.list) {
-      const jd = world.getComponent(row.e, JointDistance2D) as JointDistance2D | undefined;
+      const jd = world.getComponent(row.e, JointDistance2D);
       if (!jd || jd.broken === 1) continue;
 
-      const ba = world.getComponent(row.a, Body2D) as Body2D | undefined;
-      const bb = world.getComponent(row.b, Body2D) as Body2D | undefined;
+      const ba = world.getComponent(row.a, Body2D);
+      const bb = world.getComponent(row.b, Body2D);
       if (!ba || !bb) continue;
       if (isStatic(ba) && isStatic(bb)) continue;
 
@@ -139,11 +139,11 @@ export const SolverGSJoints2D = system(
     // 迭代约束求解阶段：固定迭代次数和稳定顺序
     for (let iteration = 0; iteration < ITER_J; iteration++) {
       for (const row of batch.list) {
-        const jd = world.getComponent(row.e, JointDistance2D) as JointDistance2D | undefined;
+        const jd = world.getComponent(row.e, JointDistance2D);
         if (!jd || jd.broken === 1) continue;
 
-        const ba = world.getComponent(row.a, Body2D) as Body2D | undefined;
-        const bb = world.getComponent(row.b, Body2D) as Body2D | undefined;
+        const ba = world.getComponent(row.a, Body2D);
+        const bb = world.getComponent(row.b, Body2D);
         if (!ba || !bb) continue;
         if (isStatic(ba) && isStatic(bb)) continue;
 
@@ -199,7 +199,7 @@ export const SolverGSJoints2D = system(
     // Check for joints that exceed break impulse threshold
     // 关节断裂检测阶段：检查超过断裂冲量阈值的关节
     for (const row of batch.list) {
-      const jd = world.getComponent(row.e, JointDistance2D) as JointDistance2D | undefined;
+      const jd = world.getComponent(row.e, JointDistance2D);
       if (!jd || jd.broken === 1) continue;
 
       if (row.breakImpulse > 0) {

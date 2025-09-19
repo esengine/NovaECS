@@ -45,7 +45,7 @@ export const PositionCorrection2D = system(
   (ctx: SystemContext) => {
     const { world } = ctx;
 
-    const contacts = world.getResource(Contacts2D) as Contacts2D | undefined;
+    const contacts = world.getResource(Contacts2D);
     if (!contacts || contacts.list.length === 0) return;
 
     const bodyStore = world.getStore(getComponentType(Body2D));

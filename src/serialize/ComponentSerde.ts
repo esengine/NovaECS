@@ -20,7 +20,7 @@ const serdes = new Map<Function, Serde<any>>();
  * Register custom serializer for component type
  * 为组件类型注册自定义序列化器
  */
-export function registerSerde<T>(ctor: ComponentCtor<T>, serde: Serde<T>) {
+export function registerSerde<T>(ctor: ComponentCtor<T>, serde: Serde<T>): void {
   serdes.set(ctor, serde);
 }
 

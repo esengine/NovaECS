@@ -14,7 +14,7 @@ import { PrismaticJoint2D } from '../../components/PrismaticJoint2D';
 import { PrismaticBatch2D } from '../../resources/PrismaticBatch2D';
 import { makePairKey } from '../../determinism/PairKey';
 import {
-  FX, add, sub, mul, div, abs, f, ONE, ZERO, toFloat
+  FX, add, sub, mul, div, abs, f, ONE, ZERO
 } from '../../math/fixed';
 import { system, SystemContext } from '../../core/System';
 
@@ -23,7 +23,7 @@ import { system, SystemContext } from '../../core/System';
  * 叉积：r × n（返回标量）
  */
 const cross_r_n = (rx: FX, ry: FX, nx: FX, ny: FX): FX =>
-  sub(mul(rx, ny), mul(ry, nx)) as FX;
+  sub(mul(rx, ny), mul(ry, nx));
 
 /**
  * Fast approximation for vector normalization using Manhattan distance + correction
@@ -54,7 +54,7 @@ export const BuildPrismatic2D = system(
     const dt: FX = world.getFixedDtFX ? world.getFixedDtFX() : f(1 / 60);
 
     // Get or create batch resource
-    let batch = world.getResource(PrismaticBatch2D) as PrismaticBatch2D | undefined;
+    let batch = world.getResource(PrismaticBatch2D);
     if (!batch) {
       batch = new PrismaticBatch2D();
       world.setResource(PrismaticBatch2D, batch);
@@ -81,16 +81,16 @@ export const BuildPrismatic2D = system(
     // Process each joint
     for (const row of rows) {
       const joint = row.j;
-      const entityA = joint.a as number;
-      const entityB = joint.b as number;
+      const entityA = joint.a;
+      const entityB = joint.b;
 
-      const bodyA = world.getComponent(entityA, Body2D) as Body2D | undefined;
-      const bodyB = world.getComponent(entityB, Body2D) as Body2D | undefined;
+      const bodyA = world.getComponent(entityA, Body2D);
+      const bodyB = world.getComponent(entityB, Body2D);
       if (!bodyA || !bodyB) continue;
 
       // Handle sleeping bodies
-      const sleepA = world.getComponent(entityA, Sleep2D) as Sleep2D | undefined;
-      const sleepB = world.getComponent(entityB, Sleep2D) as Sleep2D | undefined;
+      const sleepA = world.getComponent(entityA, Sleep2D);
+      const sleepB = world.getComponent(entityB, Sleep2D);
       const aSleeping = !!(sleepA && sleepA.sleeping);
       const bSleeping = !!(sleepB && sleepB.sleeping);
 

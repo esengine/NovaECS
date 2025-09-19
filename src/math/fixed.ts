@@ -266,3 +266,47 @@ export const cross_w_r = (w: FX, rx: FX, ry: FX): readonly [FX, FX] => [sub(ZERO
  * 叉积：r × n（cross_r_v的别名，物理中常用）
  */
 export const cross_r_n = (rx: FX, ry: FX, nx: FX, ny: FX): FX => cross_r_v(rx, ry, nx, ny);
+
+/**
+ * Trigonometric functions for rotation handling
+ * 旋转处理的三角函数
+ */
+
+/**
+ * Convert 16-bit angle to cos/sin pair using lookup table approach
+ * Body2D.angle is stored as 16-bit value where 0..65535 maps to 0..2π
+ * 使用查找表方法将16位角度转换为cos/sin对
+ * Body2D.angle存储为16位值，其中0..65535映射到0..2π
+ */
+export const angleToCosSin = (angle16: number): readonly [FX, FX] => {
+  // Convert 16-bit angle to radians: angle16 * 2π / 65536
+  // For performance, we use Math.cos/sin and convert to fixed point
+  // In production, this could use a lookup table for full determinism
+  // 将16位角度转换为弧度：angle16 * 2π / 65536
+  // 为了性能，我们使用Math.cos/sin并转换为定点数
+  // 在生产中，这可以使用查找表实现完全确定性
+  const radians = (angle16 & 0xffff) * (2 * Math.PI) / 65536;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+
+  return [f(cos), f(sin)];
+};
+
+/**
+ * Get cos/sin from float angle (in radians)
+ * 从浮点角度（弧度）获取cos/sin
+ */
+export const radianToCosSin = (radian: number): readonly [FX, FX] => {
+  return [f(Math.cos(radian)), f(Math.sin(radian))];
+};
+
+/**
+ * Fast rotation of 2D vector by cos/sin
+ * 使用cos/sin快速旋转2D向量
+ */
+export const rotateVector = (x: FX, y: FX, cos: FX, sin: FX): readonly [FX, FX] => {
+  return [
+    sub(mul(x, cos), mul(y, sin)),
+    add(mul(x, sin), mul(y, cos))
+  ];
+};

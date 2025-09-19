@@ -89,8 +89,8 @@ export class BroadphasePairs {
   hasPair(a: Entity, b: Entity): boolean {
     // Ensure consistent ordering
     // 确保一致的排序
-    const first = (a as number) <= (b as number) ? a : b;
-    const second = (a as number) <= (b as number) ? b : a;
+    const first = (a) <= (b) ? a : b;
+    const second = (a) <= (b) ? b : a;
 
     return this.pairs.some(pair =>
       pair.a === first && pair.b === second
@@ -104,8 +104,8 @@ export class BroadphasePairs {
   addPair(a: Entity, b: Entity): void {
     // Ensure consistent ordering
     // 确保一致的排序
-    const first = (a as number) <= (b as number) ? a : b;
-    const second = (a as number) <= (b as number) ? b : a;
+    const first = (a) <= (b) ? a : b;
+    const second = (a) <= (b) ? b : a;
 
     if (!this.hasPair(first, second)) {
       this.pairs.push({ a: first, b: second });

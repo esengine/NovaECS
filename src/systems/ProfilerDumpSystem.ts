@@ -5,6 +5,7 @@
 
 import { system } from '../core/System';
 import { Profiler } from '../core/Profiler';
+import type { World } from '../core/World';
 
 export interface ProfilerDumpConfig {
   /** Enable/disable the dump system 启用/禁用输出系统 */
@@ -100,7 +101,7 @@ export const ProfilerDumpSystem = system('ProfilerDump', (ctx) => {
  * 使用自定义配置启用ProfilerDumpSystem的便利函数
  */
 export function enableProfilerDump(
-  world: any,
+  world: World,
   config: Partial<ProfilerDumpConfig> = {}
 ): void {
   const finalConfig = { ...DEFAULT_PROFILER_DUMP_CONFIG, ...config };
@@ -111,7 +112,7 @@ export function enableProfilerDump(
  * Convenience function to disable ProfilerDumpSystem
  * 禁用ProfilerDumpSystem的便利函数
  */
-export function disableProfilerDump(world: any): void {
+export function disableProfilerDump(world: World): void {
   const config = (world.getResource(ProfilerDumpConfig_) as ProfilerDumpConfig) || DEFAULT_PROFILER_DUMP_CONFIG;
   world.setResource(ProfilerDumpConfig_, { ...config, enabled: false });
 }
@@ -120,7 +121,7 @@ export function disableProfilerDump(world: any): void {
  * Convenience function to temporarily pause profiler dumping
  * 临时暂停性能分析输出的便利函数
  */
-export function pauseProfilerDump(world: any): void {
+export function pauseProfilerDump(world: World): void {
   disableProfilerDump(world);
 }
 
@@ -128,7 +129,7 @@ export function pauseProfilerDump(world: any): void {
  * Convenience function to resume profiler dumping
  * 恢复性能分析输出的便利函数
  */
-export function resumeProfilerDump(world: any): void {
+export function resumeProfilerDump(world: World): void {
   const config = (world.getResource(ProfilerDumpConfig_) as ProfilerDumpConfig) || DEFAULT_PROFILER_DUMP_CONFIG;
   world.setResource(ProfilerDumpConfig_, { ...config, enabled: true });
 }

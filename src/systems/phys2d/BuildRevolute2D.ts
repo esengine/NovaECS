@@ -13,6 +13,7 @@
 
 import { Body2D } from '../../components/Body2D';
 import { Sleep2D } from '../../components/Sleep2D';
+import type { World } from '../../core/World';
 import { RevoluteJoint2D } from '../../components/RevoluteJoint2D';
 import { RevoluteBatch2D } from '../../resources/RevoluteBatch2D';
 import type { RevoluteRow } from '../../resources/RevoluteBatch2D';
@@ -32,7 +33,7 @@ const invSym2x2 = (a: FX, b: FX, c: FX): [FX, FX, FX] => {
   // det = a*c - b*b
   const det = sub(mul(a, c), mul(b, b));
   if (!det) return [ZERO, ZERO, ZERO];
-  return [div(c, det), div((0 - b) as FX, det), div(a, det)];
+  return [div(c, det), div((0 - b), det), div(a, det)];
 };
 
 /**
@@ -45,7 +46,7 @@ const isStatic = (b: Body2D): boolean => (b.invMass | b.invI) === 0;
  * Wake up a sleeping body
  * 唤醒睡眠的物体
  */
-const wakeBody = (world: any, entityId: number, sleep: Sleep2D, body: Body2D): void => {
+const wakeBody = (world: World, entityId: number, sleep: Sleep2D, body: Body2D): void => {
   if (sleep.sleeping) {
     sleep.sleeping = 0;
     sleep.timer = ZERO;
@@ -68,7 +69,7 @@ export const BuildRevolute2D = system(
     const dt: FX = world.getFixedDtFX ? world.getFixedDtFX() : f(1/60);
 
     // Get or create joint batch resource
-    let batch = world.getResource(RevoluteBatch2D) as RevoluteBatch2D | undefined;
+    let batch = world.getResource(RevoluteBatch2D);
     if (!batch) {
       batch = new RevoluteBatch2D();
       world.setResource(RevoluteBatch2D, batch);
@@ -114,8 +115,8 @@ export const BuildRevolute2D = system(
       const a = j.a;
       const b = j.b;
 
-      const ba = world.getComponent(a, Body2D) as Body2D | undefined;
-      const bb = world.getComponent(b, Body2D) as Body2D | undefined;
+      const ba = world.getComponent(a, Body2D);
+      const bb = world.getComponent(b, Body2D);
       if (!ba || !bb) continue;
 
       // Skip if both bodies are static
@@ -124,8 +125,8 @@ export const BuildRevolute2D = system(
 
       // Handle sleeping logic (consistent with contacts)
       // 处理睡眠逻辑（与接触一致）
-      const sa = world.getComponent(a, Sleep2D) as Sleep2D | undefined;
-      const sb = world.getComponent(b, Sleep2D) as Sleep2D | undefined;
+      const sa = world.getComponent(a, Sleep2D);
+      const sb = world.getComponent(b, Sleep2D);
 
       const aSleep = !!(sa && sa.sleeping);
       const bSleep = !!(sb && sb.sleeping);
@@ -169,14 +170,14 @@ export const BuildRevolute2D = system(
       if (ba.invI) {
         k00 = add(k00, mul(ray, mul(ray, ba.invI)));
         k11 = add(k11, mul(rax, mul(rax, ba.invI)));
-        k01 = add(k01, (0 - mul(rax, mul(ray, ba.invI))) as FX);
+        k01 = add(k01, (0 - mul(rax, mul(ray, ba.invI))));
       }
 
       // Add rotational contributions from body B
       if (bb.invI) {
         k00 = add(k00, mul(rby, mul(rby, bb.invI)));
         k11 = add(k11, mul(rbx, mul(rbx, bb.invI)));
-        k01 = add(k01, (0 - mul(rbx, mul(rby, bb.invI))) as FX);
+        k01 = add(k01, (0 - mul(rbx, mul(rby, bb.invI))));
       }
 
       // 软化：K' = K + gamma*I，其中 gamma = j.gamma / dt

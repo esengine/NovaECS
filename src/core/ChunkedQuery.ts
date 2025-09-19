@@ -44,7 +44,7 @@ export class ChunkedQuery {
    * Iterate entities in chunks for cache-friendly processing
    * 分块遍历实体以实现缓存友好的处理
    */
-  forEachChunk(cb: (chunk: ChunkView) => void, targetChunkSize = 4096) {
+  forEachChunk(cb: (chunk: ChunkView) => void, targetChunkSize = 4096): void {
     const { world, ctors } = this;
     const reqTypes = ctors.map(c => getComponentType(c).id);
     const woutTypes = new Set(this.without.map(c => getComponentType(c).id));
@@ -58,7 +58,11 @@ export class ChunkedQuery {
 
       // Extract component columns in constructor order
       // 按构造函数顺序提取组件列
-      const cols = reqTypes.map(t => arch.cols.get(t)!);
+      const cols = reqTypes.map(t => {
+        const col = arch.cols.get(t);
+        if (!col) throw new Error(`Column for type ${t} not found in archetype`);
+        return col;
+      });
       const ents = arch.entities;
 
       // Split into chunks to maintain cache locality
@@ -104,6 +108,6 @@ export class ChunkedQuery {
  * Convenience function to create a chunked query
  * 创建分块查询的便捷函数
  */
-export function chunked(world: World, ...ctors: ComponentCtor<any>[]) {
+export function chunked(world: World, ...ctors: ComponentCtor<any>[]): ChunkedQuery {
   return new ChunkedQuery(world, ctors);
 }

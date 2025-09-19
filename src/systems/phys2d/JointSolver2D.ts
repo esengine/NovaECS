@@ -78,7 +78,7 @@ export const JointSolver2D = system(
   'phys.solver.joints2d',
   (ctx: SystemContext) => {
     const { world } = ctx;
-    const jointsRes = world.getResource(JointConstraints2D) as JointConstraints2D | undefined;
+    const jointsRes = world.getResource(JointConstraints2D);
     if (!jointsRes || jointsRes.list.length === 0) return;
 
     const dtFX: FX = world.getFixedDtFX ? world.getFixedDtFX() : f(1 / 60);
