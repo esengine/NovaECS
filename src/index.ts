@@ -166,6 +166,8 @@ export * from './math/fixed';
 // Physics Components
 export { Body2D, createStaticBody, createDynamicBody } from './components/Body2D';
 export { ShapeCircle, createCircleShape, getCircleArea, pointInCircle, circleDistance } from './components/ShapeCircle';
+export { Circle2D, createCircle2D, createCenteredCircle } from './components/Circle2D';
+export { CircleWorld2D } from './components/CircleWorld2D';
 export { AABB2D, aabbOverlap, aabbArea } from './components/AABB2D';
 export { Sleep2D } from './components/Sleep2D';
 export { JointDistance2D, createDistanceJoint, createBreakableDistanceJoint, createSoftDistanceJoint } from './components/JointDistance2D';
@@ -189,8 +191,10 @@ export type { PrismaticRow } from './resources/PrismaticBatch2D';
 // Physics Systems
 export { IntegrateVelocitiesSystem } from './systems/IntegrateVelocitiesSystem';
 export { SyncAABBSystem } from './systems/phys2d/SyncAABBSystem';
+export { SyncCircleWorld2D, needsCircleWorldUpdate, updateEntityCircleWorld } from './systems/geom/SyncCircleWorld2D';
 export { BroadphaseSAP } from './systems/phys2d/BroadphaseSAP';
 export { NarrowphaseCircle } from './systems/phys2d/NarrowphaseCircle';
+export { NarrowphaseHullCircle2D } from './systems/phys2d/NarrowphaseHullCircle2D';
 export { JointBatchBuilder2D } from './systems/phys2d/JointBatchBuilder2D';
 export { BuildJointsDistance2D } from './systems/phys2d/BuildJointsDistance2D';
 export { BuildRevolute2D } from './systems/phys2d/BuildRevolute2D';
