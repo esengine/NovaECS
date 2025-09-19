@@ -15,15 +15,18 @@ import { registerComponent } from '../src/core/ComponentRegistry';
 import { Body2D, createDynamicBody, createStaticBody } from '../src/components/Body2D';
 import { ShapeCircle, createCircleShape } from '../src/components/ShapeCircle';
 import { AABB2D } from '../src/components/AABB2D';
-import { Guid } from '../src/components/Guid';
+import { Guid, createGuid } from '../src/components/Guid';
 import { BroadphasePairs } from '../src/resources/BroadphasePairs';
 import { Contacts2D } from '../src/resources/Contacts2D';
+import { ContactCache2D } from '../src/resources/ContactCache2D';
 
 import { IntegrateVelocitiesSystem } from '../src/systems/IntegrateVelocitiesSystem';
 import { SyncAABBSystem } from '../src/systems/phys2d/SyncAABBSystem';
 import { BroadphaseSAP } from '../src/systems/phys2d/BroadphaseSAP';
 import { NarrowphaseCircle } from '../src/systems/phys2d/NarrowphaseCircle';
+import { ContactsWarmStart2D, WarmStartStats } from '../src/systems/phys2d/ContactsWarmStart2D';
 import { SolverGS2D } from '../src/systems/phys2d/SolverGS2D';
+import { ContactsCommit2D } from '../src/systems/phys2d/ContactsCommit2D';
 import { system, SystemContext } from '../src/core/System';
 
 import { f, ONE, TWO, ZERO, fromInt, toFloat, dot, cross_r_v, cross_w_r } from '../src/math/fixed';
@@ -270,11 +273,16 @@ describe('SolverGS2D Determinism', () => {
 
     world.setFixedDt(1/60);
 
+    // Add required components registration
+    registerComponent(Guid);
+
     scheduler.add(IntegrateVelocitiesSystem);
     scheduler.add(SyncAABBSystem);
     scheduler.add(BroadphaseSAP);
     scheduler.add(NarrowphaseCircle);
+    scheduler.add(ContactsWarmStart2D);
     scheduler.add(SolverGS2D);
+    scheduler.add(ContactsCommit2D);
 
     // 创建两个重叠的圆形，初始时有相对运动
     const entity1 = world.createEntity();
@@ -284,6 +292,7 @@ describe('SolverGS2D Determinism', () => {
     world.addComponent(entity1, Body2D, body1);
     world.addComponent(entity1, ShapeCircle, circle1);
     world.addComponent(entity1, AABB2D, new AABB2D());
+    world.addComponent(entity1, Guid, createGuid(world));
 
     const entity2 = world.createEntity();
     const body2 = createDynamicBody(f(1.0), ZERO, ONE, ONE);
@@ -292,6 +301,7 @@ describe('SolverGS2D Determinism', () => {
     world.addComponent(entity2, Body2D, body2);
     world.addComponent(entity2, ShapeCircle, circle2);
     world.addComponent(entity2, AABB2D, new AABB2D());
+    world.addComponent(entity2, Guid, createGuid(world));
 
     // 运行第一帧 - 应该产生接触
     scheduler.tick(world, 16);
@@ -311,9 +321,16 @@ describe('SolverGS2D Determinism', () => {
       key: `${Math.min(c.a as number, c.b as number)}-${Math.max(c.a as number, c.b as number)}`
     }));
 
-    // 验证缓存被正确使用（第二帧的初始冲量应该基于第一帧的结果）
-    expect(contactsRes?.prev.size).toBeGreaterThan(0);
+    // 验证缓存被正确使用（ContactCache2D应该有缓存条目）
+    const cache = world.getResource(ContactCache2D);
+    expect(cache).toBeDefined();
+    expect(cache!.getAllPairKeys().length).toBeGreaterThan(0);
     expect(secondFrameContacts.length).toBeGreaterThan(0);
+
+    // 验证warm-start统计信息
+    const warmStartStats = world.getResource(WarmStartStats);
+    expect(warmStartStats).toBeDefined();
+    expect(warmStartStats!.warmedContacts).toBeGreaterThan(0);
   });
 
   test('should respect iteration limits', () => {

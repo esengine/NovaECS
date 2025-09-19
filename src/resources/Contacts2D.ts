@@ -72,6 +72,14 @@ export interface Contact1 {
    * 帧内冲击时间，范围[0..ONE]，即(t_hit/dt)
    */
   toi?: FX;
+
+  /**
+   * Feature ID for contact persistence across frames
+   * Contact points with same feature ID represent the same geometric feature
+   * 用于跨帧接触持久化的特征ID
+   * 具有相同特征ID的接触点表示相同的几何特征
+   */
+  featureId?: number;
 }
 
 /**

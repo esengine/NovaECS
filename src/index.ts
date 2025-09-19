@@ -179,6 +179,7 @@ export { Guid, createGuid, createGuidFromValues, createZeroGuid, compareGuid, gu
 export { BroadphasePairs } from './resources/BroadphasePairs';
 export type { Pair } from './resources/BroadphasePairs';
 export { Contacts2D, type Contact1 } from './resources/Contacts2D';
+export { ContactCache2D, type CachedPoint } from './resources/ContactCache2D';
 export { PhysicsSleepConfig } from './resources/PhysicsSleepConfig';
 export { JointConstraints2D } from './resources/JointConstraints2D';
 export { JointBatch2D } from './resources/JointBatch2D';
@@ -195,6 +196,8 @@ export { SyncCircleWorld2D, needsCircleWorldUpdate, updateEntityCircleWorld } fr
 export { BroadphaseSAP } from './systems/phys2d/BroadphaseSAP';
 export { NarrowphaseCircle } from './systems/phys2d/NarrowphaseCircle';
 export { NarrowphaseHullCircle2D } from './systems/phys2d/NarrowphaseHullCircle2D';
+export { ContactsWarmStart2D, WarmStartStats } from './systems/phys2d/ContactsWarmStart2D';
+export { ContactsCommit2D, ContactsCommitAggressiveCleanup2D, ContactCommitStats, type CleanupStats } from './systems/phys2d/ContactsCommit2D';
 export { JointBatchBuilder2D } from './systems/phys2d/JointBatchBuilder2D';
 export { BuildJointsDistance2D } from './systems/phys2d/BuildJointsDistance2D';
 export { BuildRevolute2D } from './systems/phys2d/BuildRevolute2D';

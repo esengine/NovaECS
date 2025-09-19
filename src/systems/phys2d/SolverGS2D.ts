@@ -10,7 +10,6 @@
 
 import { Body2D } from '../../components/Body2D';
 import { Contacts2D } from '../../resources/Contacts2D';
-import { makePairKey } from '../../determinism/PairKey';
 import {
   FX, add, sub, mul, div, clamp, f, ONE, ZERO
 } from '../../math/fixed';
@@ -81,41 +80,7 @@ export const SolverGS2D = system(
     if (!contactsRes || contactsRes.list.length === 0) return;
 
     const dtFX: FX = world.getFixedDtFX ? world.getFixedDtFX() : f(1 / 60);
-    const nextPrev = new Map<string, { jn: FX; jt: FX }>();
     const bodyStore = world.getStore(getComponentType(Body2D));
-
-    // Warm-start: apply previous frame accumulated impulses to velocities
-    // Warm-start：将上一帧累积冲量应用到速度
-    for (const c of contactsRes.list) {
-      const { a, b, nx, ny, px, py, jn, jt } = c;
-
-      const ba = world.getComponent(a, Body2D) as Body2D;
-      const bb = world.getComponent(b, Body2D) as Body2D;
-      if (!ba || !bb) continue;
-      if (isStatic(ba) && isStatic(bb)) continue;
-
-      const rax = sub(px, ba.px);
-      const ray = sub(py, ba.py);
-      const rbx = sub(px, bb.px);
-      const rby = sub(py, bb.py);
-
-      const [tx, ty] = perp_t_of_n(nx, ny);
-      const Px = add(mul(nx, jn), mul(tx, jt));
-      const Py = add(mul(ny, jn), mul(ty, jt));
-
-      if (!isStatic(ba)) {
-        ba.vx = sub(ba.vx, mul(Px, ba.invMass));
-        ba.vy = sub(ba.vy, mul(Py, ba.invMass));
-        const dwA = mul(cross_r_v(rax, ray, Px, Py), ba.invI);
-        ba.w = sub(ba.w, dwA);
-      }
-      if (!isStatic(bb)) {
-        bb.vx = add(bb.vx, mul(Px, bb.invMass));
-        bb.vy = add(bb.vy, mul(Py, bb.invMass));
-        const dwB = mul(cross_r_v(rbx, rby, Px, Py), bb.invI);
-        bb.w = add(bb.w, dwB);
-      }
-    }
 
     // Precompute constraint data for efficient solving
     // 预计算约束数据以提高求解效率
@@ -272,14 +237,8 @@ export const SolverGS2D = system(
       }
     }
 
-    // Update warm-start cache with deterministic keys
-    // 使用确定性键更新warm-start缓存
-    for (const c of contactsRes.list) {
-      const { a, b } = c;
-      const { key } = makePairKey(world, a, b);
-      nextPrev.set(key, { jn: c.jn, jt: c.jt });
-    }
-    contactsRes.prev = nextPrev;
+    // Impulse accumulation is maintained in contact.jn/jt for ContactsCommit2D
+    // 冲量累积保存在contact.jn/jt中供ContactsCommit2D使用
 
     // Mark Body2D components as changed for downstream change tracking
     // 标记Body2D组件为已更改，用于下游变更跟踪
