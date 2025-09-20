@@ -221,3 +221,9 @@ export { BuildPrismatic2D } from './systems/phys2d/BuildPrismatic2D';
 export { SolverGSPrismatic2D } from './systems/phys2d/SolverGSPrismatic2D';
 export { updateContactCache, clearContactCache, getContactStats } from './systems/phys2d/ContactCacheUtils';
 export { BuildContactMaterial2D, type ContactWithMaterial } from './systems/phys2d/BuildContactMaterial2D';
+
+// CCD Systems
+export { TOIHullCircle2D } from './systems/phys2d/ccd/TOIHullCircle2D';
+export { CCDStopOnImpact2D } from './systems/phys2d/ccd/CCDStopOnImpact2D';
+export { raycastConvexInflated } from './systems/phys2d/ccd/RaycastConvexInflated2D';
+export type { RaycastInflatedHit } from './systems/phys2d/ccd/RaycastConvexInflated2D';
