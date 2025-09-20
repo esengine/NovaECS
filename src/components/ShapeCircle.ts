@@ -9,6 +9,7 @@
 
 import type { FX } from '../math/fixed';
 import { ONE } from '../math/fixed';
+import type { Material2D } from './Material2D';
 
 /**
  * Circle collision shape with fixed-point radius
@@ -21,8 +22,21 @@ export class ShapeCircle {
    */
   r: FX = ONE;
 
-  constructor(radius: FX = ONE) {
+  /**
+   * Shape-specific material (optional)
+   * 形状特定材质（可选）
+   *
+   * If provided, this material takes priority over entity-level materials
+   * for collision response calculations.
+   * 如果提供，此材质在碰撞响应计算中优先于实体级材质。
+   */
+  material?: Material2D;
+
+  constructor(radius: FX = ONE, material?: Material2D) {
     this.r = radius;
+    if (material !== undefined) {
+      this.material = material;
+    }
   }
 }
 
@@ -30,8 +44,8 @@ export class ShapeCircle {
  * Create a circle shape with specified radius
  * 创建指定半径的圆形
  */
-export const createCircleShape = (radius: FX): ShapeCircle => {
-  return new ShapeCircle(radius);
+export const createCircleShape = (radius: FX, material?: Material2D): ShapeCircle => {
+  return new ShapeCircle(radius, material);
 };
 
 /**

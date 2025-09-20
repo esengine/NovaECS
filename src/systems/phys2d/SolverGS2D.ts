@@ -10,6 +10,7 @@
 
 import { Body2D } from '../../components/Body2D';
 import { Contacts2D } from '../../resources/Contacts2D';
+import { ContactWithMaterial } from './BuildContactMaterial2D';
 import {
   FX, add, sub, mul, div, clamp, f, ONE, ZERO
 } from '../../math/fixed';
@@ -118,10 +119,11 @@ export const SolverGS2D = system(
       if (bb.invI) kT = add(kT, mul(rtB, mul(rtB, bb.invI)));
       const mT = kT ? div(ONE, kT) : ZERO;
 
-      // Combined material properties (deterministic: average)
-      // 组合材质属性（确定性：平均值）
-      const mu = div(add(ba.friction, bb.friction), f(2));
-      let e = ba.restitution > bb.restitution ? ba.restitution : bb.restitution;
+      // Get material properties from BuildContactMaterial2D if available
+      // 从BuildContactMaterial2D获取材质属性（如果可用）
+      const contactWithMat = c as ContactWithMaterial;
+      const mu = contactWithMat.muD || div(add(ba.friction, bb.friction), f(2));
+      let e = contactWithMat.effRest || (ba.restitution > bb.restitution ? ba.restitution : bb.restitution);
 
       // Speculative contacts should not bounce (prevent premature rebound)
       // 推测接触不应产生回弹（防止过早反弹）
@@ -160,7 +162,20 @@ export const SolverGS2D = system(
         // 法向约束
         const vn = dot(rvx, rvy, c.nx, c.ny);
         const bias = (c.pen > 0) ? mul(BAUMGARTE, div(c.pen, dtFX)) : ZERO;
-        const bounce = (sub(ZERO, vn) > RESTIT_THRESH) ? mul(pc.e, sub(ZERO, vn)) : ZERO;
+
+        // Use effective restitution from BuildContactMaterial2D if available
+        // 使用BuildContactMaterial2D计算的有效恢复系数（如果可用）
+        const contactWithMat = c as ContactWithMaterial;
+        let bounce = ZERO;
+        if (contactWithMat.effRest && contactWithMat.effRest > 0) {
+          // Use pre-calculated effective restitution (already threshold-checked)
+          // 使用预计算的有效恢复系数（已检查阈值）
+          bounce = mul(contactWithMat.effRest, sub(ZERO, vn));
+        } else if (sub(ZERO, vn) > RESTIT_THRESH) {
+          // Fallback to old method if BuildContactMaterial2D hasn't run
+          // 如果BuildContactMaterial2D未运行则回退到旧方法
+          bounce = mul(pc.e, sub(ZERO, vn));
+        }
 
         const jnCand = mul(pc.mN, sub(ZERO, add(vn, add(bias, bounce))));
         const jnNew = jnCand > 0 ? add(c.jn, jnCand) : c.jn;
@@ -251,6 +266,6 @@ export const SolverGS2D = system(
   }
 )
   .stage('update')
-  .after('phys.ccd.spec')
+  .after('phys.contacts.buildMaterial')
   .before('phys.joint.build.distance')
   .build();

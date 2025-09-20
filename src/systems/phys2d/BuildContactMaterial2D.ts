@@ -1,0 +1,161 @@
+/**
+ * Contact Material Builder System
+ * 接触材质构建系统
+ *
+ * Calculates material properties for each contact manifold after narrowphase
+ * and before warm start. Computes friction coefficients, restitution, and
+ * effective restitution based on relative velocity threshold.
+ * 在窄相之后、warm start之前为每个接触流形计算材质属性。
+ * 计算摩擦系数、恢复系数，以及基于相对速度阈值的有效恢复系数。
+ */
+
+import type { Entity } from '../../utils/Types';
+import type { FX } from '../../math/fixed';
+import { add, sub, mul, dot, f, neg } from '../../math/fixed';
+import { Material2D, createDefaultMaterial } from '../../components/Material2D';
+import { MaterialTable2D, resolveFriction, resolveRestitution, resolveBounceThreshold } from '../../resources/MaterialTable2D';
+import { Body2D } from '../../components/Body2D';
+import { Contacts2D, type Contact1 } from '../../resources/Contacts2D';
+import type { World } from '../../core/World';
+
+/**
+ * Extended contact point with effective restitution
+ * 带有效恢复系数的扩展接触点
+ */
+export interface ContactWithMaterial extends Contact1 {
+  /**
+   * Effective restitution coefficient for this contact point
+   * Only non-zero if relative normal velocity exceeds bounce threshold
+   * 此接触点的有效恢复系数
+   * 仅当相对法向速度超过反弹阈值时才非零
+   */
+  effRest: FX;
+
+  /**
+   * Static friction coefficient for this contact
+   * 此接触的静摩擦系数
+   */
+  muS: FX;
+
+  /**
+   * Dynamic friction coefficient for this contact
+   * 此接触的动摩擦系数
+   */
+  muD: FX;
+}
+
+/**
+ * Get material for an entity, with fallback hierarchy:
+ * 1. Entity-specific Material2D component
+ * 2. World default Material2D resource
+ * 3. Built-in default material
+ * 获取实体的材质，回退层次：
+ * 1. 实体特定的Material2D组件
+ * 2. 世界默认Material2D资源
+ * 3. 内置默认材质
+ */
+function getMaterial(world: World, entity: Entity): Material2D {
+  // Try entity-specific material first
+  let material = world.getComponent(entity, Material2D);
+  if (material) return material;
+
+  // Fall back to world default material
+  material = world.getResource(Material2D);
+  if (material) return material;
+
+  // Use built-in default as last resort
+  return createDefaultMaterial();
+}
+
+/**
+ * Calculate relative velocity at contact point
+ * 计算接触点的相对速度
+ */
+function calculateRelativeVelocity(
+  bodyA: Body2D,
+  bodyB: Body2D,
+  contactX: FX,
+  contactY: FX
+): { vx: FX; vy: FX } {
+  // Calculate position vectors from center of mass to contact point
+  // rA = contact - bodyA.position
+  const rAx = sub(contactX, bodyA.px);
+  const rAy = sub(contactY, bodyA.py);
+
+  // rB = contact - bodyB.position
+  const rBx = sub(contactX, bodyB.px);
+  const rBy = sub(contactY, bodyB.py);
+
+  // Velocity at contact point: v + ω × r
+  // For 2D: ω × r = ω * (-ry, rx)
+  const vAx = add(bodyA.vx, mul(neg(bodyA.w), rAy));
+  const vAy = add(bodyA.vy, mul(bodyA.w, rAx));
+
+  const vBx = add(bodyB.vx, mul(neg(bodyB.w), rBy));
+  const vBy = add(bodyB.vy, mul(bodyB.w, rBx));
+
+  // Relative velocity: vB - vA
+  return {
+    vx: sub(vBx, vAx),
+    vy: sub(vBy, vAy)
+  };
+}
+
+/**
+ * Build contact material properties system
+ * 构建接触材质属性系统
+ */
+export const BuildContactMaterial2D = {
+  name: 'phys.contacts.buildMaterial',
+
+  run(world: World): void {
+    const contacts = world.getResource(Contacts2D);
+    if (!contacts || contacts.list.length === 0) return;
+
+    // Get or create material table
+    let materialTable = world.getResource(MaterialTable2D);
+    if (!materialTable) {
+      materialTable = new MaterialTable2D();
+      world.setResource(MaterialTable2D, materialTable);
+    }
+
+    // Process each contact
+    for (const contact of contacts.list) {
+      // Get materials for both entities
+      const materialA = getMaterial(world, contact.a);
+      const materialB = getMaterial(world, contact.b);
+
+      // Get mixing rule for this material pair
+      const rule = materialTable.getRule(materialA, materialB);
+
+      // Resolve material properties using mixing rules
+      const friction = resolveFriction(materialA, materialB, rule);
+      const restitution = resolveRestitution(materialA, materialB, rule);
+      const bounceThreshold = resolveBounceThreshold(materialA, materialB, rule);
+
+      // Extend contact with material properties
+      const extendedContact = contact as ContactWithMaterial;
+      extendedContact.muS = friction.muS;
+      extendedContact.muD = friction.muD;
+
+      // Calculate effective restitution based on relative velocity
+      const bodyA = world.getComponent(contact.a, Body2D);
+      const bodyB = world.getComponent(contact.b, Body2D);
+
+      if (bodyA && bodyB) {
+        // Calculate relative velocity at contact point
+        const relVel = calculateRelativeVelocity(bodyA, bodyB, contact.px, contact.py);
+
+        // Project relative velocity onto contact normal
+        const relativeNormalVelocity = dot(relVel.vx, relVel.vy, contact.nx, contact.ny);
+
+        // Only enable restitution if objects are approaching fast enough
+        // (negative normal velocity means approaching)
+        extendedContact.effRest = relativeNormalVelocity < neg(bounceThreshold) ? restitution : f(0);
+      } else {
+        // If either body is missing, disable restitution
+        extendedContact.effRest = f(0);
+      }
+    }
+  }
+};
