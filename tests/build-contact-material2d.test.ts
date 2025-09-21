@@ -5,6 +5,8 @@
 
 import { describe, test, expect, beforeEach } from 'vitest';
 import { World } from '../src/core/World';
+import { CommandBuffer } from '../src/core/CommandBuffer';
+import { SystemContext } from '../src/core/System';
 import { f, toFloat, ZERO, ONE } from '../src/math/fixed';
 import { Material2D, createRubberMaterial, createIceMaterial } from '../src/components/Material2D';
 import { MaterialTable2D } from '../src/resources/MaterialTable2D';
@@ -15,6 +17,17 @@ import { BuildContactMaterial2D, type ContactWithMaterial } from '../src/systems
 describe('BuildContactMaterial2D System', () => {
   let world: World;
   let contacts: Contacts2D;
+
+  function runSystem() {
+    const commandBuffer = new CommandBuffer();
+    const ctx: SystemContext = {
+      world,
+      commandBuffer,
+      frame: 1,
+      deltaTime: 1/60
+    };
+    BuildContactMaterial2D.fn(ctx);
+  }
   let materialTable: MaterialTable2D;
 
   beforeEach(() => {
@@ -46,7 +59,7 @@ describe('BuildContactMaterial2D System', () => {
     };
 
     contacts.addContact(contact);
-    BuildContactMaterial2D.run(world);
+    runSystem();
 
     const extendedContact = contact as ContactWithMaterial;
 
@@ -81,7 +94,7 @@ describe('BuildContactMaterial2D System', () => {
     };
 
     contacts.addContact(contact);
-    BuildContactMaterial2D.run(world);
+    runSystem();
 
     const extendedContact = contact as ContactWithMaterial;
 
@@ -127,7 +140,7 @@ describe('BuildContactMaterial2D System', () => {
     };
 
     contacts.addContact(contact);
-    BuildContactMaterial2D.run(world);
+    runSystem();
 
     const extendedContact = contact as ContactWithMaterial;
 
@@ -170,7 +183,7 @@ describe('BuildContactMaterial2D System', () => {
     };
 
     contacts.addContact(contact);
-    BuildContactMaterial2D.run(world);
+    runSystem();
 
     const extendedContact = contact as ContactWithMaterial;
 
@@ -210,7 +223,7 @@ describe('BuildContactMaterial2D System', () => {
     };
 
     contacts.addContact(contact);
-    BuildContactMaterial2D.run(world);
+    runSystem();
 
     const extendedContact = contact as ContactWithMaterial;
 
@@ -259,7 +272,7 @@ describe('BuildContactMaterial2D System', () => {
     };
 
     contacts.addContact(contact);
-    BuildContactMaterial2D.run(world);
+    runSystem();
 
     const extendedContact = contact as ContactWithMaterial;
 
@@ -271,7 +284,7 @@ describe('BuildContactMaterial2D System', () => {
   test('should skip processing when no contacts exist', () => {
     // No contacts added
     expect(() => {
-      BuildContactMaterial2D.run(world);
+      runSystem();
     }).not.toThrow();
   });
 
@@ -298,7 +311,7 @@ describe('BuildContactMaterial2D System', () => {
     contacts.addContact(contact);
 
     expect(() => {
-      BuildContactMaterial2D.run(world);
+      runSystem();
     }).not.toThrow();
 
     const extendedContact = contact as ContactWithMaterial;

@@ -1,11 +1,6 @@
 /**
  * 16.16 Fixed Point Mathematics for Deterministic Physics
  * 16.16定点数数学运算，用于确定性物理引擎
- *
- * All operations use 32-bit signed integers where 16 bits are fractional.
- * This ensures deterministic results across platforms and environments.
- * 所有运算使用32位有符号整数，其中16位为小数部分。
- * 这确保了跨平台和环境的确定性结果。
  */
 
 /**
@@ -56,17 +51,161 @@ export const f = (x: number): FX => (x * ONE) | 0;
  */
 export const toFloat = (x: FX): number => x / ONE;
 
-/**
- * Fixed point addition
- * 定点数加法
- */
-export const add = (a: FX, b: FX): FX => (a + b) | 0;
 
 /**
- * Fixed point subtraction
- * 定点数减法
+ * TypedArray workspace for high-precision arithmetic
+ * TypedArray工作空间用于高精度运算
  */
-export const sub = (a: FX, b: FX): FX => (a - b) | 0;
+class FixedMathWorkspace {
+  private static readonly POOL_SIZE = 4;
+  private static pool: ArrayBuffer[] = [];
+  private static poolIndex = 0;
+
+  static getBuffer(): ArrayBuffer {
+    if (this.pool.length < this.POOL_SIZE) {
+      return new ArrayBuffer(16);
+    }
+    const buffer = this.pool[this.poolIndex];
+    this.poolIndex = (this.poolIndex + 1) % this.POOL_SIZE;
+    return buffer;
+  }
+
+  static returnBuffer(buffer: ArrayBuffer): void {
+    if (this.pool.length < this.POOL_SIZE) {
+      this.pool.push(buffer);
+    }
+  }
+}
+
+/**
+ * 64-bit multiplication using 32-bit operations
+ * 使用32位运算的64位乘法
+ */
+const mul64_32x32 = (a: number, b: number): readonly [number, number] => {
+  // Split into 16-bit parts
+  // 拆分为16位部分
+  const a_low = a & 0xffff;
+  const a_high = (a >>> 16) & 0xffff;
+  const b_low = b & 0xffff;
+  const b_high = (b >>> 16) & 0xffff;
+
+
+  // Four 16x16 multiplications
+  // 四个16x16乘法
+  const p0 = a_low * b_low;          // contributes to bits 0-31
+  const p1 = a_low * b_high;         // contributes to bits 16-47
+  const p2 = a_high * b_low;         // contributes to bits 16-47
+  const p3 = a_high * b_high;        // contributes to bits 32-63
+
+
+  // Combine into 64-bit result without intermediate overflow
+  // 组合成64位结果，避免中间溢出
+  const middle = p1 + p2;
+  const middle_low = middle & 0xffff;
+  const middle_high = middle >>> 16;
+
+  // Calculate low 32 bits: p0 + (middle_low << 16)
+  // Use floating point to avoid 32-bit integer overflow
+  // 计算低32位：p0 + (middle_low << 16)
+  // 使用浮点数避免32位整数溢出
+  const low_sum = p0 + middle_low * 0x10000;
+  const low32 = (low_sum >>> 0);
+
+  // Calculate carry from low part
+  // 计算低位进位
+  const carry = Math.floor(low_sum / 0x100000000);
+
+  // Calculate high 32 bits
+  // 计算高32位
+  const high32 = (p3 + middle_high + carry) >>> 0;
+
+
+  return [low32, high32] as const;
+};
+
+/**
+ * Saturating arithmetic mode flag for debugging/safety
+ * 饱和运算模式标志，用于调试/安全
+ */
+export let SATURATING_MODE = false;
+
+/**
+ * Enable or disable saturating arithmetic mode
+ * 启用或禁用饱和运算模式
+ */
+export const setSaturatingMode = (enabled: boolean): void => {
+  SATURATING_MODE = enabled;
+};
+
+/**
+ * Saturating addition with overflow detection
+ * 带溢出检测的饱和加法
+ */
+export const addSat = (a: FX, b: FX): FX => {
+  const buffer = FixedMathWorkspace.getBuffer();
+  const i32View = new Int32Array(buffer);
+
+  try {
+    i32View[0] = a;
+    i32View[1] = b;
+
+    // Precise overflow detection
+    const sum = i32View[0] + i32View[1];
+    i32View[2] = sum;
+
+    // Check overflow: same signs but result differs
+    if (((a ^ b) & 0x80000000) === 0) {
+      if (((a ^ i32View[2]) & 0x80000000) !== 0) {
+        return a >= 0 ? MAX_FX : MIN_FX;
+      }
+    }
+
+    return i32View[2];
+  } finally {
+    FixedMathWorkspace.returnBuffer(buffer);
+  }
+};
+
+/**
+ * Saturating subtraction with overflow detection
+ * 带溢出检测的饱和减法
+ */
+export const subSat = (a: FX, b: FX): FX => {
+  const buffer = FixedMathWorkspace.getBuffer();
+  const i32View = new Int32Array(buffer);
+
+  try {
+    i32View[0] = a;
+    i32View[1] = b;
+
+    // Precise overflow detection
+    const diff = i32View[0] - i32View[1];
+    i32View[2] = diff;
+
+    // Check overflow: different signs but result differs from a
+    if (((a ^ b) & 0x80000000) !== 0) {
+      if (((a ^ i32View[2]) & 0x80000000) !== 0) {
+        return a >= 0 ? MAX_FX : MIN_FX;
+      }
+    }
+
+    return i32View[2];
+  } finally {
+    FixedMathWorkspace.returnBuffer(buffer);
+  }
+};
+
+/**
+ * Fixed point addition (wrap or saturate based on SATURATING_MODE)
+ * 定点数加法（根据SATURATING_MODE选择wrap或饱和）
+ */
+export const add = (a: FX, b: FX): FX => SATURATING_MODE ? addSat(a, b) : ((a + b) | 0);
+
+/**
+ * Fixed point subtraction (wrap or saturate based on SATURATING_MODE)
+ * 定点数减法（根据SATURATING_MODE选择wrap或饱和）
+ */
+export const sub = (a: FX, b: FX): FX => SATURATING_MODE ? subSat(a, b) : ((a - b) | 0);
 
 /**
  * Fixed point negation
@@ -74,36 +213,104 @@ export const sub = (a: FX, b: FX): FX => (a - b) | 0;
  */
 export const neg = (x: FX): FX => (-x) | 0;
 
-/**
- * Use BigInt for multiplication to avoid overflow (can be disabled for performance)
- * 使用BigInt进行乘法以避免溢出（可以为了性能而禁用）
- */
-const USE_BIGINT = false;
 
 /**
- * Fixed point multiplication
- * 定点数乘法
+ * High-precision multiplication with overflow detection
+ * 高精度乘法和溢出检测
  */
-export const mul = (a: FX, b: FX): FX => {
-  if (USE_BIGINT) {
-    const result = (BigInt(a) * BigInt(b)) >> BigInt(FP);
-    return Number(result & BigInt(0xffffffff)) | 0;
+const mulCore = (a: FX, b: FX): [FX, boolean] => {
+  const negative = (a ^ b) < 0;
+  const ua = Math.abs(a) >>> 0;
+  const ub = Math.abs(b) >>> 0;
+
+  // Use 64-bit simulation for precise multiplication
+  // 使用64位模拟进行精确乘法
+  const [low32, high32] = mul64_32x32(ua, ub);
+
+
+  // For 16.16 format, we need to right shift the 64-bit result by 16 bits
+  // 对于16.16格式，需要将64位结果右移16位
+  const buffer = FixedMathWorkspace.getBuffer();
+  const u32View = new Uint32Array(buffer);
+
+  try {
+    u32View[0] = low32;
+    u32View[1] = high32;
+
+    // Extract bits 16-47 from the 64-bit result
+    // 从64位结果中提取第16-47位
+    const result = (low32 >>> 16) | ((high32 & 0xffff) << 16);
+
+    // Apply sign
+    // 应用符号
+    let finalResult = negative ? (-(result >>> 0) | 0) : (result | 0);
+
+    // Check for overflow: result outside valid range
+    // 检查溢出：结果超出有效范围
+    const overflow = finalResult > MAX_FX || finalResult < MIN_FX || high32 !== 0;
+
+    return [finalResult, overflow];
+  } finally {
+    FixedMathWorkspace.returnBuffer(buffer);
   }
-  // Fast path: be careful with large values to avoid overflow
-  // 快速路径：注意大值以避免溢出
-  return ((a * b) / ONE) | 0;
+};
+
+export const mul = (a: FX, b: FX): FX => {
+  // Fast path for small values to avoid workspace overhead
+  // 小值快速路径避免工作空间开销
+  const absA = a < 0 ? -a : a;
+  const absB = b < 0 ? -b : b;
+  if (absA <= 0x1fff && absB <= 0x1fff) {
+    return ((a * b) / ONE) | 0;
+  }
+
+  const [result, overflow] = mulCore(a, b);
+
+  if (SATURATING_MODE && overflow) {
+    // Determine saturation direction based on sign
+    // 根据符号确定饱和方向
+    return ((a ^ b) < 0) ? MIN_FX : MAX_FX;
+  }
+
+  return result;
+};
+
+export const mulSat = (a: FX, b: FX): FX => {
+  // Fast path for small values
+  // 小值快速路径
+  const absA = a < 0 ? -a : a;
+  const absB = b < 0 ? -b : b;
+  if (absA <= 0x1fff && absB <= 0x1fff) {
+    return ((a * b) / ONE) | 0;
+  }
+
+  const [result, overflow] = mulCore(a, b);
+
+  // Always saturate for explicit saturating function
+  // 显式饱和函数总是进行饱和处理
+  if (overflow) {
+    return ((a ^ b) < 0) ? MIN_FX : MAX_FX;
+  }
+  return result;
 };
 
 /**
- * Fixed point division
- * 定点数除法
+ * Fixed point division with zero handling and saturation
+ * 带零处理和饱和的定点数除法
  */
 export const div = (a: FX, b: FX): FX => {
-  if (USE_BIGINT) {
-    const result = (BigInt(a) << BigInt(FP)) / BigInt(b || 1);
-    return Number(result & BigInt(0xffffffff)) | 0;
-  }
-  return ((a * ONE) / (b || 1)) | 0;
+  // Handle division by zero 处理除零
+  if (b === 0) return a >= 0 ? MAX_FX : MIN_FX;
+
+  // Perform (a << FP) / b using multiplication 使用乘法执行(a << FP) / b
+  const num = a * ONE;
+  const divRes = (num / b) | 0;
+
+  // Saturation check to prevent overflow 饱和检查防止溢出
+  if (divRes > MAX_FX) return MAX_FX;
+  if (divRes < MIN_FX) return MIN_FX;
+
+  return divRes;
 };
 
 /**
@@ -149,13 +356,14 @@ export const sign = (x: FX): FX => x > 0 ? ONE : (x < 0 ? neg(ONE) : 0);
 export const sqrt = (x: FX): FX => {
   if (x <= 0) return 0;
 
-  // Initial guess
-  // 初始猜测值
+  // Initial guess (ensure non-zero to prevent division by zero)
+  // 初始猜测值（确保非零以防除零）
   let v = x;
 
   // Newton's iterations (6 iterations for good precision)
   // 牛顿迭代（6次迭代获得良好精度）
   for (let i = 0; i < 6; i++) {
+    if (v === 0) v = 1; // Safeguard against zero 防止变为零
     v = ((v + div(x, v)) >> 1) | 0;
   }
 
@@ -179,6 +387,18 @@ export const madd = (a: FX, b: FX, c: FX): FX => add(a, mul(b, c));
  * 乘减运算：a - b * c
  */
 export const msub = (a: FX, b: FX, c: FX): FX => sub(a, mul(b, c));
+
+/**
+ * Saturating multiply-add operation: a + b * c
+ * 饱和乘加运算：a + b * c
+ */
+export const maddSat = (a: FX, b: FX, c: FX): FX => addSat(a, mulSat(b, c));
+
+/**
+ * Saturating multiply-subtract operation: a - b * c
+ * 饱和乘减运算：a - b * c
+ */
+export const msubSat = (a: FX, b: FX, c: FX): FX => subSat(a, mulSat(b, c));
 
 /**
  * Check if value is zero (with small epsilon tolerance)

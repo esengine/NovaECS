@@ -38,7 +38,11 @@ describe('Guid Random Generation', () => {
     const originalCrypto = global.crypto;
 
     // 设置mock
-    global.crypto = mockCrypto as any;
+    Object.defineProperty(global, 'crypto', {
+      value: mockCrypto,
+      writable: true,
+      configurable: true
+    });
 
     const guid = new Guid();
 
@@ -138,7 +142,11 @@ describe('Guid Random Generation', () => {
     };
 
     const originalCrypto = global.crypto;
-    global.crypto = mockCrypto as any;
+    Object.defineProperty(global, 'crypto', {
+      value: mockCrypto,
+      writable: true,
+      configurable: true
+    });
 
     const guid = new Guid();
 

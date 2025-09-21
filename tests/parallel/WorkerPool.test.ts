@@ -103,7 +103,11 @@ describe('WorkerPool', () => {
     it('should use default pool size when not specified', () => {
       // Mock navigator if not available
       const originalNavigator = globalThis.navigator;
-      (globalThis as any).navigator = { hardwareConcurrency: 8 };
+      Object.defineProperty(globalThis, 'navigator', {
+        value: { hardwareConcurrency: 8 },
+        writable: true,
+        configurable: true
+      });
 
       const pool = new WorkerPool('test-worker.js');
       expect((pool as any).workers).toHaveLength(7); // Math.min(8, hardwareConcurrency-1)

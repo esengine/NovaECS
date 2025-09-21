@@ -105,7 +105,11 @@ class MockWorker {
 // Mock global environment
 // 模拟全局环境
 (global as any).Worker = MockWorker;
-(global as any).navigator = { hardwareConcurrency: 4 };
+Object.defineProperty(global, 'navigator', {
+  value: { hardwareConcurrency: 4 },
+  writable: true,
+  configurable: true
+});
 (global as any).SharedArrayBuffer = class MockSharedArrayBuffer {
   byteLength: number;
   
