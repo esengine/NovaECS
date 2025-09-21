@@ -14,7 +14,7 @@ import { ShapeCircle } from '../../components/ShapeCircle';
 import { ConvexHull2D } from '../../components/ConvexHull2D';
 import { HullWorld2D } from '../../components/HullWorld2D';
 import { AABB2D } from '../../components/AABB2D';
-import { sub, add, min, max } from '../../math/fixed';
+import { sub, add, min, max, mul } from '../../math/fixed';
 import type { FX } from '../../math/fixed';
 
 /**
@@ -38,10 +38,31 @@ export const SyncAABBSystem = system(
         // Calculate AABB bounds from circle center and radius
         // 从圆心和半径计算AABB边界
         const r = circle.r;
-        aabb.minx = sub(body.px, r);
-        aabb.maxx = add(body.px, r);
-        aabb.miny = sub(body.py, r);
-        aabb.maxy = add(body.py, r);
+
+        // For CCD, extend AABB to include movement over one frame
+        // 对于CCD，扩展AABB以包含一帧内的移动
+        const dt = world.getFixedDtFX();
+        const deltaX = mul(body.vx, dt);
+        const deltaY = mul(body.vy, dt);
+
+        // Calculate current and future positions
+        // 计算当前和未来位置
+        const currentMinX = sub(body.px, r);
+        const currentMaxX = add(body.px, r);
+        const currentMinY = sub(body.py, r);
+        const currentMaxY = add(body.py, r);
+
+        const futureMinX = sub(add(body.px, deltaX), r);
+        const futureMaxX = add(add(body.px, deltaX), r);
+        const futureMinY = sub(add(body.py, deltaY), r);
+        const futureMaxY = add(add(body.py, deltaY), r);
+
+        // Swept AABB covers both current and future positions
+        // 扫描AABB覆盖当前和未来位置
+        aabb.minx = min(currentMinX, futureMinX);
+        aabb.maxx = max(currentMaxX, futureMaxX);
+        aabb.miny = min(currentMinY, futureMinY);
+        aabb.maxy = max(currentMaxY, futureMaxY);
 
         // Update epoch for change tracking
         // 更新时期以进行变更跟踪

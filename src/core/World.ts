@@ -674,6 +674,14 @@ export class World {
   }
 
   /**
+   * Remove a resource by key
+   * 通过键移除资源
+   */
+  removeResource<T>(key: new(...args: any[])=>T): boolean {
+    return this.resources.delete(key);
+  }
+
+  /**
    * Get resource or create with factory if not exists
    * 获取资源，不存在则用工厂函数创建
    */

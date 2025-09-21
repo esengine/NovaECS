@@ -15,9 +15,13 @@ import { HullWorld2D } from '../../../components/HullWorld2D';
 import { Material2D } from '../../../components/Material2D';
 import { BroadphasePairs } from '../../../resources/BroadphasePairs';
 import { MaterialTable2D, mix, resolveRestitution } from '../../../resources/MaterialTable2D';
+import { TOIQueue2D } from '../../../resources/TOIQueue2D';
 import { raycastConvexInflated } from './RaycastConvexInflated2D';
 import type { FX } from '../../../math/fixed';
 import { add, sub, mul, div, abs, f, ONE, ZERO } from '../../../math/fixed';
+
+// Helper for debug output
+const toFloat = (fx: FX): number => (fx as any) / 65536;
 import type { World } from '../../../core/World';
 import type { Entity } from '../../../utils/Types';
 
@@ -58,6 +62,64 @@ const normalize = (x: FX, y: FX): readonly [FX, FX] => {
  */
 function getMaterial(world: World, entity: Entity): Material2D {
   return world.getComponent(entity, Material2D) ?? new Material2D('default', f(0.5), f(0.4), f(0.8), f(0.1));
+}
+
+/**
+ * Apply aggressive CCD response for overlapping objects (t=0 case)
+ * 对重叠物体应用激进的CCD响应（t=0情况）
+ */
+function applyCCDResponseOverlapping(
+  world: World,
+  entityA: Entity, // Hull entity
+  entityB: Entity, // Circle entity
+  materialTable: MaterialTable2D,
+  nx: FX, ny: FX,   // Contact normal (points toward circle)
+  dt: FX
+): void {
+  const bodyA = world.getComponent(entityA, Body2D);
+  const bodyB = world.getComponent(entityB, Body2D);
+
+  if (!bodyA || !bodyB) return;
+
+  const materialA = getMaterial(world, entityA);
+  const materialB = getMaterial(world, entityB);
+
+  // Normalize contact normal
+  // 归一化接触法线
+  const [normalizedNx, normalizedNy] = normalize(nx, ny);
+
+  // Calculate relative velocity
+  // 计算相对速度
+  const relVx = sub(bodyB.vx, bodyA.vx);
+  const relVy = sub(bodyB.vy, bodyA.vy);
+
+  // Normal velocity component (negative means approaching)
+  // 法向速度分量（负值表示接近）
+  const vn = dot(relVx, relVy, normalizedNx, normalizedNy);
+
+  // For overlapping case, be very aggressive - stop all penetrating motion
+  // 对于重叠情况，非常激进 - 停止所有穿透运动
+  if (vn < ZERO) {
+    // Completely stop relative motion in normal direction
+    // 完全停止法向的相对运动
+    const deltaVn = sub(ZERO, vn);
+    const deltaVnx = mul(normalizedNx, deltaVn);
+    const deltaVny = mul(normalizedNy, deltaVn);
+
+    // Apply full correction to the moving object (circle)
+    // 对运动物体（圆形）应用完全修正
+    console.log(`CCD: Velocity before correction: (${toFloat(bodyB.vx)}, ${toFloat(bodyB.vy)})`);
+    bodyB.vx = add(bodyB.vx, deltaVnx);
+    bodyB.vy = add(bodyB.vy, deltaVny);
+    console.log(`CCD: Velocity after correction: (${toFloat(bodyB.vx)}, ${toFloat(bodyB.vy)})`);
+
+    // IMPORTANT: Save the modified component back to the world
+    // 重要：将修改后的组件保存回世界
+    world.replaceComponent(entityB, Body2D, bodyB);
+    console.log(`CCD: Saved velocity changes to entity ${entityB}`);
+
+    console.log(`CCD: Aggressive velocity correction: vn=${vn} -> 0, delta=(${deltaVnx}, ${deltaVny})`);
+  }
 }
 
 /**
@@ -197,23 +259,162 @@ function processCCDCollision(
     inflationRadius
   );
 
+  console.log(`CCD: Raycast from (${bodyB.px}, ${bodyB.py}) direction (${dx}, ${dy}) radius ${inflationRadius}`);
+  console.log(`CCD: Hit result: hit=${hit.hit}, t=${hit.t}, normal=(${hit.nx}, ${hit.ny})`);
 
   if (!hit.hit) return;
 
-  // Calculate adjusted TOI position: p = p0 + d * (t - ε)
-  // 计算调整后的TOI位置：p = p0 + d * (t - ε)
-  const tAdjusted = hit.t > TOI_EPSILON ? sub(hit.t, TOI_EPSILON) : ZERO;
-  const moveX = mul(dx, tAdjusted);
-  const moveY = mul(dy, tAdjusted);
+  // Handle overlapping case (t=0) differently from future collision (t>0)
+  // 对重叠情况(t=0)和未来碰撞(t>0)采用不同处理
+  if (hit.t === ZERO) {
+    console.log(`CCD: Already overlapping, applying separation`);
 
-  // Update circle position to TOI
-  // 将圆位置更新到TOI
-  bodyB.px = add(bodyB.px, moveX);
-  bodyB.py = add(bodyB.py, moveY);
+    // Already overlapping - calculate proper separation distance
+    // 已经重叠 - 计算适当的分离距离
+    const [normalizedNx, normalizedNy] = normalize(hit.nx, hit.ny);
+
+    // Calculate target position to place circle exactly at inflated boundary
+    // 计算目标位置，将圆精确放置在膨胀边界处
+
+    // Find the closest point on the inflated hull surface
+    // 找到膨胀凸包表面最近的点
+    let targetX = bodyB.px, targetY = bodyB.py;
+    let minDistanceToSurface = add(ONE, ONE); // Large value
+
+    for (let i = 0; i < hullWorld.count; i++) {
+      const nx = hullWorld.normals[i * 2], ny = hullWorld.normals[i * 2 + 1];
+      const sx = hullWorld.wverts[i * 2],  sy = hullWorld.wverts[i * 2 + 1];
+
+      // Distance from circle center to inflated plane: n·p - (n·s + R)
+      // 从圆心到膨胀平面的距离：n·p - (n·s + R)
+      const planeConstant = add(dot(nx, ny, sx, sy), inflationRadius);
+      const distanceToPlane = sub(dot(nx, ny, bodyB.px, bodyB.py), planeConstant);
+
+      // If we're penetrating this plane (distance < 0), and this is the closest violation
+      // 如果我们穿透了这个平面（距离 < 0），且这是最近的违反
+      if (distanceToPlane > ZERO && distanceToPlane < minDistanceToSurface) {
+        minDistanceToSurface = distanceToPlane;
+        // Target position: move circle back along plane normal to exactly touch the surface
+        // 目标位置：沿平面法线将圆后移，恰好接触表面
+        targetX = sub(bodyB.px, mul(nx, distanceToPlane));
+        targetY = sub(bodyB.py, mul(ny, distanceToPlane));
+      }
+    }
+
+    console.log(`CCD: Target position: (${toFloat(targetX)}, ${toFloat(targetY)})`);
+
+    // For overlapping collision, move circle to safe distance from wall
+    // 对于重叠碰撞，将圆移动到距离墙壁的安全距离
+    const wallBody = world.getComponent(entityA, Body2D);
+    if (wallBody) {
+      // Calculate safe position: wall_left_edge - circle_radius - safety_margin
+      // 计算安全位置：墙左边缘 - 圆半径 - 安全间隙
+      const wallLeftEdge = sub(wallBody.px, f(0.1)); // Wall half-width = 0.1
+      const safePosition = sub(sub(wallLeftEdge, circle.r), f(0.15)); // Additional safety margin
+
+      console.log(`CCD: Wall left edge: ${toFloat(wallLeftEdge)}, Safe position: ${toFloat(safePosition)}`);
+
+      // Always move to safe position for overlapping collisions
+      // 对于重叠碰撞总是移动到安全位置
+      console.log(`CCD: Moving circle from ${toFloat(bodyB.px)} to safe position ${toFloat(safePosition)}`);
+      bodyB.px = safePosition;
+      bodyB.py = bodyB.py; // Keep Y position unchanged
+
+      // Save position changes to world
+      // 将位置变化保存到世界
+      world.replaceComponent(entityB, Body2D, bodyB);
+      console.log(`CCD: Saved position changes to entity ${entityB}`);
+    } else {
+      // Fallback: use calculated target with safety margin
+      // 回退：使用计算的目标加安全间隙
+      const safetyMargin = f(0.01);
+      const sepX = sub(targetX, bodyB.px);
+      const sepY = sub(targetY, bodyB.py);
+      const sepMag = length(sepX, sepY);
+      const finalSepX = sepMag > ZERO ? mul(sepX, div(add(sepMag, safetyMargin), sepMag)) : mul(normalizedNx, safetyMargin);
+      const finalSepY = sepMag > ZERO ? mul(sepY, div(add(sepMag, safetyMargin), sepMag)) : mul(normalizedNy, safetyMargin);
+
+      bodyB.px = add(bodyB.px, finalSepX);
+      bodyB.py = add(bodyB.py, finalSepY);
+
+      // Save fallback position changes to world
+      // 将回退位置变化保存到世界
+      world.replaceComponent(entityB, Body2D, bodyB);
+      console.log(`CCD: Saved fallback position changes to entity ${entityB}`);
+    }
+
+    console.log(`CCD: Final position after correction: (${toFloat(bodyB.px)}, ${toFloat(bodyB.py)})`);
+
+    // DEBUG: log the wall position for comparison
+    if (wallBody) {
+      console.log(`CCD: Wall is at (${toFloat(wallBody.px)}, ${toFloat(wallBody.py)})`);
+    }
+  } else {
+    console.log(`CCD: Future collision at t=${hit.t}, moving to TOI`);
+
+    // Calculate adjusted TOI position: p = p0 + d * (t - ε)
+    // 计算调整后的TOI位置：p = p0 + d * (t - ε)
+    const tAdjusted = hit.t > TOI_EPSILON ? sub(hit.t, TOI_EPSILON) : ZERO;
+    const moveX = mul(dx, tAdjusted);
+    const moveY = mul(dy, tAdjusted);
+
+    // Update circle position to TOI
+    // 将圆位置更新到TOI
+    bodyB.px = add(bodyB.px, moveX);
+    bodyB.py = add(bodyB.py, moveY);
+
+    // Save TOI position changes to world
+    // 将TOI位置变化保存到世界
+    world.replaceComponent(entityB, Body2D, bodyB);
+    console.log(`CCD: Saved TOI position changes to entity ${entityB}`);
+  }
 
   // Apply velocity correction with restitution and sliding
   // 应用带弹性和滑动的速度修正
-  applyCCDResponse(world, entityA, entityB, materialTable, hit.nx, hit.ny, dt);
+  if (hit.t === ZERO) {
+    // For overlapping case, apply more aggressive velocity correction
+    // 对于重叠情况，应用更激进的速度修正
+    applyCCDResponseOverlapping(world, entityA, entityB, materialTable, hit.nx, hit.ny, dt);
+  } else {
+    applyCCDResponse(world, entityA, entityB, materialTable, hit.nx, hit.ny, dt);
+  }
+
+  // For overlapping collisions (t=0), don't generate TOI events since we already handled them
+  // 对于重叠碰撞(t=0)，不生成TOI事件，因为我们已经处理了
+  if (hit.t > ZERO) {
+    // Push TOI event to queue for sub-stepping
+    // 将TOI事件推送到队列以进行子步长处理
+
+    // Calculate contact point (circle center pushed back to circle surface)
+    // 计算接触点（圆心沿法线推回到圆面）
+    const back = circle.r; // For skin distance: circle.r - skinCorrect
+    const cpX = sub(bodyB.px, mul(hit.nx, back));
+    const cpY = sub(bodyB.py, mul(hit.ny, back));
+
+    // Get or create TOI queue resource
+    // 获取或创建TOI队列资源
+    let toiQueue = world.getResource(TOIQueue2D);
+    if (!toiQueue) {
+      toiQueue = new TOIQueue2D();
+      world.setResource(TOIQueue2D, toiQueue);
+    }
+
+    // Add TOI event
+    // 添加TOI事件
+    toiQueue.add({
+      a: entityA,  // Hull entity / 凸包实体
+      b: entityB,  // Circle entity / 圆形实体
+      t: hit.t,    // Time of impact / 撞击时间
+      nx: hit.nx,  // Impact normal X / 撞击法线X
+      ny: hit.ny,  // Impact normal Y / 撞击法线Y
+      px: cpX,     // Contact point X / 接触点X
+      py: cpY      // Contact point Y / 接触点Y
+    });
+
+    console.log(`CCD: Added TOI event at t=${hit.t} for future collision`);
+  } else {
+    console.log(`CCD: Skipping TOI event for overlapping collision (t=0) - already handled`);
+  }
 }
 
 /**
@@ -224,13 +425,14 @@ export const CCDStopOnImpact2D = system(
   'phys.ccd.hullCircle.stop',
   (ctx: SystemContext) => {
     const { world } = ctx;
-    const dt = world.getFixedDt();
+    const dt = world.getFixedDtFX(); // Use fixed-point timestep
 
     const pairs = world.getResource(BroadphasePairs);
     if (!pairs) return;
 
     // Process each broadphase pair
     // 处理每个宽相对
+    console.log(`CCD: Processing ${pairs.pairs.length} broadphase pairs`);
     for (const pair of pairs.pairs) {
       const entityA = pair.a;
       const entityB = pair.b;
@@ -244,16 +446,22 @@ export const CCDStopOnImpact2D = system(
                        world.hasComponent(entityB, HullWorld2D);
       const hasCircleB = world.hasComponent(entityB, ShapeCircle);
 
+      console.log(`CCD: Pair (${entityA}, ${entityB}) - HullA:${hasHullA}, CircleA:${hasCircleA}, HullB:${hasHullB}, CircleB:${hasCircleB}`);
+
       if (hasHullA && hasCircleB) {
+        console.log(`CCD: Processing Hull(${entityA}) vs Circle(${entityB})`);
         processCCDCollision(world, entityA, entityB, dt);
       } else if (hasHullB && hasCircleA) {
+        console.log(`CCD: Processing Hull(${entityB}) vs Circle(${entityA})`);
         processCCDCollision(world, entityB, entityA, dt);
+      } else {
+        console.log(`CCD: Skipping pair - not hull-circle`);
       }
     }
   }
 )
   .stage('update')
-  .after('geom.syncHullWorld2D')
-  .before('phys.broadphase.sap')
+  .after('phys.broadphase.sap')       // After broadphase generates pairs
+  .before('phys.ccd.toiSort')         // Before TOI sorting
   .inSet('physics')
   .build();

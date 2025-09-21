@@ -37,7 +37,7 @@ export const IntegrateVelocitiesSystem = system(
 
     // Query all bodies and integrate their velocities
     // 查询所有物体并积分它们的速度
-    world.query(Body2D).forEach((_entity, body) => {
+    world.query(Body2D).forEach((entity, body) => {
       // Skip sleeping bodies
       // 跳过休眠的物体
       if (!body.awake) return;
@@ -46,10 +46,21 @@ export const IntegrateVelocitiesSystem = system(
       // 跳过静态物体（无限质量）
       if (body.invMass === 0) return;
 
+      // Debug logging for moving objects
+      const toFloat = (fx: any): number => fx / 65536;
+      if (body.vx !== 0 || body.vy !== 0) {
+        console.log(`Integrate: Entity ${entity} BEFORE: pos=(${toFloat(body.px)}, ${toFloat(body.py)}), vel=(${toFloat(body.vx)}, ${toFloat(body.vy)})`);
+      }
+
       // Integrate linear velocity: position += velocity * dt
       // 积分线速度：位置 += 速度 * dt
       body.px = madd(body.px, body.vx, dtFX);
       body.py = madd(body.py, body.vy, dtFX);
+
+      // Debug logging after integration
+      if (toFloat(body.vx) !== 0 || toFloat(body.vy) !== 0) {
+        console.log(`Integrate: Entity ${entity} AFTER: pos=(${toFloat(body.px)}, ${toFloat(body.py)}), vel=(${toFloat(body.vx)}, ${toFloat(body.vy)})`);
+      }
 
       // Integrate angular velocity: angle += angularVelocity * dt
       // 积分角速度：角度 += 角速度 * dt
@@ -68,6 +79,7 @@ export const IntegrateVelocitiesSystem = system(
   }
 )
   .stage('update')
+  .after('phys.ccd.toiMiniSolve')  // After all TOI processing is complete
   .inSet('physics')
   .build();
 

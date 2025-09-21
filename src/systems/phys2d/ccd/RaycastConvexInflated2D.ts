@@ -114,5 +114,32 @@ export function raycastConvexInflated(
   // Hit condition: valid interval and tEnter ∈ [0,1]
   // 命中条件: 有效区间且 tEnter ∈ [0,1]
   if (tEnter < ZERO || tEnter > ONE) return { hit: false, t: ONE, nx: ZERO, ny: ZERO };
+
+  // Special case: if tEnter is exactly 0, we're already overlapping
+  // Need to find closest surface normal instead of enter normal
+  // 特殊情况：如果tEnter恰好是0，说明已经重叠
+  // 需要找到最近表面法线而不是进入法线
+  if (tEnter === ZERO) {
+    // Find the constraint plane with smallest violation
+    // 找到违反最小的约束平面
+    let minViolation = add(ONE, ONE); // Large positive value
+    let closestNx = ZERO, closestNy = ZERO;
+
+    for (let i = 0; i < n; i++) {
+      const nx = hull.normals[i * 2], ny = hull.normals[i * 2 + 1];
+      const sx = hull.wverts[i * 2],  sy = hull.wverts[i * 2 + 1];
+      const c = add(dot(nx, ny, sx, sy), R);
+      const violation = sub(c, dot(nx, ny, p0x, p0y));
+
+      if (violation < minViolation) {
+        minViolation = violation;
+        closestNx = nx;
+        closestNy = ny;
+      }
+    }
+
+    return { hit: true, t: ZERO, nx: closestNx, ny: closestNy };
+  }
+
   return { hit: true, t: tEnter, nx: enterNx, ny: enterNy };
 }

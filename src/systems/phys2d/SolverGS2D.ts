@@ -10,6 +10,7 @@
 
 import { Body2D } from '../../components/Body2D';
 import { Contacts2D } from '../../resources/Contacts2D';
+import { SolverTimeScale } from '../../resources/SolverTimeScale';
 import { ContactWithMaterial } from './BuildContactMaterial2D';
 import {
   FX, add, sub, mul, div, clamp, f, ONE, ZERO
@@ -81,6 +82,12 @@ export const SolverGS2D = system(
     if (!contactsRes || contactsRes.list.length === 0) return;
 
     const dtFX: FX = world.getFixedDtFX ? world.getFixedDtFX() : f(1 / 60);
+
+    // Get time scale for sub-stepping support
+    // 获取子步长支持的时间缩放
+    const timeScale = world.getResource(SolverTimeScale);
+    const effectiveDt = timeScale ? mul(dtFX, timeScale.value) : dtFX;
+
     const bodyStore = world.getStore(getComponentType(Body2D));
 
     // Precompute constraint data for efficient solving
@@ -158,10 +165,10 @@ export const SolverGS2D = system(
         const rvx = sub(vbx, vax);
         const rvy = sub(vby, vay);
 
-        // Normal constraint
-        // 法向约束
+        // Normal constraint with time-scaled bias
+        // 带时间缩放偏置的法向约束
         const vn = dot(rvx, rvy, c.nx, c.ny);
-        const bias = (c.pen > 0) ? mul(BAUMGARTE, div(c.pen, dtFX)) : ZERO;
+        const bias = (c.pen > 0) ? mul(BAUMGARTE, div(c.pen, effectiveDt)) : ZERO;
 
         // Use effective restitution from BuildContactMaterial2D if available
         // 使用BuildContactMaterial2D计算的有效恢复系数（如果可用）
