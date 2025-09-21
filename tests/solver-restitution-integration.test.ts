@@ -92,7 +92,7 @@ describe('Solver Restitution Integration', () => {
     const initialVxB = bodyB.vx;
 
     // Run material calculation
-    BuildContactMaterial2D.run(world);
+    BuildContactMaterial2D.fn({ world });
 
     // Run one iteration of solver
     runSolver();
@@ -151,7 +151,7 @@ describe('Solver Restitution Integration', () => {
     contacts.addContact(contact);
 
     // Run material calculation and solver
-    BuildContactMaterial2D.run(world);
+    BuildContactMaterial2D.fn({ world });
     runSolver();
 
     // For slow collisions, should mostly just stop rather than bounce
@@ -213,7 +213,7 @@ describe('Solver Restitution Integration', () => {
     const initialRelativeVx = toFloat(bodyB.vx) - toFloat(bodyA.vx);
 
     // Run material calculation and solver
-    BuildContactMaterial2D.run(world);
+    BuildContactMaterial2D.fn({ world });
     runSolver();
 
     // Should have some bounce due to custom lower threshold
@@ -307,7 +307,7 @@ describe('Solver Restitution Integration', () => {
     contacts.addContact(contact);
 
     // Run material calculation
-    BuildContactMaterial2D.run(world);
+    BuildContactMaterial2D.fn({ world });
 
     // Check that effective restitution was set
     const extendedContact = contact as any;
@@ -357,7 +357,7 @@ describe('Solver Restitution Integration', () => {
     contacts.addContact(contact);
 
     // Run material calculation and solver
-    BuildContactMaterial2D.run(world);
+    BuildContactMaterial2D.fn({ world });
 
     expect(() => {
       runSolver();
