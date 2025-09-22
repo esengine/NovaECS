@@ -17,7 +17,7 @@ import { HullWorld2D } from '../../../components/HullWorld2D';
 import { Material2D } from '../../../components/Material2D';
 import { BroadphasePairs } from '../../../resources/BroadphasePairs';
 import { MaterialTable2D, resolveRestitution } from '../../../resources/MaterialTable2D';
-import { makePairKey } from '../../../determinism/PairKey';
+// import { makePairKey } from '../../../determinism/PairKey';
 import { raycastConvexInflated } from './RaycastConvexInflated2D';
 import type { FX } from '../../../math/fixed';
 import { add, sub, mul, div, abs, f, ONE, ZERO, sqrt } from '../../../math/fixed';
@@ -69,7 +69,7 @@ function applyTOIResponse(
   materialB: Material2D,
   materialTable: MaterialTable2D,
   nx: FX, ny: FX, // Contact normal (points toward circle)
-  dt: FX
+  _dt: FX
 ): void {
   // Get combined material properties
   // 获取组合材质属性

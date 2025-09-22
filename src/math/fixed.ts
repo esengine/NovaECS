@@ -243,7 +243,7 @@ const mulCore = (a: FX, b: FX): [FX, boolean] => {
 
     // Apply sign
     // 应用符号
-    let finalResult = negative ? (-(result >>> 0) | 0) : (result | 0);
+    const finalResult = negative ? (-(result >>> 0) | 0) : (result | 0);
 
     // Check for overflow: result outside valid range
     // 检查溢出：结果超出有效范围

@@ -72,17 +72,18 @@ function applyCCDResponseOverlapping(
   world: World,
   entityA: Entity, // Hull entity
   entityB: Entity, // Circle entity
-  materialTable: MaterialTable2D,
+  _materialTable: MaterialTable2D,
   nx: FX, ny: FX,   // Contact normal (points toward circle)
-  dt: FX
+  _dt: FX
 ): void {
   const bodyA = world.getComponent(entityA, Body2D);
   const bodyB = world.getComponent(entityB, Body2D);
 
   if (!bodyA || !bodyB) return;
 
-  const materialA = getMaterial(world, entityA);
-  const materialB = getMaterial(world, entityB);
+  // TODO: Use materials for CCD response calculation
+  // const materialA = getMaterial(world, entityA);
+  // const materialB = getMaterial(world, entityB);
 
   // Normalize contact normal
   // 归一化接触法线
@@ -130,9 +131,9 @@ function applyCCDResponse(
   world: World,
   entityA: Entity, // Hull entity
   entityB: Entity, // Circle entity
-  materialTable: MaterialTable2D,
+  _materialTable: MaterialTable2D,
   nx: FX, ny: FX,   // Contact normal (points toward circle)
-  dt: FX
+  _dt: FX
 ): void {
   const bodyA = world.getComponent(entityA, Body2D);
   const bodyB = world.getComponent(entityB, Body2D);
@@ -144,7 +145,7 @@ function applyCCDResponse(
 
   // Get combined material properties
   // 获取组合材质属性
-  const rule = materialTable.getRule(materialA, materialB);
+  const rule = _materialTable.getRule(materialA, materialB);
   const restitution = resolveRestitution(materialA, materialB, rule);
   const threshold = rule.customThreshold
     ? rule.customThreshold(materialA, materialB)
@@ -167,11 +168,11 @@ function applyCCDResponse(
   // 仅当物体相互接近时应用响应
   if (vn >= ZERO) return;
 
-  // Calculate tangent vector for sliding
-  // 计算滑动的切向量
-  const tx = sub(ZERO, normalizedNy);
-  const ty = normalizedNx;
-  const vt = dot(relVx, relVy, tx, ty);
+  // TODO: Calculate tangent vector and tangential velocity for friction
+  // 计算切向量和切向速度用于摩擦
+  // const tx = sub(ZERO, normalizedNy);
+  // const ty = normalizedNx;
+  // const vt = dot(relVx, relVy, tx, ty);
 
   // Determine if bounce should occur based on threshold
   // 根据阈值确定是否应该发生弹跳
@@ -318,7 +319,7 @@ function processCCDCollision(
       // 对于重叠碰撞总是移动到安全位置
       console.log(`CCD: Moving circle from ${toFloat(bodyB.px)} to safe position ${toFloat(safePosition)}`);
       bodyB.px = safePosition;
-      bodyB.py = bodyB.py; // Keep Y position unchanged
+      // Y position remains unchanged
 
       // Save position changes to world
       // 将位置变化保存到世界

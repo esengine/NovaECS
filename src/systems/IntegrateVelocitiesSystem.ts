@@ -37,7 +37,7 @@ export const IntegrateVelocitiesSystem = system(
 
     // Query all bodies and integrate their velocities
     // 查询所有物体并积分它们的速度
-    world.query(Body2D).forEach((entity, body) => {
+    world.query(Body2D).forEach((_entity, body) => {
       // Skip sleeping bodies
       // 跳过休眠的物体
       if (!body.awake) return;

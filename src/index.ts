@@ -227,3 +227,34 @@ export { TOIHullCircle2D } from './systems/phys2d/ccd/TOIHullCircle2D';
 export { CCDStopOnImpact2D } from './systems/phys2d/ccd/CCDStopOnImpact2D';
 export { raycastConvexInflated } from './systems/phys2d/ccd/RaycastConvexInflated2D';
 export type { RaycastInflatedHit } from './systems/phys2d/ccd/RaycastConvexInflated2D';
+
+// Rendering Components
+export { Camera2D, createCamera2D, createViewportCamera } from './components/Camera2D';
+export { Sprite, BlendMode, createSprite, createAtlasSprite, createColorSprite } from './components/Sprite';
+export { RenderLayer, RenderLayers, createRenderLayer, createBackgroundLayer, createUILayer, createEffectsLayer, createDebugLayer, isLayerVisible, createLayerMask, LayerMasks } from './components/RenderLayer';
+export { RenderMaterial, WrapMode, FilterMode, CullMode, DepthFunc, createUnlitMaterial, createTransparentMaterial, createAdditiveMaterial } from './components/RenderMaterial';
+export type { TextureBinding, UniformValue } from './components/RenderMaterial';
+
+// Rendering Resources
+export { TextureAtlas, createAtlasFromJSON, createGridAtlas } from './resources/TextureAtlas';
+export type { AtlasFrame, AtlasMetadata } from './resources/TextureAtlas';
+export { ShaderProgram, ShaderType, createUnlitShader, createColorShader, preprocessShader } from './resources/ShaderProgram';
+export type { UniformDescriptor, AttributeDescriptor, ShaderCompileResult } from './resources/ShaderProgram';
+export { RenderBuffer, VertexBuffer, IndexBuffer, UniformBuffer, BufferUsage, BufferType, VertexLayouts } from './resources/RenderBuffers';
+export type { VertexAttribute, VertexLayout } from './resources/RenderBuffers';
+export { RenderTexture, TextureFormat, TextureFilter, TextureWrap, TextureUsage, createRenderTarget, createTextureFromImage, createColorTexture, isPowerOfTwo } from './resources/RenderTexture';
+
+// Rendering Device Abstraction
+export { IRenderDevice, GraphicsAPI, createRenderDevice, isAPISupported, getBestAvailableAPI } from './render/IRenderDevice';
+export type { DeviceCapabilities, RenderPassDescriptor, DrawCallDescriptor, ViewportDescriptor, RenderStats } from './render/IRenderDevice';
+export { WebGLDevice } from './render/WebGLDevice';
+
+// Rendering Systems
+export { CameraUpdateSystem, CameraTransformSyncSystem, initializeCamera, setCameraZoom, resizeCamera } from './systems/CameraUpdateSystem';
+export { FrustumCullingSystem, CleanupVisibilitySystem, Visible, VisibilityResult, getCullingStats } from './systems/CullingSystem';
+export type { CullingStats, FrustumBounds } from './systems/CullingSystem';
+export { SpriteRenderSystem, SpriteRenderer } from './systems/SpriteRenderSystem';
+export type { SpriteRenderStats } from './systems/SpriteRenderSystem';
+export { BatchRenderSystem, BatchRenderer } from './systems/BatchRenderSystem';
+export type { BatchRenderStats } from './systems/BatchRenderSystem';
+

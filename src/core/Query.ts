@@ -9,6 +9,7 @@ import type { ComponentType, ComponentCtor } from './ComponentRegistry';
 import type { IColumn, IArrayColumn } from '../storage/IColumn';
 import type { Archetype } from '../archetype/Archetype';
 import { ColumnType } from '../storage/IColumn';
+import { getComponentType } from './ComponentRegistry';
 
 /**
  * Component access mode for query iteration
@@ -27,6 +28,8 @@ export interface QueryOptions {
   withTags?: string[];
   /** Excluded tags 排除标签 */
   withoutTags?: string[];
+  /** Excluded components 排除组件 */
+  without?: ComponentCtor<any>[];
   /** Only entities with these changed components 仅包含这些组件发生变化的实体 */
   changed?: ComponentCtor<any>[];
 }
@@ -56,6 +59,7 @@ export class Query<Ts extends unknown[]> {
   private typeIds: number[];
   private opts: Required<QueryOptions>;
   private plan: PlanEntry[] = [];
+  private withoutTypeIds: number[] = [];
 
   /** Pending entity additions for delta tracking 待处理的实体添加（用于增量跟踪） */
   private pendingAdded: Entity[] = [];
@@ -72,8 +76,10 @@ export class Query<Ts extends unknown[]> {
       mode: opts.mode ?? 'view',
       withTags: opts.withTags ?? [],
       withoutTags: opts.withoutTags ?? [],
+      without: opts.without ?? [],
       changed: opts.changed ?? []
     };
+    this.withoutTypeIds = this.opts.without.map(t => getComponentType(t).id);
     this.compile();
   }
 
@@ -86,6 +92,9 @@ export class Query<Ts extends unknown[]> {
     for (const arch of all) {
       // Check if archetype contains all required components
       if (!this.typeIds.every(id => arch.types.includes(id))) continue;
+
+      // Check if archetype contains any excluded components
+      if (this.withoutTypeIds.length > 0 && this.withoutTypeIds.some(id => arch.types.includes(id))) continue;
 
       // Get component columns for required types
       const cols: IColumn[] = [];
@@ -213,6 +222,7 @@ export class Query<Ts extends unknown[]> {
     const arch = (this.world as any).entityArchetype?.get(e) as Archetype | undefined;
     if (!arch) return false;
     if (!this.typeIds.every(id => arch.types.includes(id))) return false;
+    if (this.withoutTypeIds.length > 0 && this.withoutTypeIds.some(id => arch.types.includes(id))) return false;
     return this.passTags(e);
   }
 
@@ -296,6 +306,18 @@ export class Query<Ts extends unknown[]> {
       results.push(mapper(entity, ...components));
     });
     return results;
+  }
+
+  /**
+   * Create a new query that excludes entities with the specified components
+   * 创建一个新查询，排除具有指定组件的实体
+   */
+  without<U extends ComponentCtor<any>[]>(...excludeTypes: U): Query<Ts> {
+    const newOpts: QueryOptions = {
+      ...this.opts,
+      without: [...(this.opts.without || []), ...excludeTypes]
+    };
+    return new Query<Ts>(this.world, this.types, newOpts);
   }
 
 }
