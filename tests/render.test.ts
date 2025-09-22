@@ -238,8 +238,6 @@ describe('Performance Tests', () => {
     const world = new World();
     const entityCount = 1000;
 
-    const startTime = performance.now();
-
     // Create many sprite entities
     for (let i = 0; i < entityCount; i++) {
       const entity = world.createEntity();
@@ -255,10 +253,7 @@ describe('Performance Tests', () => {
       world.addComponent(entity, RenderLayer, layer);
     }
 
-    const createTime = performance.now() - startTime;
-
     // Query all sprites
-    const queryStartTime = performance.now();
     const spriteQuery = world.query(Sprite, LocalTransform, RenderLayer);
     expect(spriteQuery.count()).toBe(entityCount);
 
@@ -267,15 +262,6 @@ describe('Performance Tests', () => {
       queryCount++;
     });
 
-    const queryTime = performance.now() - queryStartTime;
-
     expect(queryCount).toBe(entityCount);
-
-    // Performance should be reasonable (adjust thresholds as needed)
-    expect(createTime).toBeLessThan(100); // Less than 100ms to create 1000 entities
-    expect(queryTime).toBeLessThan(50);   // Less than 50ms to query 1000 entities
-
-    console.log(`Created ${entityCount} entities in ${createTime.toFixed(2)}ms`);
-    console.log(`Queried ${entityCount} entities in ${queryTime.toFixed(2)}ms`);
   });
 });

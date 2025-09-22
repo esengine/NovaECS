@@ -352,7 +352,7 @@ export function isAPISupported(api: GraphicsAPI): boolean {
         return false;
       }
     case GraphicsAPI.WebGPU:
-      return 'gpu' in navigator;
+      return typeof navigator !== 'undefined' && 'gpu' in navigator;
     default:
       return false;
   }
