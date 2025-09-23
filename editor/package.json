@@ -1,0 +1,63 @@
+{
+  "name": "nova-ecs-editor",
+  "version": "0.1.0",
+  "description": "Cross-platform game editor for NovaECS framework",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "concurrently --kill-others \"vite\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on http://localhost:5173 && electron .\"",
+    "build": "vite build && tsc -p tsconfig.electron.json && electron-builder",
+    "lint": "eslint src electron --ext .ts,.tsx",
+    "type-check": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@vitejs/plugin-react-swc": "^3.7.0",
+    "concurrently": "^9.0.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.0",
+    "wait-on": "^8.0.0"
+  },
+  "dependencies": {
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "react-i18next": "^15.0.0",
+    "i18next": "^25.4.1",
+    "i18next-browser-languagedetector": "^8.0.0",
+    "@esengine/nova-ecs": "file:../",
+    "monaco-editor": "^0.52.0",
+    "immer": "^10.1.0",
+    "@emotion/react": "^11.13.0",
+    "@emotion/styled": "^11.13.0",
+    "zustand": "^5.0.0"
+  },
+  "build": {
+    "appId": "com.esengine.nova-ecs-editor",
+    "productName": "NovaECS Editor",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "main.js",
+      "preload.js"
+    ],
+    "mac": {
+      "icon": "assets/icon.icns"
+    },
+    "win": {
+      "icon": "assets/icon.ico"
+    },
+    "linux": {
+      "icon": "assets/icon.png"
+    }
+  },
+  "author": "esengine",
+  "license": "MIT"
+}

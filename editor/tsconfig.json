@@ -1,32 +1,29 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "lib": ["ES2022", "DOM"],
+    "skipLibCheck": true,
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "allowJs": false,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
     "strict": true,
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "noImplicitReturns": true,
-    "noImplicitThis": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "exactOptionalPropertyTypes": false,
-    "skipLibCheck": true,
+    "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "removeComments": false,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "composite": true
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@nova-ecs/*": ["../src/*"]
+    }
   },
   "include": [
     "src/**/*"
@@ -34,6 +31,11 @@
   "exclude": [
     "node_modules",
     "dist",
-    "examples"
+    "dist-electron"
+  ],
+  "references": [
+    {
+      "path": "../tsconfig.json"
+    }
   ]
 }
