@@ -12,8 +12,17 @@ const electronAPI = {
     loadFile: (filePath) => electron_1.ipcRenderer.invoke('load-file', filePath),
     showSaveDialog: (options) => electron_1.ipcRenderer.invoke('show-save-dialog', options),
     showOpenDialog: (options) => electron_1.ipcRenderer.invoke('show-open-dialog', options),
+    // Project file system operations 项目文件系统操作
+    fileExists: (filePath) => electron_1.ipcRenderer.invoke('file-exists', filePath),
+    createDirectory: (dirPath) => electron_1.ipcRenderer.invoke('create-directory', dirPath),
+    writeFile: (filePath, content) => electron_1.ipcRenderer.invoke('write-file', filePath, content),
+    readFile: (filePath) => electron_1.ipcRenderer.invoke('read-file', filePath),
+    readDirectory: (dirPath) => electron_1.ipcRenderer.invoke('read-directory', dirPath),
+    getFileStats: (filePath) => electron_1.ipcRenderer.invoke('get-file-stats', filePath),
     // Language operations 语言操作
     changeLanguage: (locale) => electron_1.ipcRenderer.invoke('change-language', locale),
+    // Menu operations 菜单操作
+    setMenuVisible: (visible) => electron_1.ipcRenderer.invoke('set-menu-visible', visible),
     // Menu events 菜单事件
     onMenuEvent: (callback) => {
         const menuChannels = [
@@ -27,11 +36,17 @@ const electronAPI = {
             'menu-create-camera'
         ];
         menuChannels.forEach(channel => {
-            electron_1.ipcRenderer.on(channel, callback);
+            electron_1.ipcRenderer.on(channel, (event, ...args) => {
+                // Create a custom event object with channel information
+                const customEvent = Object.assign({}, event, { channel });
+                callback(customEvent, ...args);
+            });
         });
     },
     // Remove listeners 移除监听器
-    removeAllListeners: (channel) => electron_1.ipcRenderer.removeAllListeners(channel)
+    removeAllListeners: (channel) => electron_1.ipcRenderer.removeAllListeners(channel),
+    // Path operations 路径操作
+    pathJoin: (...parts) => electron_1.ipcRenderer.invoke('path-join', ...parts)
 };
 electron_1.contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 //# sourceMappingURL=preload.js.map

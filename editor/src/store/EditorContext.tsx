@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { EditorWorld, EditorMode, EditorTool } from '../core/EditorWorld';
 import type { Entity } from '@esengine/nova-ecs';
 import { LocalTransform, Sprite, createColorSprite } from '@esengine/nova-ecs';
+import { ProjectInfo } from '../services/ProjectService';
 
 interface EditorContextType {
   world: EditorWorld;
@@ -9,6 +10,8 @@ interface EditorContextType {
   tool: EditorTool;
   selectedEntities: Entity[];
   entities: Entity[];
+  project: ProjectInfo | null;
+  onCloseProject?: () => void;
   selectEntity: (entity: Entity, multiSelect?: boolean) => void;
   deselectEntity: (entity: Entity) => void;
   clearSelection: () => void;
@@ -18,7 +21,13 @@ interface EditorContextType {
 
 const EditorContext = createContext<EditorContextType | null>(null);
 
-export function EditorProvider({ children }: { children: React.ReactNode }) {
+interface EditorProviderProps {
+  children: React.ReactNode;
+  project: ProjectInfo | null;
+  onCloseProject?: () => void;
+}
+
+export function EditorProvider({ children, project, onCloseProject }: EditorProviderProps) {
   const [world] = useState(() => new EditorWorld());
   const [mode, setModeState] = useState<EditorMode>(EditorMode.Edit);
   const [tool, setToolState] = useState<EditorTool>(EditorTool.Select);
@@ -117,6 +126,8 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
     tool,
     selectedEntities,
     entities,
+    project,
+    onCloseProject,
     selectEntity,
     deselectEntity,
     clearSelection,

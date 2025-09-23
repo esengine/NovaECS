@@ -1,23 +1,5 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
-
-/**
- * Electron API interface for type safety
- * 用于类型安全的Electron API接口
- */
-interface ElectronAPI {
-  // File operations 文件操作
-  saveFile: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
-  loadFile: (filePath: string) => Promise<{ success: boolean; content?: string; error?: string }>;
-  showSaveDialog: (options: Electron.SaveDialogOptions) => Promise<Electron.SaveDialogReturnValue>;
-  showOpenDialog: (options: Electron.OpenDialogOptions) => Promise<Electron.OpenDialogReturnValue>;
-
-  // Language operations 语言操作
-  changeLanguage: (locale: string) => Promise<{ success: boolean }>;
-
-  // Menu events 菜单事件
-  onMenuEvent: (callback: (event: IpcRendererEvent, ...args: any[]) => void) => void;
-  removeAllListeners: (channel: string) => void;
-}
+import type { ElectronAPI } from '../src/types/electron';
 
 /**
  * Expose protected methods that allow the renderer process to use
@@ -38,9 +20,32 @@ const electronAPI: ElectronAPI = {
   showOpenDialog: (options: Electron.OpenDialogOptions) =>
     ipcRenderer.invoke('show-open-dialog', options),
 
+  // Project file system operations 项目文件系统操作
+  fileExists: (filePath: string) =>
+    ipcRenderer.invoke('file-exists', filePath),
+
+  createDirectory: (dirPath: string) =>
+    ipcRenderer.invoke('create-directory', dirPath),
+
+  writeFile: (filePath: string, content: string) =>
+    ipcRenderer.invoke('write-file', filePath, content),
+
+  readFile: (filePath: string) =>
+    ipcRenderer.invoke('read-file', filePath),
+
+  readDirectory: (dirPath: string) =>
+    ipcRenderer.invoke('read-directory', dirPath),
+
+  getFileStats: (filePath: string) =>
+    ipcRenderer.invoke('get-file-stats', filePath),
+
   // Language operations 语言操作
   changeLanguage: (locale: string) =>
     ipcRenderer.invoke('change-language', locale),
+
+  // Menu operations 菜单操作
+  setMenuVisible: (visible: boolean) =>
+    ipcRenderer.invoke('set-menu-visible', visible),
 
   // Menu events 菜单事件
   onMenuEvent: (callback: (event: IpcRendererEvent, ...args: any[]) => void) => {
@@ -56,20 +61,20 @@ const electronAPI: ElectronAPI = {
     ];
 
     menuChannels.forEach(channel => {
-      ipcRenderer.on(channel, callback);
+      ipcRenderer.on(channel, (event, ...args) => {
+        // Create a custom event object with channel information
+        const customEvent = Object.assign({}, event, { channel });
+        callback(customEvent as IpcRendererEvent, ...args);
+      });
     });
   },
 
   // Remove listeners 移除监听器
-  removeAllListeners: (channel: string) => ipcRenderer.removeAllListeners(channel)
+  removeAllListeners: (channel: string) => ipcRenderer.removeAllListeners(channel),
+
+  // Path operations 路径操作
+  pathJoin: (...parts: string[]) =>
+    ipcRenderer.invoke('path-join', ...parts)
 };
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
-
-// Type declaration for the global electronAPI
-// 全局electronAPI的类型声明
-declare global {
-  interface Window {
-    electronAPI: ElectronAPI;
-  }
-}

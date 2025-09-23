@@ -1,11 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 import type { Entity } from '@esengine/nova-ecs';
-
-interface AssetData {
-  name: string;
-  type: 'texture' | 'script' | 'scene' | 'audio' | 'material';
-  icon: string;
-}
+import type { AssetData } from '../types/assets';
 
 type SelectionType = 'entity' | 'asset' | null;
 

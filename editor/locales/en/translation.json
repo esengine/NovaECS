@@ -65,8 +65,10 @@
   },
   "project": {
     "newProject": "New Project",
+    "openProject": "Open Project",
     "projectName": "Project Name",
     "projectPath": "Project Path",
+    "selectLocation": "Select a location...",
     "create": "Create",
     "cancel": "Cancel",
     "browse": "Browse",
@@ -74,7 +76,24 @@
     "scenes": "Scenes",
     "scripts": "Scripts",
     "textures": "Textures",
-    "audio": "Audio"
+    "audio": "Audio",
+    "recentProjects": "Recent Projects",
+    "noRecentProjects": "No recent projects. Create or open a project to get started."
+  },
+  "welcome": {
+    "subtitle": "Cross-platform game editor for NovaECS framework",
+    "newProjectDescription": "Create a new Nova ECS project with default structure",
+    "openProjectDescription": "Open an existing Nova ECS project from your computer",
+    "recentProjectsTitle": "Recent Projects"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close"
   },
   "scene": {
     "newScene": "New Scene",

@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import styled from '@emotion/styled';
+import { useEditor } from '../../store/EditorContext';
+import type { AssetData, FolderData } from '../../types/assets';
 
 const AssetsContainer = styled.div`
   display: flex;
@@ -95,18 +97,6 @@ const AssetName = styled.span`
   flex: 1;
 `;
 
-interface FolderData {
-  name: string;
-  icon: string;
-  expanded: boolean;
-  children?: FolderData[];
-}
-
-interface AssetData {
-  name: string;
-  type: 'texture' | 'script' | 'scene' | 'audio' | 'material';
-  icon: string;
-}
 
 interface ProjectAssetsProps {
   onAssetSelect?: (asset: AssetData | null) => void;
@@ -114,34 +104,140 @@ interface ProjectAssetsProps {
 
 function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
   const { t } = useTranslation();
-  const [selectedFolder, setSelectedFolder] = useState<string>('textures');
+  const { project } = useEditor();
+  const [selectedFolder, setSelectedFolder] = useState<string>('assets');
   const [selectedAsset, setSelectedAsset] = useState<AssetData | null>(null);
-  const [folders, setFolders] = useState<FolderData[]>([
-    {
-      name: 'Assets',
-      icon: '📁',
-      expanded: true,
-      children: [
-        { name: 'Textures', icon: '🖼️', expanded: false },
-        { name: 'Scripts', icon: '📜', expanded: false },
-        { name: 'Scenes', icon: '🎬', expanded: false },
-        { name: 'Audio', icon: '🔊', expanded: false },
-        { name: 'Materials', icon: '⚫', expanded: false }
-      ]
-    }
-  ]);
+  const [folders, setFolders] = useState<FolderData[]>([]);
+  const [assets, setAssets] = useState<AssetData[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const [assets] = useState<AssetData[]>([
-    { name: 'player.png', type: 'texture', icon: '🖼️' },
-    { name: 'enemy.png', type: 'texture', icon: '🖼️' },
-    { name: 'background.png', type: 'texture', icon: '🖼️' },
-    { name: 'PlayerScript.ts', type: 'script', icon: '📜' },
-    { name: 'GameManager.ts', type: 'script', icon: '📜' },
-    { name: 'MainScene.scene', type: 'scene', icon: '🎬' },
-    { name: 'MenuScene.scene', type: 'scene', icon: '🎬' },
-    { name: 'bgm.mp3', type: 'audio', icon: '🔊' },
-    { name: 'jump.wav', type: 'audio', icon: '🔊' }
-  ]);
+  // File type detection
+  const getFileType = (fileName: string): AssetData['type'] => {
+    const ext = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+    if (['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg'].includes(ext)) return 'texture';
+    if (['.js', '.ts', '.jsx', '.tsx', '.cs', '.cpp', '.c', '.py'].includes(ext)) return 'script';
+    if (['.novascene', '.scene'].includes(ext)) return 'scene';
+    if (['.mp3', '.wav', '.ogg', '.m4a', '.flac'].includes(ext)) return 'audio';
+    if (['.mat', '.material'].includes(ext)) return 'material';
+    return 'unknown';
+  };
+
+  const getFileIcon = (type: AssetData['type']): string => {
+    switch (type) {
+      case 'texture': return '🖼️';
+      case 'script': return '📜';
+      case 'scene': return '🎬';
+      case 'audio': return '🔊';
+      case 'material': return '⚫';
+      default: return '📄';
+    }
+  };
+
+  // Load project assets from file system
+  const loadProjectAssets = async () => {
+    if (!project || !window.electronAPI?.readDirectory) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const assetsPath = await window.electronAPI.pathJoin(project.path, 'Assets');
+      const assetTree = await loadDirectoryTree(assetsPath, 'Assets');
+      setFolders([assetTree]);
+
+      // Load assets for the initially selected folder
+      await loadAssetsForFolder(assetsPath);
+    } catch (error) {
+      console.error('Failed to load project assets:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDirectoryTree = async (dirPath: string, name: string): Promise<FolderData> => {
+    const folder: FolderData = {
+      name,
+      path: dirPath,
+      icon: '📁',
+      expanded: name === 'Assets'
+    };
+
+    try {
+      const entries = await window.electronAPI!.readDirectory(dirPath);
+      const children: FolderData[] = [];
+
+      for (const entry of entries) {
+        const entryPath = await window.electronAPI.pathJoin(dirPath, entry);
+        // Simple check for directories - if readDirectory succeeds, it's a directory
+        try {
+          await window.electronAPI!.readDirectory(entryPath);
+          const childFolder = await loadDirectoryTree(entryPath, entry);
+          children.push(childFolder);
+        } catch {
+          // Not a directory, skip
+        }
+      }
+
+      if (children.length > 0) {
+        folder.children = children;
+      }
+    } catch (error) {
+      console.warn(`Failed to read directory ${dirPath}:`, error);
+    }
+
+    return folder;
+  };
+
+  const loadAssetsForFolder = async (folderPath: string) => {
+    if (!window.electronAPI?.readDirectory) {
+      return;
+    }
+
+    try {
+      const entries = await window.electronAPI.readDirectory(folderPath);
+      const assetList: AssetData[] = [];
+
+      for (const entry of entries) {
+        const entryPath = await window.electronAPI.pathJoin(folderPath, entry);
+        // Check if it's a file (not a directory)
+        try {
+          await window.electronAPI.readDirectory(entryPath);
+          // It's a directory, skip
+        } catch {
+          // It's a file
+          const type = getFileType(entry);
+          const asset: AssetData = {
+            name: entry,
+            path: entryPath,
+            type,
+            icon: getFileIcon(type)
+          };
+
+          // Load file stats if possible
+          try {
+            if (window.electronAPI?.getFileStats) {
+              const stats = await window.electronAPI.getFileStats(entryPath);
+              asset.size = stats.size;
+              asset.modified = new Date(stats.modified);
+            }
+          } catch (error) {
+            console.warn(`Failed to get stats for ${entryPath}:`, error);
+          }
+
+          assetList.push(asset);
+        }
+      }
+
+      setAssets(assetList);
+    } catch (error) {
+      console.error(`Failed to load assets for folder ${folderPath}:`, error);
+      setAssets([]);
+    }
+  };
+
+  useEffect(() => {
+    loadProjectAssets();
+  }, [project]);
 
   const toggleFolder = (folderName: string, level: number = 0) => {
     const updateFolders = (items: FolderData[]): FolderData[] => {
@@ -159,9 +255,10 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
   };
 
   const renderFolder = (folder: FolderData, level: number = 0) => {
-    const handleClick = () => {
+    const handleClick = async () => {
       toggleFolder(folder.name, level);
-      setSelectedFolder(folder.name.toLowerCase());
+      setSelectedFolder(folder.path);
+      await loadAssetsForFolder(folder.path);
     };
 
     return (
@@ -170,7 +267,7 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
           level={level}
           expanded={folder.expanded}
           onClick={handleClick}
-          className={selectedFolder === folder.name.toLowerCase() ? 'selected' : ''}
+          className={selectedFolder === folder.path ? 'selected' : ''}
         >
           <FolderIcon>
             {folder.children ? (folder.expanded ? '📂' : '📁') : folder.icon}
@@ -191,18 +288,20 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
     onAssetSelect?.(asset);
   };
 
-  const getFilteredAssets = () => {
-    const typeMap: Record<string, AssetData['type']> = {
-      'textures': 'texture',
-      'scripts': 'script',
-      'scenes': 'scene',
-      'audio': 'audio',
-      'materials': 'material'
-    };
-
-    const filterType = typeMap[selectedFolder];
-    return filterType ? assets.filter(asset => asset.type === filterType) : assets;
-  };
+  if (loading) {
+    return (
+      <AssetsContainer>
+        <AssetsHeader>
+          <HeaderTitle>{t('project.assets')}</HeaderTitle>
+        </AssetsHeader>
+        <AssetsContent>
+          <div style={{ textAlign: 'center', padding: '20px', color: '#969696' }}>
+            {t('common.loading') || 'Loading...'}
+          </div>
+        </AssetsContent>
+      </AssetsContainer>
+    );
+  }
 
   return (
     <AssetsContainer>
@@ -215,7 +314,7 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
         </FolderTree>
 
         <AssetList>
-          {getFilteredAssets().map((asset, index) => (
+          {assets.map((asset, index) => (
             <AssetItem
               key={index}
               selected={selectedAsset === asset}

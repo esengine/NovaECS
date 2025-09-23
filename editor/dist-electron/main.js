@@ -336,4 +336,78 @@ electron_1.ipcMain.handle('change-language', async (_event, locale) => {
     createMenu(locale);
     return { success: true };
 });
+// Menu visibility handler
+// 菜单显示/隐藏处理器
+electron_1.ipcMain.handle('set-menu-visible', async (_event, visible) => {
+    if (visible) {
+        // 显示菜单 - 重新创建菜单
+        createMenu();
+    }
+    else {
+        // 隐藏菜单
+        electron_1.Menu.setApplicationMenu(null);
+    }
+    return { success: true };
+});
+// Project file system handlers
+// 项目文件系统处理器
+electron_1.ipcMain.handle('file-exists', async (_event, filePath) => {
+    try {
+        await fs.promises.access(filePath);
+        return true;
+    }
+    catch {
+        return false;
+    }
+});
+electron_1.ipcMain.handle('create-directory', async (_event, dirPath) => {
+    try {
+        await fs.promises.mkdir(dirPath, { recursive: true });
+    }
+    catch (error) {
+        throw new Error(`Failed to create directory: ${error.message}`);
+    }
+});
+electron_1.ipcMain.handle('write-file', async (_event, filePath, content) => {
+    try {
+        await fs.promises.writeFile(filePath, content, 'utf8');
+    }
+    catch (error) {
+        throw new Error(`Failed to write file: ${error.message}`);
+    }
+});
+electron_1.ipcMain.handle('read-file', async (_event, filePath) => {
+    try {
+        return await fs.promises.readFile(filePath, 'utf8');
+    }
+    catch (error) {
+        throw new Error(`Failed to read file: ${error.message}`);
+    }
+});
+electron_1.ipcMain.handle('read-directory', async (_event, dirPath) => {
+    try {
+        return await fs.promises.readdir(dirPath);
+    }
+    catch (error) {
+        throw new Error(`Failed to read directory: ${error.message}`);
+    }
+});
+electron_1.ipcMain.handle('get-file-stats', async (_event, filePath) => {
+    try {
+        const stats = await fs.promises.stat(filePath);
+        return {
+            size: stats.size,
+            modified: stats.mtime,
+            isDirectory: stats.isDirectory()
+        };
+    }
+    catch (error) {
+        throw new Error(`Failed to get file stats: ${error.message}`);
+    }
+});
+// Path operations handler
+// 路径操作处理器
+electron_1.ipcMain.handle('path-join', async (_event, ...parts) => {
+    return path.join(...parts);
+});
 //# sourceMappingURL=main.js.map

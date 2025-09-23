@@ -65,8 +65,10 @@
   },
   "project": {
     "newProject": "新建项目",
+    "openProject": "打开项目",
     "projectName": "项目名称",
     "projectPath": "项目路径",
+    "selectLocation": "选择位置...",
     "create": "创建",
     "cancel": "取消",
     "browse": "浏览",
@@ -74,7 +76,24 @@
     "scenes": "场景",
     "scripts": "脚本",
     "textures": "纹理",
-    "audio": "音频"
+    "audio": "音频",
+    "recentProjects": "最近的项目",
+    "noRecentProjects": "没有最近的项目。创建或打开一个项目以开始使用。"
+  },
+  "welcome": {
+    "subtitle": "跨平台的 NovaECS 框架游戏编辑器",
+    "newProjectDescription": "创建一个具有默认结构的新 Nova ECS 项目",
+    "openProjectDescription": "从您的计算机打开现有的 Nova ECS 项目",
+    "recentProjectsTitle": "最近的项目"
+  },
+  "common": {
+    "loading": "加载中...",
+    "error": "错误",
+    "success": "成功",
+    "ok": "确定",
+    "cancel": "取消",
+    "save": "保存",
+    "close": "关闭"
   },
   "scene": {
     "newScene": "新建场景",

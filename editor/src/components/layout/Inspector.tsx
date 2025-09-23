@@ -129,16 +129,32 @@ function Inspector() {
     if (!selectedAsset) return null;
 
     const getFileSize = () => {
-      // Mock file sizes based on type
-      const sizeMB = Math.random() * 10 + 0.1;
-      return `${sizeMB.toFixed(1)} MB`;
+      if (selectedAsset.size !== undefined) {
+        const sizeKB = selectedAsset.size / 1024;
+        if (sizeKB < 1024) {
+          return `${sizeKB.toFixed(1)} KB`;
+        } else {
+          const sizeMB = sizeKB / 1024;
+          return `${sizeMB.toFixed(1)} MB`;
+        }
+      }
+      return 'Unknown';
     };
 
     const getAssetDimensions = () => {
       if (selectedAsset.type === 'texture') {
-        return `${Math.floor(Math.random() * 512 + 256)}x${Math.floor(Math.random() * 512 + 256)}`;
+        // For now, we don't have image dimension detection
+        // This could be added later with an image metadata API
+        return null;
       }
       return null;
+    };
+
+    const getLastModified = () => {
+      if (selectedAsset.modified) {
+        return selectedAsset.modified.toLocaleDateString() + ' ' + selectedAsset.modified.toLocaleTimeString();
+      }
+      return 'Unknown';
     };
 
     return (
@@ -159,6 +175,14 @@ function Inspector() {
             <PropertyRow>
               <PropertyLabel>Size:</PropertyLabel>
               <PropertyValue>{getFileSize()}</PropertyValue>
+            </PropertyRow>
+            <PropertyRow>
+              <PropertyLabel>Modified:</PropertyLabel>
+              <PropertyValue>{getLastModified()}</PropertyValue>
+            </PropertyRow>
+            <PropertyRow>
+              <PropertyLabel>Path:</PropertyLabel>
+              <PropertyValue style={{ wordBreak: 'break-all', fontSize: '11px' }}>{selectedAsset.path}</PropertyValue>
             </PropertyRow>
             {getAssetDimensions() && (
               <PropertyRow>

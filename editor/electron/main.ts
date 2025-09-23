@@ -325,3 +325,79 @@ ipcMain.handle('change-language', async (_event, locale: string) => {
   createMenu(locale);
   return { success: true };
 });
+
+// Menu visibility handler
+// 菜单显示/隐藏处理器
+ipcMain.handle('set-menu-visible', async (_event, visible: boolean) => {
+  if (visible) {
+    // 显示菜单 - 重新创建菜单
+    createMenu();
+  } else {
+    // 隐藏菜单
+    Menu.setApplicationMenu(null);
+  }
+  return { success: true };
+});
+
+// Project file system handlers
+// 项目文件系统处理器
+
+ipcMain.handle('file-exists', async (_event, filePath: string): Promise<boolean> => {
+  try {
+    await fs.promises.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+});
+
+ipcMain.handle('create-directory', async (_event, dirPath: string): Promise<void> => {
+  try {
+    await fs.promises.mkdir(dirPath, { recursive: true });
+  } catch (error) {
+    throw new Error(`Failed to create directory: ${(error as Error).message}`);
+  }
+});
+
+ipcMain.handle('write-file', async (_event, filePath: string, content: string): Promise<void> => {
+  try {
+    await fs.promises.writeFile(filePath, content, 'utf8');
+  } catch (error) {
+    throw new Error(`Failed to write file: ${(error as Error).message}`);
+  }
+});
+
+ipcMain.handle('read-file', async (_event, filePath: string): Promise<string> => {
+  try {
+    return await fs.promises.readFile(filePath, 'utf8');
+  } catch (error) {
+    throw new Error(`Failed to read file: ${(error as Error).message}`);
+  }
+});
+
+ipcMain.handle('read-directory', async (_event, dirPath: string): Promise<string[]> => {
+  try {
+    return await fs.promises.readdir(dirPath);
+  } catch (error) {
+    throw new Error(`Failed to read directory: ${(error as Error).message}`);
+  }
+});
+
+ipcMain.handle('get-file-stats', async (_event, filePath: string): Promise<{size: number; modified: Date; isDirectory: boolean}> => {
+  try {
+    const stats = await fs.promises.stat(filePath);
+    return {
+      size: stats.size,
+      modified: stats.mtime,
+      isDirectory: stats.isDirectory()
+    };
+  } catch (error) {
+    throw new Error(`Failed to get file stats: ${(error as Error).message}`);
+  }
+});
+
+// Path operations handler
+// 路径操作处理器
+ipcMain.handle('path-join', async (_event, ...parts: string[]): Promise<string> => {
+  return path.join(...parts);
+});
