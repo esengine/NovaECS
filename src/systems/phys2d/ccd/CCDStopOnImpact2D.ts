@@ -12,16 +12,14 @@ import { Body2D } from '../../../components/Body2D';
 import { ShapeCircle } from '../../../components/ShapeCircle';
 import { ConvexHull2D } from '../../../components/ConvexHull2D';
 import { HullWorld2D } from '../../../components/HullWorld2D';
-import { Material2D } from '../../../components/Material2D';
+import { Material2D, createDefaultMaterial } from '../../../components/Material2D';
 import { BroadphasePairs } from '../../../resources/BroadphasePairs';
-import { MaterialTable2D, mix, resolveRestitution } from '../../../resources/MaterialTable2D';
+import { MaterialTable2D, mix, resolveRestitution, resolveFriction } from '../../../resources/MaterialTable2D';
 import { TOIQueue2D } from '../../../resources/TOIQueue2D';
 import { raycastConvexInflated } from './RaycastConvexInflated2D';
 import type { FX } from '../../../math/fixed';
 import { add, sub, mul, div, abs, f, ONE, ZERO } from '../../../math/fixed';
 
-// Helper for debug output
-const toFloat = (fx: FX): number => (fx as any) / 65536;
 import type { World } from '../../../core/World';
 import type { Entity } from '../../../utils/Types';
 
@@ -30,6 +28,23 @@ import type { Entity } from '../../../utils/Types';
  * TOI定位的安全间隙
  */
 const TOI_EPSILON = f(0.0005);
+
+/**
+ * Get material for entity, with fallback hierarchy
+ * 获取实体的材质，带回退层次结构
+ */
+function getMaterial(world: World, entity: Entity): Material2D {
+  // Try entity-specific material first
+  let material = world.getComponent(entity, Material2D);
+  if (material) return material;
+
+  // Fall back to world default material
+  material = world.getResource(Material2D);
+  if (material) return material;
+
+  // Use built-in default as last resort
+  return createDefaultMaterial();
+}
 
 /**
  * Vector dot product
@@ -56,13 +71,6 @@ const normalize = (x: FX, y: FX): readonly [FX, FX] => {
   return [div(x, len), div(y, len)];
 };
 
-/**
- * Get material from entity or fallback to default
- * 从实体获取材质或回退到默认值
- */
-function getMaterial(world: World, entity: Entity): Material2D {
-  return world.getComponent(entity, Material2D) ?? new Material2D('default', f(0.5), f(0.4), f(0.8), f(0.1));
-}
 
 /**
  * Apply aggressive CCD response for overlapping objects (t=0 case)
@@ -81,9 +89,10 @@ function applyCCDResponseOverlapping(
 
   if (!bodyA || !bodyB) return;
 
-  // TODO: Use materials for CCD response calculation
-  // const materialA = getMaterial(world, entityA);
-  // const materialB = getMaterial(world, entityB);
+  // Use materials for CCD response calculation
+  // 使用材质进行CCD响应计算
+  const materialA = getMaterial(world, entityA);
+  const materialB = getMaterial(world, entityB);
 
   // Normalize contact normal
   // 归一化接触法线
@@ -109,17 +118,41 @@ function applyCCDResponseOverlapping(
 
     // Apply full correction to the moving object (circle)
     // 对运动物体（圆形）应用完全修正
-    console.log(`CCD: Velocity before correction: (${toFloat(bodyB.vx)}, ${toFloat(bodyB.vy)})`);
     bodyB.vx = add(bodyB.vx, deltaVnx);
     bodyB.vy = add(bodyB.vy, deltaVny);
-    console.log(`CCD: Velocity after correction: (${toFloat(bodyB.vx)}, ${toFloat(bodyB.vy)})`);
+
+    // Apply friction for tangential motion
+    // 对切向运动应用摩擦
+    const materialTable = world.getResource(MaterialTable2D);
+    if (materialTable) {
+      const rule = materialTable.getRule(materialA, materialB);
+      const frictionCoeffs = resolveFriction(materialA, materialB, rule);
+      const friction = frictionCoeffs.muS;
+
+      // Calculate tangent vector
+      const tx = sub(ZERO, normalizedNy);
+      const ty = normalizedNx;
+      const vt = dot(relVx, relVy, tx, ty);
+
+      if (abs(vt) > f(0.001)) {
+        const frictionImpulse = mul(friction, abs(deltaVn));
+        const maxFrictionImpulse = abs(vt);
+        const actualFrictionImpulse = vt > ZERO
+          ? sub(ZERO, abs(frictionImpulse) < maxFrictionImpulse ? frictionImpulse : maxFrictionImpulse)
+          : (abs(frictionImpulse) < maxFrictionImpulse ? frictionImpulse : maxFrictionImpulse);
+
+        const deltaVtx = mul(tx, actualFrictionImpulse);
+        const deltaVty = mul(ty, actualFrictionImpulse);
+
+        bodyB.vx = add(bodyB.vx, deltaVtx);
+        bodyB.vy = add(bodyB.vy, deltaVty);
+      }
+    }
 
     // IMPORTANT: Save the modified component back to the world
     // 重要：将修改后的组件保存回世界
     world.replaceComponent(entityB, Body2D, bodyB);
-    console.log(`CCD: Saved velocity changes to entity ${entityB}`);
 
-    console.log(`CCD: Aggressive velocity correction: vn=${vn} -> 0, delta=(${deltaVnx}, ${deltaVny})`);
   }
 }
 
@@ -168,11 +201,16 @@ function applyCCDResponse(
   // 仅当物体相互接近时应用响应
   if (vn >= ZERO) return;
 
-  // TODO: Calculate tangent vector and tangential velocity for friction
+  // Calculate tangent vector and tangential velocity for friction
   // 计算切向量和切向速度用于摩擦
-  // const tx = sub(ZERO, normalizedNy);
-  // const ty = normalizedNx;
-  // const vt = dot(relVx, relVy, tx, ty);
+  const tx = sub(ZERO, normalizedNy);
+  const ty = normalizedNx;
+  const vt = dot(relVx, relVy, tx, ty);
+
+  // Get friction coefficient
+  // 获取摩擦系数
+  const frictionCoeffs = resolveFriction(materialA, materialB, rule);
+  const friction = frictionCoeffs.muS; // Use static friction for CCD
 
   // Determine if bounce should occur based on threshold
   // 根据阈值确定是否应该发生弹跳
@@ -196,6 +234,26 @@ function applyCCDResponse(
   bodyB.vy = add(bodyB.vy, halfDeltaVny);
   bodyA.vx = sub(bodyA.vx, halfDeltaVnx);
   bodyA.vy = sub(bodyA.vy, halfDeltaVny);
+
+  // Apply friction impulse if there's tangential velocity
+  // 如果有切向速度，应用摩擦冲量
+  if (abs(vt) > f(0.001)) { // Small threshold to avoid jitter
+    const frictionImpulse = mul(friction, abs(deltaVn));
+    const maxFrictionImpulse = abs(vt);
+    const actualFrictionImpulse = vt > ZERO
+      ? sub(ZERO, abs(frictionImpulse) < maxFrictionImpulse ? frictionImpulse : maxFrictionImpulse)
+      : (abs(frictionImpulse) < maxFrictionImpulse ? frictionImpulse : maxFrictionImpulse);
+
+    const deltaVtx = mul(tx, actualFrictionImpulse);
+    const deltaVty = mul(ty, actualFrictionImpulse);
+    const halfDeltaVtx = div(deltaVtx, f(2));
+    const halfDeltaVty = div(deltaVty, f(2));
+
+    bodyB.vx = add(bodyB.vx, halfDeltaVtx);
+    bodyB.vy = add(bodyB.vy, halfDeltaVty);
+    bodyA.vx = sub(bodyA.vx, halfDeltaVtx);
+    bodyA.vy = sub(bodyA.vy, halfDeltaVty);
+  }
 
   // Preserve tangential velocity for sliding behavior
   // 保持切向速度以实现滑动行为
@@ -260,15 +318,12 @@ function processCCDCollision(
     inflationRadius
   );
 
-  console.log(`CCD: Raycast from (${bodyB.px}, ${bodyB.py}) direction (${dx}, ${dy}) radius ${inflationRadius}`);
-  console.log(`CCD: Hit result: hit=${hit.hit}, t=${hit.t}, normal=(${hit.nx}, ${hit.ny})`);
 
   if (!hit.hit) return;
 
   // Handle overlapping case (t=0) differently from future collision (t>0)
   // 对重叠情况(t=0)和未来碰撞(t>0)采用不同处理
   if (hit.t === ZERO) {
-    console.log(`CCD: Already overlapping, applying separation`);
 
     // Already overlapping - calculate proper separation distance
     // 已经重叠 - 计算适当的分离距离
@@ -302,7 +357,6 @@ function processCCDCollision(
       }
     }
 
-    console.log(`CCD: Target position: (${toFloat(targetX)}, ${toFloat(targetY)})`);
 
     // For overlapping collision, move circle to safe distance from wall
     // 对于重叠碰撞，将圆移动到距离墙壁的安全距离
@@ -313,18 +367,15 @@ function processCCDCollision(
       const wallLeftEdge = sub(wallBody.px, f(0.1)); // Wall half-width = 0.1
       const safePosition = sub(sub(wallLeftEdge, circle.r), f(0.15)); // Additional safety margin
 
-      console.log(`CCD: Wall left edge: ${toFloat(wallLeftEdge)}, Safe position: ${toFloat(safePosition)}`);
 
       // Always move to safe position for overlapping collisions
       // 对于重叠碰撞总是移动到安全位置
-      console.log(`CCD: Moving circle from ${toFloat(bodyB.px)} to safe position ${toFloat(safePosition)}`);
       bodyB.px = safePosition;
       // Y position remains unchanged
 
       // Save position changes to world
       // 将位置变化保存到世界
       world.replaceComponent(entityB, Body2D, bodyB);
-      console.log(`CCD: Saved position changes to entity ${entityB}`);
     } else {
       // Fallback: use calculated target with safety margin
       // 回退：使用计算的目标加安全间隙
@@ -341,17 +392,13 @@ function processCCDCollision(
       // Save fallback position changes to world
       // 将回退位置变化保存到世界
       world.replaceComponent(entityB, Body2D, bodyB);
-      console.log(`CCD: Saved fallback position changes to entity ${entityB}`);
     }
 
-    console.log(`CCD: Final position after correction: (${toFloat(bodyB.px)}, ${toFloat(bodyB.py)})`);
 
     // DEBUG: log the wall position for comparison
     if (wallBody) {
-      console.log(`CCD: Wall is at (${toFloat(wallBody.px)}, ${toFloat(wallBody.py)})`);
     }
   } else {
-    console.log(`CCD: Future collision at t=${hit.t}, moving to TOI`);
 
     // Calculate adjusted TOI position: p = p0 + d * (t - ε)
     // 计算调整后的TOI位置：p = p0 + d * (t - ε)
@@ -367,7 +414,6 @@ function processCCDCollision(
     // Save TOI position changes to world
     // 将TOI位置变化保存到世界
     world.replaceComponent(entityB, Body2D, bodyB);
-    console.log(`CCD: Saved TOI position changes to entity ${entityB}`);
   }
 
   // Apply velocity correction with restitution and sliding
@@ -412,9 +458,7 @@ function processCCDCollision(
       py: cpY      // Contact point Y / 接触点Y
     });
 
-    console.log(`CCD: Added TOI event at t=${hit.t} for future collision`);
   } else {
-    console.log(`CCD: Skipping TOI event for overlapping collision (t=0) - already handled`);
   }
 }
 
@@ -433,7 +477,6 @@ export const CCDStopOnImpact2D = system(
 
     // Process each broadphase pair
     // 处理每个宽相对
-    console.log(`CCD: Processing ${pairs.pairs.length} broadphase pairs`);
     for (const pair of pairs.pairs) {
       const entityA = pair.a;
       const entityB = pair.b;
@@ -447,16 +490,12 @@ export const CCDStopOnImpact2D = system(
                        world.hasComponent(entityB, HullWorld2D);
       const hasCircleB = world.hasComponent(entityB, ShapeCircle);
 
-      console.log(`CCD: Pair (${entityA}, ${entityB}) - HullA:${hasHullA}, CircleA:${hasCircleA}, HullB:${hasHullB}, CircleB:${hasCircleB}`);
 
       if (hasHullA && hasCircleB) {
-        console.log(`CCD: Processing Hull(${entityA}) vs Circle(${entityB})`);
         processCCDCollision(world, entityA, entityB, dt);
       } else if (hasHullB && hasCircleA) {
-        console.log(`CCD: Processing Hull(${entityB}) vs Circle(${entityA})`);
         processCCDCollision(world, entityB, entityA, dt);
       } else {
-        console.log(`CCD: Skipping pair - not hull-circle`);
       }
     }
   }

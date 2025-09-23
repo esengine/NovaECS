@@ -10,6 +10,8 @@ import type { IColumn, IArrayColumn } from '../storage/IColumn';
 import type { Archetype } from '../archetype/Archetype';
 import { ColumnType } from '../storage/IColumn';
 import { getComponentType } from './ComponentRegistry';
+import { VisualMethod, VISUAL_CATEGORIES } from '../visual/decorators';
+import { I18N_KEYS } from '../visual/i18n/keys';
 
 /**
  * Component access mode for query iteration
@@ -172,6 +174,48 @@ export class Query<Ts extends unknown[]> {
    * Iterate over matching entities with component data
    * 遍历匹配的实体及其组件数据
    */
+  @VisualMethod({
+    titleKey: I18N_KEYS.ECS.QUERY.FOR_EACH.TITLE,
+    categoryKey: VISUAL_CATEGORIES.ECS.QUERY,
+    descriptionKey: I18N_KEYS.ECS.QUERY.FOR_EACH.DESCRIPTION,
+    color: '#4CAF50',
+    icon: 'query-foreach',
+    inputs: [
+      {
+        type: 'execute',
+        label: 'Execute'
+      },
+      {
+        type: 'query',
+        label: 'Query',
+        required: true,
+        description: 'Query to iterate over'
+      }
+    ],
+    outputs: [
+      {
+        type: 'execute',
+        label: 'For Each',
+        description: 'Executed once per entity'
+      },
+      {
+        type: 'entity',
+        label: 'Entity',
+        description: 'Current entity'
+      },
+      {
+        type: 'component-data',
+        label: 'Components',
+        description: 'Entity components'
+      },
+      {
+        type: 'execute',
+        label: 'Then',
+        description: 'Executed after all entities'
+      }
+    ],
+    stateful: false
+  })
   forEach(cb: (e: Entity, ...args: Ts) => void): void {
     this.world._enterIteration();
     try {
@@ -237,6 +281,29 @@ export class Query<Ts extends unknown[]> {
    * Count matching entities
    * 计算匹配的实体数量
    */
+  @VisualMethod({
+    titleKey: I18N_KEYS.ECS.QUERY.COUNT.TITLE,
+    categoryKey: VISUAL_CATEGORIES.ECS.QUERY,
+    descriptionKey: I18N_KEYS.ECS.QUERY.COUNT.DESCRIPTION,
+    color: '#FF9800',
+    icon: 'query-count',
+    inputs: [
+      {
+        type: 'query',
+        label: 'Query',
+        required: true,
+        description: 'Query to count'
+      }
+    ],
+    outputs: [
+      {
+        type: 'number',
+        label: 'Count',
+        description: 'Number of matching entities'
+      }
+    ],
+    stateful: false
+  })
   count(): number {
     let total = 0;
     this.forEach(() => { total++; });
@@ -312,6 +379,35 @@ export class Query<Ts extends unknown[]> {
    * Create a new query that excludes entities with the specified components
    * 创建一个新查询，排除具有指定组件的实体
    */
+  @VisualMethod({
+    titleKey: I18N_KEYS.ECS.QUERY.WITHOUT.TITLE,
+    categoryKey: VISUAL_CATEGORIES.ECS.QUERY,
+    descriptionKey: I18N_KEYS.ECS.QUERY.WITHOUT.DESCRIPTION,
+    color: '#F44336',
+    icon: 'query-without',
+    inputs: [
+      {
+        type: 'query',
+        label: 'Query',
+        required: true,
+        description: 'Base query'
+      },
+      {
+        type: 'component-type',
+        label: 'Exclude Types',
+        required: true,
+        description: 'Component types to exclude'
+      }
+    ],
+    outputs: [
+      {
+        type: 'query',
+        label: 'Filtered Query',
+        description: 'Query excluding specified components'
+      }
+    ],
+    stateful: false
+  })
   without<U extends ComponentCtor<any>[]>(...excludeTypes: U): Query<Ts> {
     const newOpts: QueryOptions = {
       ...this.opts,

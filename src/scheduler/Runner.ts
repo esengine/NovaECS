@@ -135,7 +135,7 @@ export interface RunnerConfig {
  */
 export class ParallelRunner {
   private executors = new Map<SystemHandle, SystemExecutor>();
-  private config: Required<RunnerConfig>;
+  private config: Required<Omit<RunnerConfig, 'workerPool'>> & { workerPool?: WorkerPool };
   private planner: WavePlanner;
   private currentSession: {
     sessionId: string;
@@ -513,7 +513,7 @@ export class ParallelRunner {
    * Get current configuration
    * 获取当前配置
    */
-  getConfig(): Required<RunnerConfig> {
+  getConfig(): Required<Omit<RunnerConfig, 'workerPool'>> & { workerPool?: WorkerPool } {
     return { ...this.config };
   }
 

@@ -15,7 +15,7 @@
     "noImplicitThis": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "exactOptionalPropertyTypes": true,
+    "exactOptionalPropertyTypes": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "declaration": true,

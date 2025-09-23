@@ -21,6 +21,8 @@ import { PRNG } from '../determinism/PRNG';
 import type { Prefab, SpawnOptions } from '../prefab/Prefab';
 import { f } from '../math/fixed';
 import type { FX } from '../math/fixed';
+import { VisualMethod, VISUAL_CATEGORIES } from '../visual/decorators';
+import { I18N_KEYS } from '../visual/i18n/keys';
 
 /**
  * Component base interface (placeholder)
@@ -166,6 +168,39 @@ export class World {
    * Create new entity
    * 创建新实体
    */
+  @VisualMethod({
+    titleKey: I18N_KEYS.ECS.ENTITY.CREATE.TITLE,
+    categoryKey: VISUAL_CATEGORIES.ECS.ENTITY,
+    descriptionKey: I18N_KEYS.ECS.ENTITY.CREATE.DESCRIPTION,
+    color: '#4CAF50',
+    icon: 'entity-add',
+    inputs: [
+      {
+        type: 'execute',
+        labelKey: I18N_KEYS.COMMON.EXECUTE,
+        descriptionKey: I18N_KEYS.PIN.EXECUTE.DESCRIPTION
+      },
+      {
+        type: 'boolean',
+        labelKey: I18N_KEYS.COMMON.ENABLED,
+        defaultValue: true,
+        descriptionKey: I18N_KEYS.PIN.ENABLED.DESCRIPTION
+      }
+    ],
+    outputs: [
+      {
+        type: 'execute',
+        labelKey: I18N_KEYS.COMMON.THEN,
+        descriptionKey: I18N_KEYS.PIN.THEN.DESCRIPTION
+      },
+      {
+        type: 'entity',
+        labelKey: I18N_KEYS.COMMON.ENTITY,
+        descriptionKey: I18N_KEYS.PIN.ENTITY.DESCRIPTION
+      }
+    ],
+    stateful: true
+  })
   createEntity(enabled = true): Entity {
     const entity = this.em.create(enabled);
     this.migrate(entity); // Migrate to empty archetype
@@ -177,6 +212,34 @@ export class World {
    * Destroy entity and remove all its components
    * 销毁实体并移除其所有组件
    */
+  @VisualMethod({
+    titleKey: I18N_KEYS.ECS.ENTITY.DESTROY.TITLE,
+    categoryKey: VISUAL_CATEGORIES.ECS.ENTITY,
+    descriptionKey: I18N_KEYS.ECS.ENTITY.DESTROY.DESCRIPTION,
+    color: '#F44336',
+    icon: 'entity-remove',
+    inputs: [
+      {
+        type: 'execute',
+        labelKey: I18N_KEYS.COMMON.EXECUTE,
+        descriptionKey: I18N_KEYS.PIN.EXECUTE.DESCRIPTION
+      },
+      {
+        type: 'entity',
+        labelKey: I18N_KEYS.COMMON.ENTITY,
+        required: true,
+        descriptionKey: I18N_KEYS.PIN.ENTITY.DESCRIPTION
+      }
+    ],
+    outputs: [
+      {
+        type: 'execute',
+        labelKey: I18N_KEYS.COMMON.THEN,
+        descriptionKey: I18N_KEYS.PIN.THEN.DESCRIPTION
+      }
+    ],
+    stateful: true
+  })
   destroyEntity(e: Entity): void {
     this.assertNotIterating();
 
@@ -433,6 +496,43 @@ export class World {
    * Add component to entity (convenience method)
    * 向实体添加组件（便捷方法）
    */
+  @VisualMethod({
+    titleKey: I18N_KEYS.ECS.COMPONENT.ADD.TITLE,
+    categoryKey: VISUAL_CATEGORIES.ECS.COMPONENT,
+    descriptionKey: I18N_KEYS.ECS.COMPONENT.ADD.DESCRIPTION,
+    color: '#2196F3',
+    icon: 'component-add',
+    inputs: [
+      {
+        type: 'execute',
+        label: 'Execute'
+      },
+      {
+        type: 'entity',
+        label: 'Entity',
+        required: true,
+        description: 'Target entity'
+      },
+      {
+        type: 'component-type',
+        label: 'Component Type',
+        required: true,
+        description: 'Component constructor'
+      },
+      {
+        type: 'component-data',
+        label: 'Initial Data',
+        description: 'Optional initial component data'
+      }
+    ],
+    outputs: [
+      {
+        type: 'execute',
+        label: 'Then'
+      }
+    ],
+    stateful: true
+  })
   addComponent<T>(e: Entity, ctor: ComponentCtor<T>, data?: Partial<T>): void {
     const type = getComponentType(ctor);
     const component = new ctor();
@@ -448,6 +548,38 @@ export class World {
    * Remove component from entity (convenience method)
    * 从实体移除组件（便捷方法）
    */
+  @VisualMethod({
+    titleKey: I18N_KEYS.ECS.COMPONENT.REMOVE.TITLE,
+    categoryKey: VISUAL_CATEGORIES.ECS.COMPONENT,
+    descriptionKey: I18N_KEYS.ECS.COMPONENT.REMOVE.DESCRIPTION,
+    color: '#FF9800',
+    icon: 'component-remove',
+    inputs: [
+      {
+        type: 'execute',
+        label: 'Execute'
+      },
+      {
+        type: 'entity',
+        label: 'Entity',
+        required: true,
+        description: 'Target entity'
+      },
+      {
+        type: 'component-type',
+        label: 'Component Type',
+        required: true,
+        description: 'Component constructor to remove'
+      }
+    ],
+    outputs: [
+      {
+        type: 'execute',
+        label: 'Then'
+      }
+    ],
+    stateful: true
+  })
   removeComponent<T>(e: Entity, ctor: ComponentCtor<T>): void {
     const type = getComponentType(ctor);
     this.removeComponentFromEntity(e, type);
@@ -457,6 +589,35 @@ export class World {
    * Get component from entity (convenience method)
    * 从实体获取组件（便捷方法）
    */
+  @VisualMethod({
+    titleKey: I18N_KEYS.ECS.COMPONENT.GET.TITLE,
+    categoryKey: VISUAL_CATEGORIES.ECS.COMPONENT,
+    descriptionKey: I18N_KEYS.ECS.COMPONENT.GET.DESCRIPTION,
+    color: '#9C27B0',
+    icon: 'component-get',
+    inputs: [
+      {
+        type: 'entity',
+        label: 'Entity',
+        required: true,
+        description: 'Target entity'
+      },
+      {
+        type: 'component-type',
+        label: 'Component Type',
+        required: true,
+        description: 'Component constructor to get'
+      }
+    ],
+    outputs: [
+      {
+        type: 'component-data',
+        label: 'Component',
+        description: 'Component data or undefined if not found'
+      }
+    ],
+    stateful: false
+  })
   getComponent<T>(e: Entity, ctor: ComponentCtor<T>): T | undefined {
     const type = getComponentType(ctor);
     const archetype = this.entityArchetype.get(e);
@@ -491,6 +652,35 @@ export class World {
    * Check if entity has component (convenience method)
    * 检查实体是否有组件（便捷方法）
    */
+  @VisualMethod({
+    titleKey: I18N_KEYS.ECS.COMPONENT.HAS.TITLE,
+    categoryKey: VISUAL_CATEGORIES.ECS.COMPONENT,
+    descriptionKey: I18N_KEYS.ECS.COMPONENT.HAS.DESCRIPTION,
+    color: '#607D8B',
+    icon: 'component-check',
+    inputs: [
+      {
+        type: 'entity',
+        label: 'Entity',
+        required: true,
+        description: 'Target entity'
+      },
+      {
+        type: 'component-type',
+        label: 'Component Type',
+        required: true,
+        description: 'Component constructor to check'
+      }
+    ],
+    outputs: [
+      {
+        type: 'boolean',
+        label: 'Has Component',
+        description: 'True if entity has the component'
+      }
+    ],
+    stateful: false
+  })
   hasComponent<T>(e: Entity, ctor: ComponentCtor<T>): boolean {
     const type = getComponentType(ctor);
     const archetype = this.entityArchetype.get(e);
@@ -597,6 +787,29 @@ export class World {
   query<T1>(c1: ComponentCtor<T1>): Query<[T1]>;
   query<T1, T2>(c1: ComponentCtor<T1>, c2: ComponentCtor<T2>): Query<[T1, T2]>;
   query<T1, T2, T3>(c1: ComponentCtor<T1>, c2: ComponentCtor<T2>, c3: ComponentCtor<T3>): Query<[T1, T2, T3]>;
+  @VisualMethod({
+    titleKey: I18N_KEYS.ECS.ENTITY.QUERY.TITLE,
+    categoryKey: VISUAL_CATEGORIES.ECS.QUERY,
+    descriptionKey: I18N_KEYS.ECS.ENTITY.QUERY.DESCRIPTION,
+    color: '#3F51B5',
+    icon: 'query-create',
+    inputs: [
+      {
+        type: 'component-type',
+        label: 'Component Types',
+        required: true,
+        description: 'Component constructors to query for'
+      }
+    ],
+    outputs: [
+      {
+        type: 'query',
+        label: 'Query',
+        description: 'Query object for iteration'
+      }
+    ],
+    stateful: false
+  })
   query(...ctors: ComponentCtor<unknown>[]): Query<unknown[]> {
     const types = ctors.map(getComponentType);
     return new Query(this, types);
