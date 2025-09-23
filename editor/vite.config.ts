@@ -26,7 +26,8 @@ export default defineConfig({
     strictPort: true
   },
   optimizeDeps: {
-    exclude: ['@esengine/nova-ecs']
+    exclude: ['@esengine/nova-ecs'],
+    include: ['reflect-metadata']
   },
   define: {
     // Fix potential build warnings

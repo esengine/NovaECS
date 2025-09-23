@@ -130,7 +130,11 @@
     "cancel": "Cancel",
     "ok": "OK",
     "apply": "Apply",
-    "close": "Close"
+    "close": "Close",
+    "createVisualScript": "Create Visual Script",
+    "enterFileName": "Enter file name:",
+    "createNewProject": "Create New Project",
+    "enterProjectName": "Enter project name:"
   },
   "settings": {
     "title": "Settings",
@@ -178,5 +182,151 @@
     "noEntities": "No entities",
     "noEntitySelected": "No entity selected",
     "entitiesSelected": "entities selected"
+  },
+  "visual": {
+    "editor": "Visual Editor",
+    "nodePalette": "Node Palette",
+    "searchNodes": "Search nodes...",
+    "createVisualScript": "Create Visual Script",
+    "save": "Save",
+    "load": "Load",
+    "run": "Run",
+    "stop": "Stop",
+    "clear": "Clear",
+    "toolbar": {
+      "save": "Save",
+      "load": "Load",
+      "run": "Run",
+      "stop": "Stop",
+      "clear": "Clear"
+    },
+    "nodes": {
+      "noNodes": "No nodes found",
+      "nodes": "nodes",
+      "connections": "connections",
+      "categories": {
+        "flow": "Flow Control",
+        "math": "Math",
+        "logic": "Logic",
+        "variables": "Variables",
+        "events": "Events",
+        "ecs": "ECS",
+        "Flow/Control": "Flow Control",
+        "Math/Basic": "Math Operations",
+        "ECS/Entity": "ECS Entities",
+        "ECS/Component": "ECS Components",
+        "ECS/Query": "ECS Queries",
+        "ECS/System": "ECS Systems",
+        "Uncategorized": "Uncategorized"
+      }
+    },
+    "builtinNodes": {
+      "start": "Start",
+      "startDesc": "Start execution",
+      "end": "End",
+      "endDesc": "End execution",
+      "add": "Add",
+      "addDesc": "Add two numbers",
+      "multiply": "Multiply",
+      "multiplyDesc": "Multiply two numbers"
+    }
+  },
+  "ecs": {
+    "entity": {
+      "create": {
+        "title": "Create Entity",
+        "description": "Create a new entity in the world"
+      },
+      "destroy": {
+        "title": "Destroy Entity",
+        "description": "Remove an entity from the world"
+      },
+      "query": {
+        "title": "Query Entities",
+        "description": "Create a query to find entities with specific components"
+      }
+    },
+    "component": {
+      "add": {
+        "title": "Add Component",
+        "description": "Add a component to an entity"
+      },
+      "remove": {
+        "title": "Remove Component",
+        "description": "Remove a component from an entity"
+      },
+      "get": {
+        "title": "Get Component",
+        "description": "Get component data from an entity"
+      },
+      "has": {
+        "title": "Has Component",
+        "description": "Check if entity has a specific component"
+      }
+    },
+    "query": {
+      "forEach": {
+        "title": "For Each Entity",
+        "description": "Iterate over all entities matching the query"
+      },
+      "count": {
+        "title": "Count Entities",
+        "description": "Get the number of entities matching the query"
+      },
+      "without": {
+        "title": "Exclude Component",
+        "description": "Exclude entities that have specific components from query"
+      }
+    }
+  },
+  "category": {
+    "ecs": {
+      "entity": "ECS Entities",
+      "component": "ECS Components",
+      "query": "ECS Queries",
+      "system": "ECS Systems"
+    },
+    "math": {
+      "basic": "Math Operations",
+      "vector": "Vector Math",
+      "trigonometry": "Trigonometry"
+    },
+    "flow": {
+      "control": "Flow Control",
+      "logic": "Logic",
+      "iteration": "Iteration"
+    },
+    "events": {
+      "triggers": "Event Triggers",
+      "handlers": "Event Handlers"
+    },
+    "utility": {
+      "conversion": "Utility Conversion",
+      "debug": "Debug"
+    }
+  },
+  "contextMenu": {
+    "createVisualScript": "Create Visual Script",
+    "createFolder": "Create Folder",
+    "delete": "Delete",
+    "rename": "Rename",
+    "copy": "Copy",
+    "paste": "Paste",
+    "refresh": "Refresh",
+    "showInExplorer": "Show in Explorer"
+  },
+  "fileTypes": {
+    "visual": "Visual Script",
+    "scene": "Scene",
+    "script": "Script",
+    "texture": "Texture",
+    "audio": "Audio",
+    "material": "Material",
+    "unknown": "Unknown"
+  },
+  "tabs": {
+    "scene": "Scene",
+    "visual": "Visual",
+    "unsaved": "(Unsaved)"
   }
 }

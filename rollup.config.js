@@ -1,4 +1,5 @@
 import typescript from '@rollup/plugin-typescript';
+import { nodeResolve } from '@rollup/plugin-node-resolve';
 import { dts } from 'rollup-plugin-dts';
 
 const external = ['superjson', '@msgpack/msgpack'];
@@ -13,6 +14,9 @@ export default [
       sourcemap: true
     },
     plugins: [
+      nodeResolve({
+        preferBuiltins: false
+      }),
       typescript({
         tsconfig: './tsconfig.json',
         declaration: false,
@@ -35,6 +39,9 @@ export default [
       }
     },
     plugins: [
+      nodeResolve({
+        preferBuiltins: false
+      }),
       typescript({
         tsconfig: './tsconfig.json',
         declaration: false,
@@ -53,6 +60,9 @@ export default [
       exports: 'named'
     },
     plugins: [
+      nodeResolve({
+        preferBuiltins: false
+      }),
       typescript({
         tsconfig: './tsconfig.json',
         declaration: false,

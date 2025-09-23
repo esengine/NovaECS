@@ -42,7 +42,7 @@ function createWindow(): void {
 
   // Load the development server or built files
   // 加载开发服务器或构建文件
-  const isDev = !app.isPackaged;
+  const isDev = process.env.NODE_ENV === 'development';
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
@@ -317,6 +317,28 @@ ipcMain.handle('show-open-dialog', async (_event, options: Electron.OpenDialogOp
   if (!mainWindow) return { canceled: true };
   const result = await dialog.showOpenDialog(mainWindow, options);
   return result;
+});
+
+ipcMain.handle('show-input-dialog', async (_event, title: string, label: string, defaultValue: string = '') => {
+  if (!mainWindow) return { canceled: true, value: '' };
+
+  const result = await dialog.showMessageBox(mainWindow, {
+    type: 'question',
+    title: title,
+    message: label,
+    detail: `Default: ${defaultValue}`,
+    buttons: ['OK', 'Cancel'],
+    defaultId: 0,
+    cancelId: 1
+  });
+
+  if (result.response === 0) {
+    // For simplicity, we'll use a prompt-like behavior with a default value
+    // In a real implementation, you might want to create a custom dialog window
+    return { canceled: false, value: defaultValue || 'untitled' };
+  } else {
+    return { canceled: true, value: '' };
+  }
 });
 
 // Language change handler

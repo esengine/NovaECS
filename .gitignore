@@ -9,6 +9,16 @@ dist/
 build/
 *.tsbuildinfo
 
+# Electron build outputs
+editor/release/
+editor/dist-electron/
+win-unpacked/
+*.AppImage
+*.dmg
+*.exe
+*.deb
+*.rpm
+
 # Testing
 coverage/
 .nyc_output/

@@ -74,7 +74,7 @@ function createWindow() {
     });
     // Load the development server or built files
     // 加载开发服务器或构建文件
-    const isDev = !electron_1.app.isPackaged;
+    const isDev = process.env.NODE_ENV === 'development';
     if (isDev) {
         mainWindow.loadURL('http://localhost:5173');
         mainWindow.webContents.openDevTools();
@@ -329,6 +329,27 @@ electron_1.ipcMain.handle('show-open-dialog', async (_event, options) => {
         return { canceled: true };
     const result = await electron_1.dialog.showOpenDialog(mainWindow, options);
     return result;
+});
+electron_1.ipcMain.handle('show-input-dialog', async (_event, title, label, defaultValue = '') => {
+    if (!mainWindow)
+        return { canceled: true, value: '' };
+    const result = await electron_1.dialog.showMessageBox(mainWindow, {
+        type: 'question',
+        title: title,
+        message: label,
+        detail: `Default: ${defaultValue}`,
+        buttons: ['OK', 'Cancel'],
+        defaultId: 0,
+        cancelId: 1
+    });
+    if (result.response === 0) {
+        // For simplicity, we'll use a prompt-like behavior with a default value
+        // In a real implementation, you might want to create a custom dialog window
+        return { canceled: false, value: defaultValue || 'untitled' };
+    }
+    else {
+        return { canceled: true, value: '' };
+    }
 });
 // Language change handler
 // 语言切换处理器

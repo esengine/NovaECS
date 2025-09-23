@@ -4,6 +4,14 @@ import type { Entity } from '@esengine/nova-ecs';
 import { LocalTransform, Sprite, createColorSprite } from '@esengine/nova-ecs';
 import { ProjectInfo } from '../services/ProjectService';
 
+export interface OpenFile {
+  id: string;
+  path: string;
+  name: string;
+  type: 'scene' | 'visual' | 'script';
+  isDirty: boolean;
+}
+
 interface EditorContextType {
   world: EditorWorld;
   mode: EditorMode;
@@ -11,12 +19,19 @@ interface EditorContextType {
   selectedEntities: Entity[];
   entities: Entity[];
   project: ProjectInfo | null;
+  openFiles: OpenFile[];
+  activeFileId: string | null;
   onCloseProject?: () => void;
   selectEntity: (entity: Entity, multiSelect?: boolean) => void;
   deselectEntity: (entity: Entity) => void;
   clearSelection: () => void;
   setMode: (mode: EditorMode) => void;
   setTool: (tool: EditorTool) => void;
+  openFile: (filePath: string) => void;
+  closeFile: (fileId: string) => void;
+  setActiveFile: (fileId: string) => void;
+  markFileDirty: (fileId: string) => void;
+  markFileClean: (fileId: string) => void;
 }
 
 const EditorContext = createContext<EditorContextType | null>(null);
@@ -33,6 +48,8 @@ export function EditorProvider({ children, project, onCloseProject }: EditorProv
   const [tool, setToolState] = useState<EditorTool>(EditorTool.Select);
   const [selectedEntities, setSelectedEntities] = useState<Entity[]>([]);
   const [entities, setEntities] = useState<Entity[]>([]);
+  const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
+  const [activeFileId, setActiveFileId] = useState<string | null>(null);
 
   const setMode = (newMode: EditorMode) => {
     world.setMode(newMode);
@@ -58,6 +75,61 @@ export function EditorProvider({ children, project, onCloseProject }: EditorProv
 
   const clearSelection = () => {
     world.clearSelection();
+  };
+
+  const getFileType = (filePath: string): 'scene' | 'visual' | 'script' => {
+    const ext = filePath.substring(filePath.lastIndexOf('.')).toLowerCase();
+    if (ext === '.nova') return 'visual';
+    if (ext === '.novascene' || ext === '.scene') return 'scene';
+    return 'script';
+  };
+
+  const openFile = (filePath: string) => {
+    const fileName = filePath.substring(filePath.lastIndexOf('/') + 1);
+    const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const fileType = getFileType(filePath);
+
+    const newFile: OpenFile = {
+      id: fileId,
+      path: filePath,
+      name: fileName,
+      type: fileType,
+      isDirty: false
+    };
+
+    // Check if file is already open
+    const existingFile = openFiles.find(f => f.path === filePath);
+    if (existingFile) {
+      setActiveFileId(existingFile.id);
+      return;
+    }
+
+    setOpenFiles(prev => [...prev, newFile]);
+    setActiveFileId(fileId);
+  };
+
+  const closeFile = (fileId: string) => {
+    setOpenFiles(prev => prev.filter(f => f.id !== fileId));
+    if (activeFileId === fileId) {
+      const remainingFiles = openFiles.filter(f => f.id !== fileId);
+      setActiveFileId(remainingFiles.length > 0 ? remainingFiles[0].id : null);
+    }
+  };
+
+  const setActiveFile = (fileId: string) => {
+    setActiveFileId(fileId);
+  };
+
+  const markFileDirty = (fileId: string) => {
+    setOpenFiles(prev => prev.map(f =>
+      f.id === fileId ? { ...f, isDirty: true } : f
+    ));
+  };
+
+  const markFileClean = (fileId: string) => {
+    setOpenFiles(prev => prev.map(f =>
+      f.id === fileId ? { ...f, isDirty: false } : f
+    ));
   };
 
   useEffect(() => {
@@ -127,12 +199,19 @@ export function EditorProvider({ children, project, onCloseProject }: EditorProv
     selectedEntities,
     entities,
     project,
+    openFiles,
+    activeFileId,
     onCloseProject,
     selectEntity,
     deselectEntity,
     clearSelection,
     setMode,
-    setTool
+    setTool,
+    openFile,
+    closeFile,
+    setActiveFile,
+    markFileDirty,
+    markFileClean
   };
 
   return (

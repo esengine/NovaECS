@@ -258,3 +258,6 @@ export type { SpriteRenderStats } from './systems/SpriteRenderSystem';
 export { BatchRenderSystem, BatchRenderer } from './systems/BatchRenderSystem';
 export type { BatchRenderStats } from './systems/BatchRenderSystem';
 
+// Visual Programming Framework
+export * from './visual';
+

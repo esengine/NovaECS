@@ -5,7 +5,7 @@
 export interface AssetData {
   name: string;
   path: string;
-  type: 'texture' | 'script' | 'scene' | 'audio' | 'material' | 'unknown';
+  type: 'texture' | 'script' | 'scene' | 'audio' | 'material' | 'visual' | 'unknown';
   icon: string;
   size?: number;
   modified?: Date;

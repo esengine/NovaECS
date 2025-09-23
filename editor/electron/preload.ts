@@ -20,6 +20,9 @@ const electronAPI: ElectronAPI = {
   showOpenDialog: (options: Electron.OpenDialogOptions) =>
     ipcRenderer.invoke('show-open-dialog', options),
 
+  showInputDialog: (title: string, label: string, defaultValue?: string) =>
+    ipcRenderer.invoke('show-input-dialog', title, label, defaultValue),
+
   // Project file system operations 项目文件系统操作
   fileExists: (filePath: string) =>
     ipcRenderer.invoke('file-exists', filePath),

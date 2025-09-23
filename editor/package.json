@@ -5,7 +5,13 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "concurrently --kill-others \"vite\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on http://localhost:5173 && electron .\"",
-    "build": "vite build && tsc -p tsconfig.electron.json && electron-builder",
+    "build": "npm run build:renderer && npm run build:main && npm run build:electron",
+    "build:renderer": "vite build",
+    "build:main": "tsc -p tsconfig.electron.json",
+    "build:electron": "electron-builder --dir",
+    "build:dev": "npm run build:renderer && npm run build:main",
+    "build:simple": "npm run build:dev && electron .",
+    "dist": "npm run build:renderer && npm run build:main && electron-builder --publish=never",
     "lint": "eslint src electron --ext .ts,.tsx",
     "type-check": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit"
   },
@@ -25,37 +31,46 @@
     "wait-on": "^8.0.0"
   },
   "dependencies": {
+    "@emotion/react": "^11.13.0",
+    "@emotion/styled": "^11.13.0",
+    "@esengine/nova-ecs": "file:../",
+    "i18next": "^25.4.1",
+    "i18next-browser-languagedetector": "^8.0.0",
+    "immer": "^10.1.0",
+    "monaco-editor": "^0.52.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "react-i18next": "^15.0.0",
-    "i18next": "^25.4.1",
-    "i18next-browser-languagedetector": "^8.0.0",
-    "@esengine/nova-ecs": "file:../",
-    "monaco-editor": "^0.52.0",
-    "immer": "^10.1.0",
-    "@emotion/react": "^11.13.0",
-    "@emotion/styled": "^11.13.0",
+    "reflect-metadata": "^0.2.2",
     "zustand": "^5.0.0"
   },
   "build": {
     "appId": "com.esengine.nova-ecs-editor",
     "productName": "NovaECS Editor",
+    "npmRebuild": false,
     "directories": {
-      "output": "dist-electron"
+      "output": "release"
     },
     "files": [
       "dist/**/*",
-      "main.js",
-      "preload.js"
+      "dist-electron/main.js",
+      "dist-electron/preload.js"
     ],
-    "mac": {
-      "icon": "assets/icon.icns"
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     },
     "win": {
-      "icon": "assets/icon.ico"
+      "target": "dir"
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools"
     },
     "linux": {
-      "icon": "assets/icon.png"
+      "target": "dir"
+    },
+    "extraMetadata": {
+      "main": "dist-electron/main.js"
     }
   },
   "author": "esengine",

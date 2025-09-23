@@ -12,6 +12,7 @@ const electronAPI = {
     loadFile: (filePath) => electron_1.ipcRenderer.invoke('load-file', filePath),
     showSaveDialog: (options) => electron_1.ipcRenderer.invoke('show-save-dialog', options),
     showOpenDialog: (options) => electron_1.ipcRenderer.invoke('show-open-dialog', options),
+    showInputDialog: (title, label, defaultValue) => electron_1.ipcRenderer.invoke('show-input-dialog', title, label, defaultValue),
     // Project file system operations 项目文件系统操作
     fileExists: (filePath) => electron_1.ipcRenderer.invoke('file-exists', filePath),
     createDirectory: (dirPath) => electron_1.ipcRenderer.invoke('create-directory', dirPath),

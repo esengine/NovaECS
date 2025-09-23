@@ -10,6 +10,7 @@ export interface ElectronAPI {
   loadFile: (filePath: string) => Promise<{ success: boolean; content?: string; error?: string }>;
   showSaveDialog: (options: Electron.SaveDialogOptions) => Promise<Electron.SaveDialogReturnValue>;
   showOpenDialog: (options: Electron.OpenDialogOptions) => Promise<Electron.OpenDialogReturnValue>;
+  showInputDialog: (title: string, label: string, defaultValue?: string) => Promise<{ canceled: boolean; value: string }>;
 
   // Project file system operations 项目文件系统操作
   fileExists: (filePath: string) => Promise<boolean>;

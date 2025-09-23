@@ -7,7 +7,7 @@ import { EditorProvider } from './store/EditorContext';
 import { ProjectService, ProjectInfo } from './services/ProjectService';
 
 function App() {
-  const { t: _t } = useTranslation();
+  const { t } = useTranslation();
   const [currentProject, setCurrentProject] = useState<ProjectInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -95,11 +95,17 @@ function App() {
       const projectLocation = result.filePaths[0];
 
       // Simple project name input (in a real app, this would be a proper dialog)
-      const projectName = prompt('Project Name:', 'MyNovaProject');
+      const result2 = await window.electronAPI.showInputDialog(
+        t('dialogs.createNewProject'),
+        t('dialogs.enterProjectName'),
+        'MyNovaProject'
+      );
 
-      if (!projectName || projectName.trim() === '') {
+      if (result2.canceled || !result2.value || result2.value.trim() === '') {
         return;
       }
+
+      const projectName = result2.value;
 
       // Create the project
       const projectService = ProjectService.getInstance();

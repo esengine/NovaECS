@@ -130,7 +130,11 @@
     "cancel": "取消",
     "ok": "确定",
     "apply": "应用",
-    "close": "关闭"
+    "close": "关闭",
+    "createVisualScript": "创建可视化脚本",
+    "enterFileName": "输入文件名:",
+    "createNewProject": "创建新项目",
+    "enterProjectName": "输入项目名:"
   },
   "settings": {
     "title": "设置",
@@ -178,5 +182,151 @@
     "noEntities": "无实体",
     "noEntitySelected": "未选择实体",
     "entitiesSelected": "个实体已选择"
+  },
+  "visual": {
+    "editor": "可视化编辑器",
+    "nodePalette": "节点面板",
+    "searchNodes": "搜索节点...",
+    "createVisualScript": "创建可视化脚本",
+    "save": "保存",
+    "load": "加载",
+    "run": "运行",
+    "stop": "停止",
+    "clear": "清除",
+    "toolbar": {
+      "save": "保存",
+      "load": "加载",
+      "run": "运行",
+      "stop": "停止",
+      "clear": "清除"
+    },
+    "nodes": {
+      "noNodes": "未找到节点",
+      "nodes": "个节点",
+      "connections": "个连接",
+      "categories": {
+        "flow": "流程控制",
+        "math": "数学运算",
+        "logic": "逻辑判断",
+        "variables": "变量操作",
+        "events": "事件处理",
+        "ecs": "ECS系统",
+        "Flow/Control": "流程控制",
+        "Math/Basic": "数学运算",
+        "ECS/Entity": "ECS实体",
+        "ECS/Component": "ECS组件",
+        "ECS/Query": "ECS查询",
+        "ECS/System": "ECS系统",
+        "Uncategorized": "未分类"
+      }
+    },
+    "builtinNodes": {
+      "start": "开始",
+      "startDesc": "开始执行",
+      "end": "结束",
+      "endDesc": "结束执行",
+      "add": "加法",
+      "addDesc": "两个数相加",
+      "multiply": "乘法",
+      "multiplyDesc": "两个数相乘"
+    }
+  },
+  "ecs": {
+    "entity": {
+      "create": {
+        "title": "创建实体",
+        "description": "在世界中创建一个新实体"
+      },
+      "destroy": {
+        "title": "销毁实体",
+        "description": "从世界中移除实体"
+      },
+      "query": {
+        "title": "查询实体",
+        "description": "创建查询以查找具有特定组件的实体"
+      }
+    },
+    "component": {
+      "add": {
+        "title": "添加组件",
+        "description": "为实体添加组件"
+      },
+      "remove": {
+        "title": "移除组件",
+        "description": "从实体中移除组件"
+      },
+      "get": {
+        "title": "获取组件",
+        "description": "从实体获取组件数据"
+      },
+      "has": {
+        "title": "检查组件",
+        "description": "检查实体是否具有特定组件"
+      }
+    },
+    "query": {
+      "forEach": {
+        "title": "遍历实体",
+        "description": "遍历所有匹配查询的实体"
+      },
+      "count": {
+        "title": "计数实体",
+        "description": "获取匹配查询的实体数量"
+      },
+      "without": {
+        "title": "排除组件",
+        "description": "从查询中排除具有特定组件的实体"
+      }
+    }
+  },
+  "category": {
+    "ecs": {
+      "entity": "ECS实体",
+      "component": "ECS组件",
+      "query": "ECS查询",
+      "system": "ECS系统"
+    },
+    "math": {
+      "basic": "数学运算",
+      "vector": "向量数学",
+      "trigonometry": "三角函数"
+    },
+    "flow": {
+      "control": "流程控制",
+      "logic": "逻辑判断",
+      "iteration": "迭代循环"
+    },
+    "events": {
+      "triggers": "事件触发器",
+      "handlers": "事件处理器"
+    },
+    "utility": {
+      "conversion": "实用转换",
+      "debug": "调试"
+    }
+  },
+  "contextMenu": {
+    "createVisualScript": "创建可视化脚本",
+    "createFolder": "创建文件夹",
+    "delete": "删除",
+    "rename": "重命名",
+    "copy": "复制",
+    "paste": "粘贴",
+    "refresh": "刷新",
+    "showInExplorer": "在文件资源管理器中显示"
+  },
+  "fileTypes": {
+    "visual": "可视化脚本",
+    "scene": "场景文件",
+    "script": "脚本文件",
+    "texture": "纹理文件",
+    "audio": "音频文件",
+    "material": "材质文件",
+    "unknown": "未知文件"
+  },
+  "tabs": {
+    "scene": "场景",
+    "visual": "可视化",
+    "unsaved": "(未保存)"
   }
 }

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import styled from '@emotion/styled';
 import { useEditor } from '../../store/EditorContext';
 import type { AssetData, FolderData } from '../../types/assets';
+import ContextMenu, { type ContextMenuItem } from '../common/ContextMenu';
 
 const AssetsContainer = styled.div`
   display: flex;
@@ -104,12 +105,25 @@ interface ProjectAssetsProps {
 
 function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
   const { t } = useTranslation();
-  const { project } = useEditor();
+  const { project, openFile } = useEditor();
   const [selectedFolder, setSelectedFolder] = useState<string>('assets');
   const [selectedAsset, setSelectedAsset] = useState<AssetData | null>(null);
   const [folders, setFolders] = useState<FolderData[]>([]);
   const [assets, setAssets] = useState<AssetData[]>([]);
   const [loading, setLoading] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    targetPath: string;
+    targetType: 'folder' | 'asset' | 'empty';
+  }>({
+    visible: false,
+    x: 0,
+    y: 0,
+    targetPath: '',
+    targetType: 'empty'
+  });
 
   // File type detection
   const getFileType = (fileName: string): AssetData['type'] => {
@@ -119,6 +133,7 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
     if (['.novascene', '.scene'].includes(ext)) return 'scene';
     if (['.mp3', '.wav', '.ogg', '.m4a', '.flac'].includes(ext)) return 'audio';
     if (['.mat', '.material'].includes(ext)) return 'material';
+    if (['.nova'].includes(ext)) return 'visual';
     return 'unknown';
   };
 
@@ -129,6 +144,7 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
       case 'scene': return '🎬';
       case 'audio': return '🔊';
       case 'material': return '⚫';
+      case 'visual': return '🔗';
       default: return '📄';
     }
   };
@@ -267,6 +283,7 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
           level={level}
           expanded={folder.expanded}
           onClick={handleClick}
+          onContextMenu={(e) => handleContextMenu(e, folder.path, 'folder')}
           className={selectedFolder === folder.path ? 'selected' : ''}
         >
           <FolderIcon>
@@ -286,6 +303,83 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
   const handleAssetClick = (asset: AssetData) => {
     setSelectedAsset(asset);
     onAssetSelect?.(asset);
+  };
+
+  const handleAssetDoubleClick = (asset: AssetData) => {
+    if (asset.type === 'visual' || asset.type === 'scene' || asset.type === 'script') {
+      openFile(asset.path);
+    }
+  };
+
+  const createVisualScript = async (folderPath: string, fileName: string) => {
+    if (!window.electronAPI?.writeFile || !window.electronAPI?.pathJoin) {
+      console.error('Electron API not available');
+      return;
+    }
+
+    try {
+      const filePath = await window.electronAPI.pathJoin(folderPath, `${fileName}.nova`);
+
+      // Create default visual graph data
+      const defaultGraphData = {
+        name: fileName,
+        description: 'New Visual Script',
+        version: '1.0.0',
+        nodes: [],
+        connections: [],
+        metadata: {
+          created: new Date().toISOString(),
+          modified: new Date().toISOString(),
+          author: 'NovaECS Editor'
+        }
+      };
+
+      await window.electronAPI.writeFile(filePath, JSON.stringify(defaultGraphData, null, 2));
+
+      // Refresh the assets list to show the new file
+      await loadAssetsForFolder(folderPath);
+    } catch (error) {
+      console.error('Failed to create visual script:', error);
+    }
+  };
+
+  const handleContextMenu = (event: React.MouseEvent, targetPath: string, targetType: 'folder' | 'asset' | 'empty') => {
+    event.preventDefault();
+    setContextMenu({
+      visible: true,
+      x: event.clientX,
+      y: event.clientY,
+      targetPath,
+      targetType
+    });
+  };
+
+  const handleContextMenuClose = () => {
+    setContextMenu(prev => ({ ...prev, visible: false }));
+  };
+
+  const getContextMenuItems = (): ContextMenuItem[] => {
+    const items: ContextMenuItem[] = [];
+
+    if (contextMenu.targetType === 'folder' || contextMenu.targetType === 'empty') {
+      items.push({
+        id: 'create-visual-script',
+        label: t('contextMenu.createVisualScript'),
+        icon: '🔗',
+        onClick: async () => {
+          const result = await window.electronAPI.showInputDialog(
+            t('dialogs.createVisualScript'),
+            t('dialogs.enterFileName'),
+            'NewScript'
+          );
+          if (!result.canceled && result.value) {
+            createVisualScript(contextMenu.targetPath, result.value);
+          }
+        }
+      });
+    }
+
+    return items;
   };
 
   if (loading) {
@@ -313,12 +407,19 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
           {folders.map(folder => renderFolder(folder))}
         </FolderTree>
 
-        <AssetList>
+        <AssetList
+          onContextMenu={(e) => handleContextMenu(e, selectedFolder, 'empty')}
+        >
           {assets.map((asset, index) => (
             <AssetItem
               key={index}
               selected={selectedAsset === asset}
               onClick={() => handleAssetClick(asset)}
+              onDoubleClick={() => handleAssetDoubleClick(asset)}
+              onContextMenu={(e) => {
+                e.stopPropagation();
+                handleContextMenu(e, asset.path, 'asset');
+              }}
             >
               <AssetIcon>{asset.icon}</AssetIcon>
               <AssetName>{asset.name}</AssetName>
@@ -326,6 +427,13 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
           ))}
         </AssetList>
       </AssetsContent>
+      <ContextMenu
+        items={getContextMenuItems()}
+        visible={contextMenu.visible}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        onClose={handleContextMenuClose}
+      />
     </AssetsContainer>
   );
 }
