@@ -74,12 +74,22 @@ export const zhCNLocale: LanguageResource = {
   'visual.nodes.math.subtract.description': '两个数相减',
   'visual.nodes.math.divide.title': '除法',
   'visual.nodes.math.divide.description': '两个数相除',
+  'visual.nodes.math.constant.title': '常量',
+  'visual.nodes.math.constant.description': '数学常量值',
+
+  // 流程控制节点
+  'visual.nodes.flow.if.title': '条件',
+  'visual.nodes.flow.if.description': '条件执行分支',
 
   // 引脚标签
   'visual.pins.execute': '执行',
   'visual.pins.a': 'A',
   'visual.pins.b': 'B',
   'visual.pins.result': '结果',
+  'visual.pins.value': '值',
+  'visual.pins.condition': '条件',
+  'visual.pins.true': '真',
+  'visual.pins.false': '假',
 
   // 额外的通用标签
   'common.componentType': '组件类型',
@@ -101,6 +111,14 @@ export const zhCNLocale: LanguageResource = {
   'pin.query.description': '实体查询实例',
   'pin.count.description': '实体数量',
   'pin.hasComponent.description': '实体是否具有指定组件',
+  'pin.componentType.remove.description': '要从实体移除的组件类型',
+  'pin.componentType.get.description': '要从实体获取的组件类型',
+  'pin.componentType.check.description': '要在实体上检查的组件类型',
+  'pin.componentTypes.query.description': '要查询的组件类型',
+  'pin.forEach.description': '对每个实体执行',
+  'pin.components.description': '要操作的组件',
+  'pin.excludeTypes.description': '要从查询中排除的组件类型',
+  'pin.filteredQuery.description': '过滤后的实体查询结果',
 
   // 错误信息
   'error.translation.missing': '缺少翻译键: {key}',

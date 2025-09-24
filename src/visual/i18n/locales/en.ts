@@ -74,12 +74,22 @@ export const enLocale: LanguageResource = {
   'visual.nodes.math.subtract.description': 'Subtract two numbers',
   'visual.nodes.math.divide.title': 'Divide',
   'visual.nodes.math.divide.description': 'Divide two numbers',
+  'visual.nodes.math.constant.title': 'Constant',
+  'visual.nodes.math.constant.description': 'Mathematical constant value',
+
+  // Flow control nodes
+  'visual.nodes.flow.if.title': 'If',
+  'visual.nodes.flow.if.description': 'Conditional execution branch',
 
   // Pin labels
   'visual.pins.execute': 'Execute',
   'visual.pins.a': 'A',
   'visual.pins.b': 'B',
   'visual.pins.result': 'Result',
+  'visual.pins.value': 'Value',
+  'visual.pins.condition': 'Condition',
+  'visual.pins.true': 'True',
+  'visual.pins.false': 'False',
 
   // Additional common labels
   'common.componentType': 'Component Type',
@@ -101,6 +111,14 @@ export const enLocale: LanguageResource = {
   'pin.query.description': 'Entity query instance',
   'pin.count.description': 'Number of entities',
   'pin.hasComponent.description': 'Whether the entity has the specified component',
+  'pin.componentType.remove.description': 'Component type to remove from entity',
+  'pin.componentType.get.description': 'Component type to retrieve from entity',
+  'pin.componentType.check.description': 'Component type to check on entity',
+  'pin.componentTypes.query.description': 'Component types to query for',
+  'pin.forEach.description': 'Execute for each entity',
+  'pin.components.description': 'Components to operate on',
+  'pin.excludeTypes.description': 'Component types to exclude from query',
+  'pin.filteredQuery.description': 'Filtered entity query result',
 
   // Error messages
   'error.translation.missing': 'Translation missing for key: {key}',

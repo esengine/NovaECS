@@ -515,14 +515,34 @@ export class VisualGraph {
 
         // Restore input values
         // 恢复输入值
-        for (const [inputName, value] of nodeData.inputs) {
-          node.setInput(inputName, value);
+        if (nodeData.inputs) {
+          if (nodeData.inputs instanceof Map || Array.isArray(nodeData.inputs)) {
+            // Handle Map or array format (e.g., from direct node serialization)
+            for (const [inputName, value] of nodeData.inputs) {
+              node.setInput(inputName, value);
+            }
+          } else {
+            // Handle plain object format (e.g., from JSON serialization)
+            for (const [inputName, value] of Object.entries(nodeData.inputs)) {
+              node.setInput(inputName, value);
+            }
+          }
         }
 
         // Restore output values
         // 恢复输出值
-        for (const [outputName, value] of nodeData.outputs) {
-          node.setOutput(outputName, value);
+        if (nodeData.outputs) {
+          if (nodeData.outputs instanceof Map || Array.isArray(nodeData.outputs)) {
+            // Handle Map or array format (e.g., from direct node serialization)
+            for (const [outputName, value] of nodeData.outputs) {
+              node.setOutput(outputName, value);
+            }
+          } else {
+            // Handle plain object format (e.g., from JSON serialization)
+            for (const [outputName, value] of Object.entries(nodeData.outputs)) {
+              node.setOutput(outputName, value);
+            }
+          }
         }
 
         graph.addNode(node);

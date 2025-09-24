@@ -146,6 +146,44 @@ export class NodeGenerator {
       executionOrder: 0,
       originalMethod: () => {}
     });
+
+    // Math constant node
+    // 数学常量节点
+    this.registerBuiltInNode('math.constant', {
+      name: 'constant',
+      titleKey: 'visual.nodes.math.constant.title',
+      categoryKey: 'visual.categories.math',
+      descriptionKey: 'visual.nodes.math.constant.description',
+      inputs: [
+        { type: 'number', labelKey: 'visual.pins.value', defaultValue: 0 }
+      ],
+      outputs: [{
+        type: 'number',
+        labelKey: 'visual.pins.value'
+      }],
+      stateful: false,
+      executionOrder: 0,
+      originalMethod: () => {}
+    });
+
+    // Flow if node
+    // 流程if节点
+    this.registerBuiltInNode('flow.if', {
+      name: 'if',
+      titleKey: 'visual.nodes.flow.if.title',
+      categoryKey: 'visual.categories.flow',
+      descriptionKey: 'visual.nodes.flow.if.description',
+      inputs: [
+        { type: 'boolean', labelKey: 'visual.pins.condition', defaultValue: true }
+      ],
+      outputs: [
+        { type: 'execute', labelKey: 'visual.pins.true' },
+        { type: 'execute', labelKey: 'visual.pins.false' }
+      ],
+      stateful: false,
+      executionOrder: 0,
+      originalMethod: () => {}
+    });
   }
 
   /**
@@ -207,6 +245,27 @@ export class NodeGenerator {
             }
 
             this.setOutput(resultLabel, result);
+          } else if (typeName === 'math.constant') {
+            // Math constant node - output the input value
+            // 数学常量节点 - 输出输入值
+            const valueLabel = resolvedMetadata.inputs[0]?.label || 'Value';
+            const outputLabel = resolvedMetadata.outputs[0]?.label || 'Value';
+            const value = this.getInput(valueLabel) || 0;
+
+            this.setOutput(outputLabel, value);
+          } else if (typeName === 'flow.if') {
+            // Flow if node - conditional execution
+            // 流程if节点 - 条件执行
+            const conditionLabel = resolvedMetadata.inputs[0]?.label || 'Condition';
+            const trueLabel = resolvedMetadata.outputs[0]?.label || 'True';
+            const falseLabel = resolvedMetadata.outputs[1]?.label || 'False';
+
+            const condition = this.getInput(conditionLabel);
+
+            // Set execution outputs based on condition
+            // 根据条件设置执行输出
+            this.setOutput(trueLabel, !!condition);
+            this.setOutput(falseLabel, !condition);
           }
         }
       })()
