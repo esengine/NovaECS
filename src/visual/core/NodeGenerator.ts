@@ -16,6 +16,7 @@ import {
   getClassVisualMethods
 } from '../decorators';
 import { MethodCallNode } from './MethodCallNode';
+import { BaseVisualNode } from './BaseVisualNode';
 import { World } from '../../core/World';
 import { Query } from '../../core/Query';
 import { CommandBuffer } from '../../core/CommandBuffer';
@@ -48,6 +49,168 @@ export class NodeGenerator {
     // Register CommandBuffer methods
     // 注册CommandBuffer方法
     this.registerClassMethods('commandBuffer', CommandBuffer);
+  }
+
+  /**
+   * Register built-in node types
+   * 注册内置节点类型
+   */
+  static registerBuiltInNodes(): void {
+    // Flow control nodes
+    // 流控制节点
+    this.registerBuiltInNode('flow.start', {
+      name: 'start',
+      titleKey: 'visual.nodes.flow.start.title',
+      categoryKey: 'visual.categories.flow',
+      descriptionKey: 'visual.nodes.flow.start.description',
+      inputs: [],
+      outputs: [{
+        type: 'execute',
+        labelKey: 'visual.pins.execute'
+      }],
+      stateful: false,
+      executionOrder: 0,
+      originalMethod: () => {}
+    });
+
+    // Math nodes
+    // 数学节点
+    this.registerBuiltInNode('math.add', {
+      name: 'add',
+      titleKey: 'visual.nodes.math.add.title',
+      categoryKey: 'visual.categories.math',
+      descriptionKey: 'visual.nodes.math.add.description',
+      inputs: [
+        { type: 'number', labelKey: 'visual.pins.a', defaultValue: 0 },
+        { type: 'number', labelKey: 'visual.pins.b', defaultValue: 0 }
+      ],
+      outputs: [{
+        type: 'number',
+        labelKey: 'visual.pins.result'
+      }],
+      stateful: false,
+      executionOrder: 0,
+      originalMethod: () => {}
+    });
+
+    this.registerBuiltInNode('math.multiply', {
+      name: 'multiply',
+      titleKey: 'visual.nodes.math.multiply.title',
+      categoryKey: 'visual.categories.math',
+      descriptionKey: 'visual.nodes.math.multiply.description',
+      inputs: [
+        { type: 'number', labelKey: 'visual.pins.a', defaultValue: 1 },
+        { type: 'number', labelKey: 'visual.pins.b', defaultValue: 1 }
+      ],
+      outputs: [{
+        type: 'number',
+        labelKey: 'visual.pins.result'
+      }],
+      stateful: false,
+      executionOrder: 0,
+      originalMethod: () => {}
+    });
+
+    this.registerBuiltInNode('math.subtract', {
+      name: 'subtract',
+      titleKey: 'visual.nodes.math.subtract.title',
+      categoryKey: 'visual.categories.math',
+      descriptionKey: 'visual.nodes.math.subtract.description',
+      inputs: [
+        { type: 'number', labelKey: 'visual.pins.a', defaultValue: 0 },
+        { type: 'number', labelKey: 'visual.pins.b', defaultValue: 0 }
+      ],
+      outputs: [{
+        type: 'number',
+        labelKey: 'visual.pins.result'
+      }],
+      stateful: false,
+      executionOrder: 0,
+      originalMethod: () => {}
+    });
+
+    this.registerBuiltInNode('math.divide', {
+      name: 'divide',
+      titleKey: 'visual.nodes.math.divide.title',
+      categoryKey: 'visual.categories.math',
+      descriptionKey: 'visual.nodes.math.divide.description',
+      inputs: [
+        { type: 'number', labelKey: 'visual.pins.a', defaultValue: 1 },
+        { type: 'number', labelKey: 'visual.pins.b', defaultValue: 1 }
+      ],
+      outputs: [{
+        type: 'number',
+        labelKey: 'visual.pins.result'
+      }],
+      stateful: false,
+      executionOrder: 0,
+      originalMethod: () => {}
+    });
+  }
+
+  /**
+   * Register a built-in node type
+   * 注册内置节点类型
+   */
+  private static registerBuiltInNode(typeName: string, metadata: VisualMethodMetadata): void {
+    this.nodeTypes.set(typeName, {
+      name: typeName,
+      targetType: 'builtin',
+      metadata,
+      factory: (id: string) => new (class extends BaseVisualNode {
+        constructor() {
+          super(id, typeName);
+          this.setupBuiltInPorts(metadata);
+        }
+
+        private setupBuiltInPorts(metadata: VisualMethodMetadata) {
+          // Resolve metadata with i18n
+          const resolvedMetadata = NodeGenerator.resolveI18nMetadata(metadata);
+
+          // Setup input ports
+          for (const input of resolvedMetadata.inputs) {
+            const inputName = input.label || 'input';
+            const defaultValue = input.defaultValue !== undefined ? input.defaultValue : null;
+            this.setInput(inputName, defaultValue);
+          }
+
+          // Setup output ports
+          for (const output of resolvedMetadata.outputs) {
+            const outputName = output.label || 'output';
+            this.setOutput(outputName, null);
+          }
+        }
+
+        execute() {
+          const resolvedMetadata = NodeGenerator.resolveI18nMetadata(metadata);
+
+          if (typeName === 'flow.start') {
+            const executeLabel = resolvedMetadata.outputs[0]?.label || 'execute';
+            this.setOutput(executeLabel, true);
+          } else if (typeName.startsWith('math.')) {
+            const aLabel = resolvedMetadata.inputs[0]?.label || 'A';
+            const bLabel = resolvedMetadata.inputs[1]?.label || 'B';
+            const resultLabel = resolvedMetadata.outputs[0]?.label || 'result';
+
+            const a = this.getInput(aLabel) || (typeName.includes('multiply') || typeName.includes('divide') ? 1 : 0);
+            const b = this.getInput(bLabel) || (typeName.includes('multiply') || typeName.includes('divide') ? 1 : 0);
+
+            let result = 0;
+            if (typeName === 'math.add') {
+              result = a + b;
+            } else if (typeName === 'math.multiply') {
+              result = a * b;
+            } else if (typeName === 'math.subtract') {
+              result = a - b;
+            } else if (typeName === 'math.divide') {
+              result = b !== 0 ? a / b : 0;
+            }
+
+            this.setOutput(resultLabel, result);
+          }
+        }
+      })()
+    });
   }
 
   /**
@@ -123,7 +286,7 @@ export class NodeGenerator {
    * @param id Optional custom ID 可选的自定义ID
    * @returns Created node instance 创建的节点实例
    */
-  static createNode(typeName: string, id?: string): MethodCallNode {
+  static createNode(typeName: string, id?: string): BaseVisualNode {
     const nodeType = this.nodeTypes.get(typeName);
     if (!nodeType) {
       throw new Error(`Unknown node type: ${typeName}`);
@@ -163,7 +326,7 @@ export class NodeGenerator {
    * @param metadata Original metadata with i18n keys 包含i18n键的原始元数据
    * @returns Resolved metadata with translated text 包含翻译文本的解析元数据
    */
-  private static resolveI18nMetadata(metadata: VisualMethodMetadata): VisualMethodMetadata {
+  static resolveI18nMetadata(metadata: VisualMethodMetadata): VisualMethodMetadata {
     const resolved: VisualMethodMetadata = {
       ...metadata,
       // Resolve title: prefer i18n key, fallback to legacy string
@@ -372,7 +535,7 @@ export interface NodeTypeInfo {
   /** Method metadata 方法元数据 */
   metadata: VisualMethodMetadata;
   /** Factory function to create node instances 创建节点实例的工厂函数 */
-  factory: (id: string) => MethodCallNode;
+  factory: (id: string) => BaseVisualNode;
 }
 
 /**
@@ -397,10 +560,11 @@ export interface ValidationResult {
   errors?: string[];
 }
 
-// Auto-register ECS methods when module loads
-// 模块加载时自动注册ECS方法
+// Auto-register ECS methods and built-in nodes when module loads
+// 模块加载时自动注册ECS方法和内置节点
 try {
   NodeGenerator.registerECSMethods();
+  NodeGenerator.registerBuiltInNodes();
 } catch (error) {
-  console.warn('Failed to register ECS methods for visual nodes:', error);
+  console.warn('Failed to register visual nodes:', error);
 }

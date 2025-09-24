@@ -161,6 +161,12 @@ function VisualEditor({ filePath, onSave, onClose }: VisualEditorProps) {
       event.preventDefault();
       handleSave();
     }
+    // Handle node deletion
+    else if (event.key === 'Delete' || event.key === 'Backspace') {
+      // Let VisualCanvas handle the deletion through a custom event
+      const deleteEvent = new CustomEvent('visual-delete-nodes');
+      document.dispatchEvent(deleteEvent);
+    }
   };
 
   useEffect(() => {

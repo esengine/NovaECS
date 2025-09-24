@@ -1,6 +1,62 @@
 import { useState, useRef, useEffect } from 'react';
 import styled from '@emotion/styled';
-import type { VisualNode } from '@esengine/nova-ecs';
+import type { VisualNode, VisualMethodMetadata, Connection } from '@esengine/nova-ecs';
+import { getCategoryColors } from '../../utils/categoryColors';
+
+// Node layout constants for accurate position calculation
+// 节点布局常量，用于精确位置计算
+export const NODE_LAYOUT = {
+  MIN_WIDTH: 150,
+  MAX_WIDTH: 220,
+  HEADER_BASE_HEIGHT: 32, // Base header height without description
+  DESCRIPTION_LINE_HEIGHT: 13,
+  DESCRIPTION_CHARS_PER_LINE: 28, // Approximate characters per line
+  BODY_PADDING: 8,
+  PIN_ROW_HEIGHT: 24,
+  PIN_SIZE: 12,
+  PIN_MARGIN_LEFT: 8,
+  PIN_MARGIN_RIGHT: 8,
+  PIN_CENTER_OFFSET: 12 // Offset to pin center from row top
+} as const;
+
+// Utility functions for pin position calculation
+// 引脚位置计算工具函数
+
+/**
+ * Calculate the actual header height including description
+ * 计算包含描述的实际头部高度
+ */
+export const calculateHeaderHeight = (title: string, description?: string): number => {
+  let height = NODE_LAYOUT.HEADER_BASE_HEIGHT;
+
+  if (description) {
+    const descriptionLines = Math.ceil(description.length / NODE_LAYOUT.DESCRIPTION_CHARS_PER_LINE);
+    height += descriptionLines * NODE_LAYOUT.DESCRIPTION_LINE_HEIGHT;
+  }
+
+  return height;
+};
+
+/**
+ * Calculate pin position relative to node position
+ * 计算相对于节点位置的引脚位置
+ */
+export const calculatePinPosition = (
+  nodePos: { x: number; y: number },
+  headerHeight: number,
+  pinIndex: number,
+  pinType: 'input' | 'output',
+  nodeWidth: number = NODE_LAYOUT.MIN_WIDTH
+): { x: number; y: number } => {
+  const pinY = nodePos.y + headerHeight + NODE_LAYOUT.BODY_PADDING +
+               (pinIndex * NODE_LAYOUT.PIN_ROW_HEIGHT) + NODE_LAYOUT.PIN_CENTER_OFFSET;
+
+  const pinX = pinType === 'output'
+    ? nodePos.x + nodeWidth - NODE_LAYOUT.PIN_MARGIN_RIGHT - (NODE_LAYOUT.PIN_SIZE / 2)
+    : nodePos.x + NODE_LAYOUT.PIN_MARGIN_LEFT + (NODE_LAYOUT.PIN_SIZE / 2);
+
+  return { x: pinX, y: pinY };
+};
 
 const NodeContainer = styled.div<{
   selected: boolean;
@@ -12,6 +68,7 @@ const NodeContainer = styled.div<{
   left: ${props => props.x}px;
   top: ${props => props.y}px;
   min-width: 150px;
+  max-width: 220px;
   background-color: #2d2d30;
   border: 2px solid ${props => props.selected ? '#007acc' : '#3e3e42'};
   border-radius: 8px;
@@ -25,20 +82,40 @@ const NodeContainer = styled.div<{
   }
 `;
 
-const NodeHeader = styled.div`
-  background-color: #094771;
+const NodeHeader = styled.div<{
+  backgroundColor: string;
+  hoverColor: string;
+  textColor: string;
+}>`
+  background-color: ${props => props.backgroundColor};
+  color: ${props => props.textColor};
   padding: 8px 12px;
   border-radius: 6px 6px 0 0;
   border-bottom: 1px solid #3e3e42;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: ${props => props.hoverColor};
+  }
 `;
 
 const NodeTitle = styled.div`
   font-size: 12px;
   font-weight: 600;
-  color: #ffffff;
   display: flex;
   align-items: center;
   gap: 6px;
+`;
+
+const NodeDescription = styled.div`
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 4px;
+  line-height: 1.3;
+  word-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+  max-width: 100%;
 `;
 
 const NodeIcon = styled.span`
@@ -90,21 +167,36 @@ const PinLabel = styled.span<{ type: 'input' | 'output' }>`
   font-size: 11px;
   color: #cccccc;
   ${props => props.type === 'input' ? 'margin-left: 8px;' : 'margin-right: 8px;'}
+  display: flex;
+  flex-direction: column;
+  align-items: ${props => props.type === 'input' ? 'flex-start' : 'flex-end'};
+  gap: 2px;
 `;
 
-const InputField = styled.input`
-  background-color: #3c3c3c;
-  border: 1px solid #3e3e42;
+const PinName = styled.span`
+  font-weight: 500;
+`;
+
+const PinType = styled.span`
+  font-size: 9px;
+  color: #888;
+  text-transform: uppercase;
+`;
+
+const InputField = styled.input<{ isReadOnly: boolean }>`
+  background-color: ${props => props.isReadOnly ? '#2a2a2a' : '#3c3c3c'};
+  border: 1px solid ${props => props.isReadOnly ? '#444' : '#3e3e42'};
   border-radius: 3px;
-  color: #cccccc;
+  color: ${props => props.isReadOnly ? '#888' : '#cccccc'};
   font-size: 11px;
   padding: 2px 6px;
   width: 60px;
   margin: 0 4px;
+  cursor: ${props => props.isReadOnly ? 'not-allowed' : 'text'};
 
   &:focus {
     outline: none;
-    border-color: #007acc;
+    border-color: ${props => props.isReadOnly ? '#444' : '#007acc'};
   }
 `;
 
@@ -114,6 +206,9 @@ interface NodeComponentProps {
   position: { x: number; y: number };
   viewTransform: { scale: number; translateX: number; translateY: number };
   isConnecting: boolean;
+  category?: string; // Node category for color theming
+  metadata?: VisualMethodMetadata; // Node metadata for displaying types and description
+  connections?: Connection[]; // All connections to check for pin connections
   onSelect: (nodeId: string) => void;
   onMove: (nodeId: string, x: number, y: number) => void;
   onInputChange: (nodeId: string, inputName: string, value: any) => void;
@@ -127,6 +222,9 @@ function NodeComponent({
   position,
   viewTransform,
   isConnecting,
+  category,
+  metadata,
+  connections = [],
   onSelect,
   onMove,
   onInputChange,
@@ -215,6 +313,31 @@ function NodeComponent({
     };
   }, [isDragging, dragOffset, node.id, onMove, viewTransform]);
 
+  // Get category colors
+  const categoryColors = getCategoryColors(category || 'Uncategorized');
+
+  // Check if a pin is connected
+  const isPinConnected = (pinName: string, pinType: 'input' | 'output'): boolean => {
+    return connections.some(conn => {
+      if (pinType === 'input') {
+        return conn.toNodeId === node.id && conn.toPin === pinName;
+      } else {
+        return conn.fromNodeId === node.id && conn.fromPin === pinName;
+      }
+    });
+  };
+
+  // Get pin type from metadata
+  const getPinType = (pinName: string, pinType: 'input' | 'output'): string => {
+    if (!metadata) return 'any';
+
+    const pins = pinType === 'input' ? metadata.inputs : metadata.outputs;
+    // The metadata should already be resolved by NodeGenerator.resolveI18nMetadata
+    // So we just need to match by the resolved label
+    const pinConfig = pins.find(p => p.label === pinName);
+    return pinConfig?.type || 'any';
+  };
+
   const handleInputChange = (inputName: string, value: string) => {
     // Try to parse as number if possible
     let parsedValue: any = value;
@@ -228,7 +351,8 @@ function NodeComponent({
   };
 
   const renderInputPin = (inputName: string, value: any) => {
-    const hasConnection = false; // TODO: Check if pin has connection
+    const hasConnection = isPinConnected(inputName, 'input');
+    const pinType = getPinType(inputName, 'input');
     const showInputField = !hasConnection;
 
     return (
@@ -246,25 +370,44 @@ function NodeComponent({
             onPinMouseUp(node.id, inputName, 'input', e);
           }}
         />
-        <PinLabel type="input">{inputName}</PinLabel>
+        <PinLabel type="input">
+          <PinName>{inputName}</PinName>
+          <PinType>{pinType}</PinType>
+        </PinLabel>
         {showInputField && (
           <InputField
             type="text"
             value={value !== undefined ? String(value) : ''}
-            onChange={(e) => handleInputChange(inputName, e.target.value)}
+            isReadOnly={hasConnection}
+            readOnly={hasConnection}
+            onChange={(e) => !hasConnection && handleInputChange(inputName, e.target.value)}
             onClick={(e) => e.stopPropagation()}
           />
+        )}
+        {hasConnection && (
+          <div style={{
+            fontSize: '10px',
+            color: '#888',
+            marginLeft: '4px',
+            fontStyle: 'italic'
+          }}>
+            Connected
+          </div>
         )}
       </PinRow>
     );
   };
 
   const renderOutputPin = (outputName: string) => {
-    const hasConnection = false; // TODO: Check if pin has connection
+    const hasConnection = isPinConnected(outputName, 'output');
+    const pinType = getPinType(outputName, 'output');
 
     return (
       <PinRow key={`output-${outputName}`}>
-        <PinLabel type="output">{outputName}</PinLabel>
+        <PinLabel type="output">
+          <PinName>{outputName}</PinName>
+          <PinType>{pinType}</PinType>
+        </PinLabel>
         <Pin
           type="output"
           connected={hasConnection}
@@ -290,12 +433,22 @@ function NodeComponent({
       y={position.y}
       isDragging={isDragging}
       onMouseDown={handleMouseDown}
+      data-node-id={node.id}
     >
-      <NodeHeader>
+      <NodeHeader
+        backgroundColor={categoryColors.primary}
+        hoverColor={categoryColors.secondary}
+        textColor={categoryColors.text}
+      >
         <NodeTitle>
-          <NodeIcon>⚙️</NodeIcon>
-          {node.type}
+          <NodeIcon>{metadata?.icon || '⚙️'}</NodeIcon>
+          {metadata?.title || node.type}
         </NodeTitle>
+        {metadata?.description && (
+          <NodeDescription>
+            {metadata.description}
+          </NodeDescription>
+        )}
       </NodeHeader>
 
       <NodeBody>

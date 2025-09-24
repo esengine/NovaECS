@@ -48,7 +48,8 @@
     "play": "Play",
     "pause": "Pause",
     "stop": "Stop",
-    "step": "Step"
+    "step": "Step",
+    "profiler": "Performance Profiler"
   },
   "components": {
     "transform": "Transform",
@@ -328,5 +329,18 @@
     "scene": "Scene",
     "visual": "Visual",
     "unsaved": "(Unsaved)"
+  },
+  "profiler": {
+    "title": "Performance Profiler",
+    "fps": "FPS",
+    "frameTime": "Frame Time",
+    "systemTime": "System Time",
+    "systems": "Systems",
+    "system": "System",
+    "last": "Last",
+    "avg": "Avg",
+    "max": "Max",
+    "calls": "Calls",
+    "noData": "No profiling data available"
   }
 }

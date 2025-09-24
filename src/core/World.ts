@@ -505,30 +505,32 @@ export class World {
     inputs: [
       {
         type: 'execute',
-        label: 'Execute'
+        labelKey: I18N_KEYS.COMMON.EXECUTE,
+        descriptionKey: I18N_KEYS.PIN.EXECUTE.DESCRIPTION
       },
       {
         type: 'entity',
-        label: 'Entity',
+        labelKey: I18N_KEYS.COMMON.ENTITY,
         required: true,
-        description: 'Target entity'
+        descriptionKey: I18N_KEYS.PIN.ENTITY.DESCRIPTION
       },
       {
         type: 'component-type',
-        label: 'Component Type',
+        labelKey: 'common.componentType',
         required: true,
-        description: 'Component constructor'
+        descriptionKey: I18N_KEYS.PIN.COMPONENT_TYPE.DESCRIPTION
       },
       {
         type: 'component-data',
-        label: 'Initial Data',
-        description: 'Optional initial component data'
+        labelKey: 'common.componentData',
+        descriptionKey: I18N_KEYS.PIN.COMPONENT_DATA.DESCRIPTION
       }
     ],
     outputs: [
       {
         type: 'execute',
-        label: 'Then'
+        labelKey: I18N_KEYS.COMMON.THEN,
+        descriptionKey: I18N_KEYS.PIN.THEN.DESCRIPTION
       }
     ],
     stateful: true
@@ -557,25 +559,27 @@ export class World {
     inputs: [
       {
         type: 'execute',
-        label: 'Execute'
+        labelKey: I18N_KEYS.COMMON.EXECUTE,
+        descriptionKey: I18N_KEYS.PIN.EXECUTE.DESCRIPTION
       },
       {
         type: 'entity',
-        label: 'Entity',
+        labelKey: I18N_KEYS.COMMON.ENTITY,
         required: true,
-        description: 'Target entity'
+        descriptionKey: I18N_KEYS.PIN.ENTITY.DESCRIPTION
       },
       {
         type: 'component-type',
-        label: 'Component Type',
+        labelKey: 'common.componentType',
         required: true,
-        description: 'Component constructor to remove'
+        descriptionKey: 'pin.componentType.remove.description'
       }
     ],
     outputs: [
       {
         type: 'execute',
-        label: 'Then'
+        labelKey: I18N_KEYS.COMMON.THEN,
+        descriptionKey: I18N_KEYS.PIN.THEN.DESCRIPTION
       }
     ],
     stateful: true
@@ -598,22 +602,22 @@ export class World {
     inputs: [
       {
         type: 'entity',
-        label: 'Entity',
+        labelKey: I18N_KEYS.COMMON.ENTITY,
         required: true,
-        description: 'Target entity'
+        descriptionKey: I18N_KEYS.PIN.ENTITY.DESCRIPTION
       },
       {
         type: 'component-type',
-        label: 'Component Type',
+        labelKey: 'common.componentType',
         required: true,
-        description: 'Component constructor to get'
+        descriptionKey: 'pin.componentType.get.description'
       }
     ],
     outputs: [
       {
         type: 'component-data',
-        label: 'Component',
-        description: 'Component data or undefined if not found'
+        labelKey: I18N_KEYS.COMMON.COMPONENT,
+        descriptionKey: I18N_KEYS.PIN.COMPONENT_DATA.DESCRIPTION
       }
     ],
     stateful: false
@@ -661,22 +665,22 @@ export class World {
     inputs: [
       {
         type: 'entity',
-        label: 'Entity',
+        labelKey: I18N_KEYS.COMMON.ENTITY,
         required: true,
-        description: 'Target entity'
+        descriptionKey: I18N_KEYS.PIN.ENTITY.DESCRIPTION
       },
       {
         type: 'component-type',
-        label: 'Component Type',
+        labelKey: 'common.componentType',
         required: true,
-        description: 'Component constructor to check'
+        descriptionKey: 'pin.componentType.check.description'
       }
     ],
     outputs: [
       {
         type: 'boolean',
-        label: 'Has Component',
-        description: 'True if entity has the component'
+        labelKey: 'common.hasComponent',
+        descriptionKey: I18N_KEYS.PIN.HAS_COMPONENT.DESCRIPTION
       }
     ],
     stateful: false
@@ -796,16 +800,16 @@ export class World {
     inputs: [
       {
         type: 'component-type',
-        label: 'Component Types',
+        labelKey: 'common.componentTypes',
         required: true,
-        description: 'Component constructors to query for'
+        descriptionKey: 'pin.componentTypes.query.description'
       }
     ],
     outputs: [
       {
         type: 'query',
-        label: 'Query',
-        description: 'Query object for iteration'
+        labelKey: I18N_KEYS.COMMON.QUERY,
+        descriptionKey: I18N_KEYS.PIN.QUERY.DESCRIPTION
       }
     ],
     stateful: false

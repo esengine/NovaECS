@@ -138,6 +138,22 @@ function Toolbar() {
           ⏹
         </ToolButton>
       </ToolGroup>
+
+      <Separator />
+
+      {/* Debug Tools */}
+      <ToolGroup>
+        <ToolButton
+          title={`${t('toolbar.profiler')} (F3)`}
+          onClick={() => {
+            // Dispatch F3 key event to trigger profiler
+            const event = new KeyboardEvent('keydown', { key: 'F3' });
+            window.dispatchEvent(event);
+          }}
+        >
+          📊
+        </ToolButton>
+      </ToolGroup>
     </ToolbarContainer>
   );
 }

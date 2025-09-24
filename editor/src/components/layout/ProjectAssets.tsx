@@ -184,13 +184,15 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
 
       for (const entry of entries) {
         const entryPath = await window.electronAPI.pathJoin(dirPath, entry);
-        // Simple check for directories - if readDirectory succeeds, it's a directory
+        // Check if it's a directory using file stats
         try {
-          await window.electronAPI!.readDirectory(entryPath);
-          const childFolder = await loadDirectoryTree(entryPath, entry);
-          children.push(childFolder);
+          const stats = await window.electronAPI.getFileStats(entryPath);
+          if (stats.isDirectory) {
+            const childFolder = await loadDirectoryTree(entryPath, entry);
+            children.push(childFolder);
+          }
         } catch {
-          // Not a directory, skip
+          // Failed to get stats, skip
         }
       }
 
@@ -215,18 +217,17 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
 
       for (const entry of entries) {
         const entryPath = await window.electronAPI.pathJoin(folderPath, entry);
-        // Check if it's a file (not a directory)
+        // Check if it's a file using file stats
         try {
-          await window.electronAPI.readDirectory(entryPath);
-          // It's a directory, skip
-        } catch {
-          // It's a file
-          const type = getFileType(entry);
-          const asset: AssetData = {
-            name: entry,
-            path: entryPath,
-            type,
-            icon: getFileIcon(type)
+          const stats = await window.electronAPI.getFileStats(entryPath);
+          if (!stats.isDirectory) {
+            // It's a file
+            const type = getFileType(entry);
+            const asset: AssetData = {
+              name: entry,
+              path: entryPath,
+              type,
+              icon: getFileIcon(type)
           };
 
           // Load file stats if possible
@@ -240,7 +241,10 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
             console.warn(`Failed to get stats for ${entryPath}:`, error);
           }
 
-          assetList.push(asset);
+            assetList.push(asset);
+          }
+        } catch {
+          // Failed to get stats, skip
         }
       }
 

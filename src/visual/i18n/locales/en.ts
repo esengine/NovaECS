@@ -59,6 +59,38 @@ export const enLocale: LanguageResource = {
   'category.utility.conversion': 'Utility/Conversion',
   'category.utility.debug': 'Utility/Debug',
 
+  // Visual node categories
+  'visual.categories.flow': 'Flow/Control',
+  'visual.categories.math': 'Math',
+
+  // Built-in node titles
+  'visual.nodes.flow.start.title': 'Start',
+  'visual.nodes.flow.start.description': 'Start execution point',
+  'visual.nodes.math.add.title': 'Add',
+  'visual.nodes.math.add.description': 'Add two numbers',
+  'visual.nodes.math.multiply.title': 'Multiply',
+  'visual.nodes.math.multiply.description': 'Multiply two numbers',
+  'visual.nodes.math.subtract.title': 'Subtract',
+  'visual.nodes.math.subtract.description': 'Subtract two numbers',
+  'visual.nodes.math.divide.title': 'Divide',
+  'visual.nodes.math.divide.description': 'Divide two numbers',
+
+  // Pin labels
+  'visual.pins.execute': 'Execute',
+  'visual.pins.a': 'A',
+  'visual.pins.b': 'B',
+  'visual.pins.result': 'Result',
+
+  // Additional common labels
+  'common.componentType': 'Component Type',
+  'common.componentData': 'Component Data',
+  'common.componentTypes': 'Component Types',
+  'common.hasComponent': 'Has Component',
+  'common.forEach': 'For Each',
+  'common.components': 'Components',
+  'common.excludeTypes': 'Exclude Types',
+  'common.filteredQuery': 'Filtered Query',
+
   // Pin descriptions
   'pin.execute.description': 'Trigger execution',
   'pin.then.description': 'Execution continues here',

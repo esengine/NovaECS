@@ -45,14 +45,23 @@ export class MethodCallNode extends BaseVisualNode {
   }
 
   /**
-   * Initialize default input values from metadata
-   * 从元数据初始化默认输入值
+   * Initialize input and output pins from metadata
+   * 从元数据初始化输入输出端口
    */
   private initializeDefaults(): void {
-    for (const input of this.metadata.inputs) {
-      if (input.defaultValue !== undefined) {
-        this.setInput(input.label || 'input', input.defaultValue);
-      }
+    // Initialize all input pins
+    // 初始化所有输入端口
+    for (const input of this.metadata.inputs || []) {
+      const inputName = input.label || 'input';
+      const defaultValue = input.defaultValue !== undefined ? input.defaultValue : null;
+      this.setInput(inputName, defaultValue);
+    }
+
+    // Initialize all output pins
+    // 初始化所有输出端口
+    for (const output of this.metadata.outputs || []) {
+      const outputName = output.label || 'output';
+      this.setOutput(outputName, null);
     }
   }
 

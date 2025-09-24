@@ -183,35 +183,36 @@ export class Query<Ts extends unknown[]> {
     inputs: [
       {
         type: 'execute',
-        label: 'Execute'
+        labelKey: I18N_KEYS.COMMON.EXECUTE,
+        descriptionKey: I18N_KEYS.PIN.EXECUTE.DESCRIPTION
       },
       {
         type: 'query',
-        label: 'Query',
+        labelKey: I18N_KEYS.COMMON.QUERY,
         required: true,
-        description: 'Query to iterate over'
+        descriptionKey: I18N_KEYS.PIN.QUERY.DESCRIPTION
       }
     ],
     outputs: [
       {
         type: 'execute',
-        label: 'For Each',
-        description: 'Executed once per entity'
+        labelKey: 'common.forEach',
+        descriptionKey: 'pin.forEach.description'
       },
       {
         type: 'entity',
-        label: 'Entity',
-        description: 'Current entity'
+        labelKey: I18N_KEYS.COMMON.ENTITY,
+        descriptionKey: I18N_KEYS.PIN.ENTITY.DESCRIPTION
       },
       {
         type: 'component-data',
-        label: 'Components',
-        description: 'Entity components'
+        labelKey: 'common.components',
+        descriptionKey: 'pin.components.description'
       },
       {
         type: 'execute',
-        label: 'Then',
-        description: 'Executed after all entities'
+        labelKey: I18N_KEYS.COMMON.THEN,
+        descriptionKey: I18N_KEYS.PIN.THEN.DESCRIPTION
       }
     ],
     stateful: false
@@ -290,16 +291,16 @@ export class Query<Ts extends unknown[]> {
     inputs: [
       {
         type: 'query',
-        label: 'Query',
+        labelKey: I18N_KEYS.COMMON.QUERY,
         required: true,
-        description: 'Query to count'
+        descriptionKey: I18N_KEYS.PIN.QUERY.DESCRIPTION
       }
     ],
     outputs: [
       {
         type: 'number',
-        label: 'Count',
-        description: 'Number of matching entities'
+        labelKey: I18N_KEYS.COMMON.COUNT,
+        descriptionKey: I18N_KEYS.PIN.COUNT.DESCRIPTION
       }
     ],
     stateful: false
@@ -388,22 +389,22 @@ export class Query<Ts extends unknown[]> {
     inputs: [
       {
         type: 'query',
-        label: 'Query',
+        labelKey: I18N_KEYS.COMMON.QUERY,
         required: true,
-        description: 'Base query'
+        descriptionKey: I18N_KEYS.PIN.QUERY.DESCRIPTION
       },
       {
         type: 'component-type',
-        label: 'Exclude Types',
+        labelKey: 'common.excludeTypes',
         required: true,
-        description: 'Component types to exclude'
+        descriptionKey: 'pin.excludeTypes.description'
       }
     ],
     outputs: [
       {
         type: 'query',
-        label: 'Filtered Query',
-        description: 'Query excluding specified components'
+        labelKey: 'common.filteredQuery',
+        descriptionKey: 'pin.filteredQuery.description'
       }
     ],
     stateful: false

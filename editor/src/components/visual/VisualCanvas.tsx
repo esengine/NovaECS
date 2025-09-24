@@ -1,7 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import styled from '@emotion/styled';
 import { VisualGraph, BaseVisualNode, NodeGenerator } from '@esengine/nova-ecs';
-import NodeComponent from './NodeComponent';
+import NodeComponent, { NODE_LAYOUT, calculateHeaderHeight, calculatePinPosition } from './NodeComponent';
 
 const CanvasContainer = styled.div`
   flex: 1;
@@ -45,12 +45,17 @@ const SelectionBox = styled.div<{
   display: ${props => props.visible ? 'block' : 'none'};
 `;
 
-const ConnectionSVG = styled.svg`
+const ConnectionSVG = styled.svg<{
+  svgWidth: number;
+  svgHeight: number;
+  svgLeft: number;
+  svgTop: number;
+}>`
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: ${props => props.svgTop}px;
+  left: ${props => props.svgLeft}px;
+  width: ${props => props.svgWidth}px;
+  height: ${props => props.svgHeight}px;
   pointer-events: none;
   z-index: 1;
 `;
@@ -86,6 +91,7 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
     const [isPanning, setIsPanning] = useState(false);
     const [panStart, setPanStart] = useState({ x: 0, y: 0 });
     const [viewTransform, setViewTransform] = useState({ scale: 1, translateX: 0, translateY: 0 });
+
     const [selectionBox, setSelectionBox] = useState({
       visible: false,
       startX: 0,
@@ -119,9 +125,58 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
 
     const canvasRef = useRef<HTMLDivElement>(null);
 
-    // Get pin position from DOM if possible, fallback to calculation
+    // Calculate SVG bounds to cover all nodes
+    const calculateSVGBounds = () => {
+      if (nodePositions.size === 0) {
+        return { left: 0, top: 0, width: 1000, height: 1000 };
+      }
+
+      let minX = 0, minY = 0, maxX = 1000, maxY = 1000;
+
+      // Find the bounds of all nodes
+      for (const [nodeId, pos] of nodePositions.entries()) {
+        minX = Math.min(minX, pos.x - 100); // Add padding
+        minY = Math.min(minY, pos.y - 100);
+        maxX = Math.max(maxX, pos.x + 300); // Add node width + padding
+        maxY = Math.max(maxY, pos.y + 200); // Add node height + padding
+      }
+
+      return {
+        left: minX,
+        top: minY,
+        width: maxX - minX,
+        height: maxY - minY
+      };
+    };
+
+    // Store node categories for color theming
+    const [nodeCategories, setNodeCategories] = useState<Map<string, string>>(new Map());
+
+    // Handle node deletion
+    useEffect(() => {
+      const handleDeleteNodes = () => {
+        if (selectedNodes.size > 0) {
+          // Delete all selected nodes
+          for (const nodeId of selectedNodes) {
+            graph.removeNode(nodeId);
+            setNodeCategories(prev => {
+              const newCategories = new Map(prev);
+              newCategories.delete(nodeId);
+              return newCategories;
+            });
+          }
+          setSelectedNodes(new Set());
+          onChange();
+        }
+      };
+
+      document.addEventListener('visual-delete-nodes', handleDeleteNodes);
+      return () => document.removeEventListener('visual-delete-nodes', handleDeleteNodes);
+    }, [selectedNodes, graph, onChange]);
+
+
+    // Get pin position using pure DOM queries
     const getPinPosition = (nodeId: string, pinName: string, pinType: 'input' | 'output') => {
-      // Try to find the pin DOM element
       const pinSelector = `[data-pin="${pinType}"][data-node="${nodeId}"][data-pin-name="${pinName}"]`;
       const pinElement = document.querySelector(pinSelector) as HTMLElement;
 
@@ -135,26 +190,75 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
         return { x: pinCenterX, y: pinCenterY };
       }
 
-      // Fallback to calculation if DOM lookup fails
-      return calculatePinPosition(nodeId, pinName, pinType);
+      // Fallback to calculated position if DOM element not found
+      return calculateNodePinPosition(nodeId, pinName, pinType);
     };
 
-    // Calculate pin position as fallback when DOM lookup fails
-    const calculatePinPosition = (nodeId: string, pinName: string, pinType: 'input' | 'output') => {
+    // Calculate pin position using dynamic layout calculation
+    const calculateNodePinPosition = (nodeId: string, pinName: string, pinType: 'input' | 'output') => {
       const node = graph.getNode(nodeId);
       const nodePos = nodePositions.get(nodeId);
 
       if (!node || !nodePos) return { x: 0, y: 0 };
 
+      // Get node metadata for accurate size calculation
+      let nodeMetadata = undefined;
+      if ((node as any).getMetadata && typeof (node as any).getMetadata === 'function') {
+        try {
+          const rawMetadata = (node as any).getMetadata();
+          if (rawMetadata) {
+            nodeMetadata = NodeGenerator.resolveI18nMetadata(rawMetadata);
+          }
+        } catch (e) {
+          // Ignore metadata errors
+        }
+      }
+
       const pins = pinType === 'input' ? Array.from(node.inputs.keys()) : Array.from(node.outputs.keys());
       const pinIndex = pins.indexOf(pinName);
       if (pinIndex === -1) return { x: 0, y: 0 };
 
-      // Simplified calculation
-      const pinY = nodePos.y + 40 + (pinIndex * 24);
-      const pinX = pinType === 'output' ? nodePos.x + 142 : nodePos.x + 8;
+      // Calculate header height based on node content
+      const title = nodeMetadata?.title || node.type;
+      const description = nodeMetadata?.description;
+      const headerHeight = calculateHeaderHeight(title, description);
 
-      return { x: pinX, y: pinY };
+      // Estimate node width based on content
+      const estimateNodeWidth = (title: string, description?: string, inputCount = 0, outputCount = 0): number => {
+        // Calculate width based on title
+        let titleWidth = title.length * 7 + 50; // 7px per char + margins + icon
+
+        // Consider description width
+        if (description) {
+          const maxDescWidth = Math.max(...description.split(' ').map(word => word.length * 6));
+          titleWidth = Math.max(titleWidth, maxDescWidth + 40);
+        }
+
+        // Consider pin labels (they affect minimum width)
+        const maxPinWidth = Math.max(inputCount, outputCount) * 80; // rough estimate
+
+        return Math.min(
+          NODE_LAYOUT.MAX_WIDTH,
+          Math.max(NODE_LAYOUT.MIN_WIDTH, Math.max(titleWidth, maxPinWidth))
+        );
+      };
+
+      const inputCount = Array.from(node.inputs.keys()).length;
+      const outputCount = Array.from(node.outputs.keys()).length;
+      let nodeWidth = estimateNodeWidth(title, description, inputCount, outputCount);
+
+      // Try to get actual node width from DOM
+      const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`) as HTMLElement;
+      if (nodeElement) {
+        const rect = nodeElement.getBoundingClientRect();
+        const actualWidth = rect.width / viewTransform.scale;
+        if (actualWidth > 0 && actualWidth < NODE_LAYOUT.MAX_WIDTH * 2) {
+          nodeWidth = actualWidth;
+        }
+      }
+
+      // Calculate accurate pin position
+      return calculatePinPosition(nodePos, headerHeight, pinIndex, pinType, nodeWidth);
     };
 
     const handleCanvasMouseDown = (event: React.MouseEvent) => {
@@ -325,8 +429,26 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
       event.preventDefault();
 
       try {
-        const data = JSON.parse(event.dataTransfer.getData('application/json'));
+        const rawData = event.dataTransfer.getData('application/json');
+
+        if (!rawData || rawData.trim() === '') {
+          console.warn('Drop operation failed: No drag data available');
+          return;
+        }
+
+        const data = JSON.parse(rawData);
+
+        if (!data || typeof data !== 'object') {
+          console.warn('Drop operation failed: Invalid data format');
+          return;
+        }
+
         if (data.type === 'node') {
+          if (!data.nodeType || typeof data.nodeType !== 'object' || !data.nodeType.id) {
+            console.warn('Drop operation failed: Invalid node type data');
+            return;
+          }
+
           const rect = canvasRef.current?.getBoundingClientRect();
           if (!rect) return;
 
@@ -338,45 +460,24 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
           // Create node using NodeGenerator for proper type registration
           let node: BaseVisualNode;
 
-          try {
-            // Try to create using NodeGenerator first (for ECS nodes)
-            node = NodeGenerator.createNode(data.nodeType.id, nodeId);
-          } catch (error) {
-            // Fall back to creating built-in nodes manually
-            node = new (class extends BaseVisualNode {
-              constructor() {
-                super(nodeId, data.nodeType.id);
-                // Add inputs/outputs based on node type
-                if (data.nodeType.id.includes('math')) {
-                  this.setInput('a', 0);
-                  this.setInput('b', 0);
-                  this.setOutput('result', 0);
-                } else if (data.nodeType.id.includes('flow')) {
-                  this.setOutput('exec', null);
-                }
-              }
-
-              execute() {
-                // Simple execution logic
-                if (this.type.includes('add')) {
-                  const a = this.getInput('a') || 0;
-                  const b = this.getInput('b') || 0;
-                  this.setOutput('result', a + b);
-                } else if (this.type.includes('multiply')) {
-                  const a = this.getInput('a') || 0;
-                  const b = this.getInput('b') || 0;
-                  this.setOutput('result', a * b);
-                }
-              }
-            })();
-          }
+          // Create node using NodeGenerator (handles ECS nodes properly via metadata)
+          node = NodeGenerator.createNode(data.nodeType.id, nodeId);
 
           graph.addNode(node);
           setNodePositions(prev => new Map(prev.set(nodeId, { x, y })));
+
+          // Store node category for color theming
+          if (data.nodeType.category) {
+            setNodeCategories(prev => new Map(prev.set(nodeId, data.nodeType.category)));
+          }
+
           onChange();
+        } else {
+          console.warn('Drop operation failed: Unsupported data type:', data.type);
         }
       } catch (error) {
         console.error('Failed to handle drop:', error);
+        console.error('Raw drag data was:', event.dataTransfer.getData('application/json'));
       }
     };
 
@@ -387,6 +488,8 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
 
       return `M ${x1} ${y1} C ${cpx1} ${y1}, ${cpx2} ${y2}, ${x2} ${y2}`;
     };
+
+    const svgBounds = calculateSVGBounds();
 
     return (
       <CanvasContainer
@@ -404,7 +507,12 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
           translateY={viewTransform.translateY}
         >
           {/* Render connections */}
-          <ConnectionSVG>
+          <ConnectionSVG
+            svgWidth={svgBounds.width}
+            svgHeight={svgBounds.height}
+            svgLeft={svgBounds.left}
+            svgTop={svgBounds.top}
+          >
             {graph.getAllConnections().map((connection: any) => {
               const fromNode = graph.getNode(connection.fromNodeId);
               const toNode = graph.getNode(connection.toNodeId);
@@ -415,10 +523,16 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
               const fromPos = getPinPosition(connection.fromNodeId, connection.fromPin, 'output');
               const toPos = getPinPosition(connection.toNodeId, connection.toPin, 'input');
 
+              // Adjust coordinates relative to SVG bounds
+              const adjustedFromX = fromPos.x - svgBounds.left;
+              const adjustedFromY = fromPos.y - svgBounds.top;
+              const adjustedToX = toPos.x - svgBounds.left;
+              const adjustedToY = toPos.y - svgBounds.top;
+
               return (
                 <ConnectionPath
                   key={connection.id}
-                  d={createConnectionPath(fromPos.x, fromPos.y, toPos.x, toPos.y)}
+                  d={createConnectionPath(adjustedFromX, adjustedFromY, adjustedToX, adjustedToY)}
                 />
               );
             })}
@@ -427,10 +541,10 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
             {connecting.active && connecting.dragging && (
               <TempConnectionPath
                 d={createConnectionPath(
-                  connecting.startX,
-                  connecting.startY,
-                  connecting.currentX,
-                  connecting.currentY
+                  connecting.startX - svgBounds.left,
+                  connecting.startY - svgBounds.top,
+                  connecting.currentX - svgBounds.left,
+                  connecting.currentY - svgBounds.top
                 )}
               />
             )}
@@ -439,6 +553,21 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
           {/* Render nodes */}
           {graph.getAllNodes().map((node: any) => {
             const position = nodePositions.get(node.id) || { x: 100, y: 100 };
+
+            // Try to get node metadata if available and resolve i18n
+            let nodeMetadata = undefined;
+            if (node.getMetadata && typeof node.getMetadata === 'function') {
+              try {
+                const rawMetadata = node.getMetadata();
+                if (rawMetadata) {
+                  // Resolve i18n keys to actual text
+                  nodeMetadata = NodeGenerator.resolveI18nMetadata(rawMetadata);
+                }
+              } catch (e) {
+                // Ignore errors when getting metadata
+              }
+            }
+
             return (
               <NodeComponent
                 key={node.id}
@@ -447,6 +576,9 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
                 position={position}
                 viewTransform={viewTransform}
                 isConnecting={connecting.active}
+                category={nodeCategories.get(node.id)}
+                metadata={nodeMetadata}
+                connections={graph.getAllConnections()}
                 onSelect={handleNodeSelect}
                 onMove={handleNodeMove}
                 onInputChange={handleInputChange}

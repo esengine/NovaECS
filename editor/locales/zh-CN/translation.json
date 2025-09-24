@@ -48,7 +48,8 @@
     "play": "播放",
     "pause": "暂停",
     "stop": "停止",
-    "step": "单步"
+    "step": "单步",
+    "profiler": "性能分析器"
   },
   "components": {
     "transform": "变换",
@@ -328,5 +329,18 @@
     "scene": "场景",
     "visual": "可视化",
     "unsaved": "(未保存)"
+  },
+  "profiler": {
+    "title": "性能分析器",
+    "fps": "帧率",
+    "frameTime": "帧时间",
+    "systemTime": "系统时间",
+    "systems": "系统数量",
+    "system": "系统",
+    "last": "最后",
+    "avg": "平均",
+    "max": "最大",
+    "calls": "调用",
+    "noData": "无性能分析数据"
   }
 }

@@ -59,6 +59,38 @@ export const zhCNLocale: LanguageResource = {
   'category.utility.conversion': '工具/转换',
   'category.utility.debug': '工具/调试',
 
+  // 可视化节点分类
+  'visual.categories.flow': '流程/控制',
+  'visual.categories.math': '数学',
+
+  // 内置节点标题
+  'visual.nodes.flow.start.title': '开始',
+  'visual.nodes.flow.start.description': '开始执行点',
+  'visual.nodes.math.add.title': '加法',
+  'visual.nodes.math.add.description': '两个数相加',
+  'visual.nodes.math.multiply.title': '乘法',
+  'visual.nodes.math.multiply.description': '两个数相乘',
+  'visual.nodes.math.subtract.title': '减法',
+  'visual.nodes.math.subtract.description': '两个数相减',
+  'visual.nodes.math.divide.title': '除法',
+  'visual.nodes.math.divide.description': '两个数相除',
+
+  // 引脚标签
+  'visual.pins.execute': '执行',
+  'visual.pins.a': 'A',
+  'visual.pins.b': 'B',
+  'visual.pins.result': '结果',
+
+  // 额外的通用标签
+  'common.componentType': '组件类型',
+  'common.componentData': '组件数据',
+  'common.componentTypes': '组件类型',
+  'common.hasComponent': '拥有组件',
+  'common.forEach': '遍历',
+  'common.components': '组件',
+  'common.excludeTypes': '排除类型',
+  'common.filteredQuery': '过滤查询',
+
   // 引脚描述
   'pin.execute.description': '触发执行',
   'pin.then.description': '在此处继续执行',

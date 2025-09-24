@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import styled from '@emotion/styled';
 import { useEditor } from '../../store/EditorContext';
 import { LocalTransform, Sprite } from '@esengine/nova-ecs';
+import ProfilerPanel from './ProfilerPanel';
 
 const SceneContainer = styled.div`
   flex: 1;
@@ -39,6 +40,7 @@ function SceneView() {
   const { t } = useTranslation();
   const { world, mode, tool, entities } = useEditor();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [showProfiler, setShowProfiler] = useState(false);
 
   // Camera state
   const [camera, setCamera] = useState({
@@ -395,6 +397,20 @@ function SceneView() {
     });
   };
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Toggle profiler with F3
+      if (event.key === 'F3') {
+        event.preventDefault();
+        setShowProfiler(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <SceneContainer>
       <Canvas
@@ -409,8 +425,13 @@ function SceneView() {
       />
       <Overlay>
         {t('panels.scene')} | {t(`toolbar.${tool}`)} | {mode.toUpperCase()} | {Math.round(camera.zoom * 100)}% |
-        X: {Math.round(camera.x)} Y: {Math.round(camera.y)}
+        X: {Math.round(camera.x)} Y: {Math.round(camera.y)} | F3: Profiler
       </Overlay>
+
+      <ProfilerPanel
+        visible={showProfiler}
+        onClose={() => setShowProfiler(false)}
+      />
     </SceneContainer>
   );
 }
