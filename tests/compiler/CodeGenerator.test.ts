@@ -57,11 +57,17 @@ describe('CodeGenerator', () => {
 
       const result = await generator.generateCode(graph, options);
 
+      // Debug: log errors if generation failed 调试：如果生成失败则记录错误
+      if (!result.success) {
+        console.error('Code generation failed:', result.errors);
+        console.log('Graph nodes:', graph.getAllNodes().map(n => ({ id: n.id, type: n.type })));
+      }
+
       expect(result.success).toBe(true);
       expect(result.code).toContain('export class TestMathSystem extends System');
       expect(result.code).toContain('const value_const1 = 5;');
       expect(result.code).toMatch(/const result_add1 = (5 \+ 3|8);/); // Allow either format
-      expect(result.metrics.nodeCount).toBe(2);
+      expect(result.metrics.nodeCount).toBe(4); // 2 user nodes + 2 system nodes (start/end)
       expect(result.metrics.connectionCount).toBe(0);
     });
 
@@ -90,10 +96,10 @@ describe('CodeGenerator', () => {
     test('should generate code for control flow', async () => {
       const graph = new VisualGraph('test-flow');
 
-      const startNode = new MockNode('start1', 'flow.start', [], ['Execute']);
+      // Note: System start/end nodes are automatically created
+      // 注意：系统开始/结束节点会自动创建
       const ifNode = new MockNode('if1', 'flow.if', [['Condition', true]], ['True', 'False']);
 
-      graph.addNode(startNode);
       graph.addNode(ifNode);
 
       const options: CodeGenerationOptions = {
@@ -115,8 +121,8 @@ describe('CodeGenerator', () => {
   describe('System Configuration', () => {
     test('should generate system with custom name and stage', async () => {
       const graph = new VisualGraph('test-custom');
-      const startNode = new MockNode('start1', 'flow.start', [], ['Execute']);
-      graph.addNode(startNode);
+      // System start/end nodes are automatically created
+      // 系统开始/结束节点会自动创建
 
       const options: CodeGenerationOptions = {
         systemName: 'CustomGameplaySystem',
@@ -246,8 +252,9 @@ describe('CodeGenerator', () => {
       expect(result.success).toBe(true);
       expect(result.code).toContain('export class EmptySystem extends System');
       expect(result.code).toContain('update(ctx: SystemContext): void {');
-      expect(result.code).toContain('// Empty system - no nodes to execute');
-      expect(result.metrics.nodeCount).toBe(0);
+      expect(result.code).toContain('// System execution starts here 系统执行从此开始');
+      expect(result.code).toContain('// System execution completes here 系统执行在此完成');
+      expect(result.metrics.nodeCount).toBe(2); // 2 system nodes (start/end)
     });
   });
 
@@ -274,7 +281,7 @@ describe('CodeGenerator', () => {
       const endTime = Date.now();
 
       expect(result.success).toBe(true);
-      expect(result.metrics.nodeCount).toBe(3);
+      expect(result.metrics.nodeCount).toBe(5); // 3 user nodes + 2 system nodes
       expect(result.metrics.connectionCount).toBe(0);
       expect(result.metrics.linesOfCode).toBeGreaterThan(10);
       expect(result.metrics.compilationTime).toBeLessThan(endTime - startTime + 100); // Allow some margin
@@ -308,8 +315,8 @@ describe('CodeGenerator', () => {
       const graph = new VisualGraph('game-system');
 
       // Create a realistic game system 创建一个现实的游戏系统
+      // Note: System start/end nodes are automatically created
       const nodes = [
-        new MockNode('start', 'flow.start', [], ['Execute']),
         new MockNode('speed', 'math.constant', [['Value', 5.0]], ['Value']),
         new MockNode('createPlayer', 'world.createEntity', [['Enabled', true]], ['Entity']),
         new MockNode('addTransform', 'world.addComponent', [['Component Type', 'Transform']], [])
@@ -338,7 +345,7 @@ describe('CodeGenerator', () => {
 
       expect(result.success).toBe(true);
       expect(result.code).toContain('export class GameSystem extends System');
-      expect(result.metrics.nodeCount).toBe(4);
+      expect(result.metrics.nodeCount).toBe(5); // 3 user nodes + 2 system nodes
       expect(result.metrics.connectionCount).toBe(1);
       expect(result.code.length).toBeGreaterThan(200); // Should be substantial code
     });

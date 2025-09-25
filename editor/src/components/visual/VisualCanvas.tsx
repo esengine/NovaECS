@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import styled from '@emotion/styled';
-import { VisualGraph, BaseVisualNode, NodeGenerator } from '@esengine/nova-ecs';
+import { VisualGraph, BaseVisualNode, NodeGenerator, Connection } from '@esengine/nova-ecs';
 import NodeComponent, { NODE_LAYOUT, calculateHeaderHeight, calculatePinPosition } from './NodeComponent';
+import { useSelection } from '../../store/SelectionContext';
 
 const CanvasContainer = styled.div`
   flex: 1;
@@ -58,13 +59,23 @@ const ConnectionSVG = styled.svg<{
   height: ${props => props.svgHeight}px;
   pointer-events: none;
   z-index: 1;
+
+  path {
+    pointer-events: stroke;
+  }
 `;
 
-const ConnectionPath = styled.path`
+const ConnectionPath = styled.path<{ selected?: boolean; isHovered?: boolean }>`
   fill: none;
-  stroke: #007acc;
-  stroke-width: 2;
+  stroke: ${props => props.selected ? '#FFD700' : props.isHovered ? '#00AAFF' : '#007acc'};
+  stroke-width: ${props => props.selected ? 3 : 2};
   stroke-linecap: round;
+  cursor: pointer;
+
+  &:hover {
+    stroke: ${props => props.selected ? '#FFD700' : '#00AAFF'};
+    stroke-width: 3;
+  }
 `;
 
 const TempConnectionPath = styled.path`
@@ -86,6 +97,7 @@ interface VisualCanvasProps {
 }
 
 function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
+    const { selectedConnection, selectConnection, clearSelection } = useSelection();
     const [selectedNodes, setSelectedNodes] = useState<Set<string>>(new Set());
     const [nodePositions, setNodePositions] = useState<Map<string, NodePosition>>(new Map());
     const [isPanning, setIsPanning] = useState(false);
@@ -152,7 +164,7 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
     // Store node categories for color theming
     const [nodeCategories, setNodeCategories] = useState<Map<string, string>>(new Map());
 
-    // Handle node deletion
+    // Handle node and connection deletion
     useEffect(() => {
       const handleDeleteNodes = () => {
         if (selectedNodes.size > 0) {
@@ -170,9 +182,34 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
         }
       };
 
+      const handleDeleteConnections = () => {
+        if (selectedConnection) {
+          // Delete the selected connection
+          graph.removeConnection(selectedConnection.id);
+          clearSelection();
+          onChange();
+        }
+      };
+
+      const handleDelete = () => {
+        // Handle connection deletion first, then node deletion
+        if (selectedConnection) {
+          handleDeleteConnections();
+        } else if (selectedNodes.size > 0) {
+          handleDeleteNodes();
+        }
+      };
+
       document.addEventListener('visual-delete-nodes', handleDeleteNodes);
-      return () => document.removeEventListener('visual-delete-nodes', handleDeleteNodes);
-    }, [selectedNodes, graph, onChange]);
+      document.addEventListener('visual-delete-connections', handleDeleteConnections);
+      document.addEventListener('visual-delete', handleDelete);
+
+      return () => {
+        document.removeEventListener('visual-delete-nodes', handleDeleteNodes);
+        document.removeEventListener('visual-delete-connections', handleDeleteConnections);
+        document.removeEventListener('visual-delete', handleDelete);
+      };
+    }, [selectedNodes, selectedConnection, graph, onChange, clearSelection]);
 
 
     // Get pin position using pure DOM queries
@@ -197,15 +234,16 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
     // Calculate pin position using dynamic layout calculation
     const calculateNodePinPosition = (nodeId: string, pinName: string, pinType: 'input' | 'output') => {
       const node = graph.getNode(nodeId);
-      const nodePos = nodePositions.get(nodeId);
+      const nodePos = nodePositions.get(nodeId) ||
+                    (node && node.position ? { x: node.position.x, y: node.position.y } : null);
 
       if (!node || !nodePos) return { x: 0, y: 0 };
 
       // Get node metadata for accurate size calculation
       let nodeMetadata = undefined;
-      if ((node as any).getMetadata && typeof (node as any).getMetadata === 'function') {
+      if (node.getMetadata) {
         try {
-          const rawMetadata = (node as any).getMetadata();
+          const rawMetadata = node.getMetadata();
           if (rawMetadata) {
             nodeMetadata = NodeGenerator.resolveI18nMetadata(rawMetadata);
           }
@@ -483,10 +521,31 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
 
     const createConnectionPath = (x1: number, y1: number, x2: number, y2: number) => {
       const dx = x2 - x1;
-      const cpx1 = x1 + Math.abs(dx) * 0.5;
-      const cpx2 = x2 - Math.abs(dx) * 0.5;
+      const dy = y2 - y1;
+
+      // Adjust control point distance based on connection direction and distance
+      let controlOffset = Math.max(80, Math.abs(dx) * 0.3);
+
+      // For reverse connections (left to right pin), reduce curve intensity
+      if (dx < 0) {
+        controlOffset = Math.min(controlOffset, 120);
+      }
+
+      // For very close connections, reduce curve
+      if (Math.abs(dx) < 100) {
+        controlOffset = Math.max(30, Math.abs(dx) * 0.5);
+      }
+
+      const cpx1 = x1 + controlOffset;
+      const cpx2 = x2 - controlOffset;
 
       return `M ${x1} ${y1} C ${cpx1} ${y1}, ${cpx2} ${y2}, ${x2} ${y2}`;
+    };
+
+    // Handle connection click
+    const handleConnectionClick = (connection: Connection, event: React.MouseEvent) => {
+      event.stopPropagation();
+      selectConnection(connection);
     };
 
     const svgBounds = calculateSVGBounds();
@@ -529,10 +588,14 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
               const adjustedToX = toPos.x - svgBounds.left;
               const adjustedToY = toPos.y - svgBounds.top;
 
+              const isSelected = selectedConnection?.id === connection.id;
+
               return (
                 <ConnectionPath
                   key={connection.id}
                   d={createConnectionPath(adjustedFromX, adjustedFromY, adjustedToX, adjustedToY)}
+                  selected={isSelected}
+                  onClick={(e) => handleConnectionClick(connection, e)}
                 />
               );
             })}
@@ -552,11 +615,13 @@ function VisualCanvas({ graph, onChange }: VisualCanvasProps) {
 
           {/* Render nodes */}
           {graph.getAllNodes().map((node: any) => {
-            const position = nodePositions.get(node.id) || { x: 100, y: 100 };
+            // Check if we have a stored position, otherwise use node's position property or default
+            const position = nodePositions.get(node.id) ||
+                           (node.position ? { x: node.position.x, y: node.position.y } : { x: 100, y: 100 });
 
             // Try to get node metadata if available and resolve i18n
             let nodeMetadata = undefined;
-            if (node.getMetadata && typeof node.getMetadata === 'function') {
+            if (node.getMetadata) {
               try {
                 const rawMetadata = node.getMetadata();
                 if (rawMetadata) {

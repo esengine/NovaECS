@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, ReactElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import styled from '@emotion/styled';
 import { getAllVisualClasses, type VisualMethodMetadata } from '@esengine/nova-ecs';
+import { Trash2, Settings, X, Plus, Search, Package, Upload, CheckCircle, RotateCcw, Hash, X as XCircle } from '../../utils/icons';
 
 const PaletteContainer = styled.div`
   display: flex;
@@ -127,7 +128,7 @@ interface NodeTypeInfo {
   title: string;
   category: string;
   description?: string;
-  icon?: string;
+  icon?: ReactElement;
   metadata: VisualMethodMetadata;
 }
 
@@ -140,19 +141,19 @@ function NodePalette({ onNodeSelect }: NodePaletteProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(['ECS/Entity', 'ECS/Component']));
 
-  // Function to map framework icon identifiers to emoji icons
-  const getNodeIcon = (iconId: string): string | null => {
-    const iconMap: Record<string, string> = {
-      'entity-add': '➕',
-      'entity-remove': '🗑️',
-      'component-add': '📦',
-      'component-remove': '📤',
-      'component-get': '🔍',
-      'component-check': '✅',
-      'query-create': '🔍',
-      'query-foreach': '🔄',
-      'query-count': '🔢',
-      'query-without': '❌'
+  // Function to map framework icon identifiers to React icons
+  const getNodeIcon = (iconId: string): ReactElement | null => {
+    const iconMap: Record<string, ReactElement> = {
+      'entity-add': <Plus size={14} />,
+      'entity-remove': <Trash2 size={14} />,
+      'component-add': <Package size={14} />,
+      'component-remove': <Upload size={14} />,
+      'component-get': <Search size={14} />,
+      'component-check': <CheckCircle size={14} />,
+      'query-create': <Search size={14} />,
+      'query-foreach': <RotateCcw size={14} />,
+      'query-count': <Hash size={14} />,
+      'query-without': <XCircle size={14} />
     };
 
     return iconMap[iconId] || null;
@@ -209,37 +210,21 @@ function NodePalette({ onNodeSelect }: NodePaletteProps) {
           title: methodMetadata.titleKey ? t(methodMetadata.titleKey) || methodMetadata.title || methodMetadata.name : methodMetadata.title || methodMetadata.name,
           category: methodMetadata.categoryKey || methodMetadata.category || 'Uncategorized',
           description: methodMetadata.descriptionKey ? t(methodMetadata.descriptionKey) || methodMetadata.description : methodMetadata.description,
-          icon: methodMetadata.icon ? getNodeIcon(methodMetadata.icon) || '⚙️' : '⚙️',
+          icon: methodMetadata.icon ? getNodeIcon(methodMetadata.icon) || <Settings size={14} /> : <Settings size={14} />,
           metadata: methodMetadata
         };
         nodeTypes.push(nodeType);
       }
     }
 
-    // Add some built-in node types
+    // Add some built-in node types (system nodes like flow.start/flow.end are auto-created and not shown in palette)
     const builtInNodes: NodeTypeInfo[] = [
-      {
-        id: 'flow.start',
-        title: t('visual.builtinNodes.start') || 'Start',
-        category: 'Flow/Control',
-        description: t('visual.builtinNodes.startDesc') || 'Start execution',
-        icon: '▶️',
-        metadata: {} as any
-      },
-      {
-        id: 'flow.end',
-        title: t('visual.builtinNodes.end') || 'End',
-        category: 'Flow/Control',
-        description: t('visual.builtinNodes.endDesc') || 'End execution',
-        icon: '⏹️',
-        metadata: {} as any
-      },
       {
         id: 'math.add',
         title: t('visual.builtinNodes.add') || 'Add',
         category: 'Math/Basic',
         description: t('visual.builtinNodes.addDesc') || 'Add two numbers',
-        icon: '➕',
+        icon: <Plus size={14} />,
         metadata: {} as any
       },
       {
@@ -247,7 +232,7 @@ function NodePalette({ onNodeSelect }: NodePaletteProps) {
         title: t('visual.builtinNodes.multiply') || 'Multiply',
         category: 'Math/Basic',
         description: t('visual.builtinNodes.multiplyDesc') || 'Multiply two numbers',
-        icon: '✖️',
+        icon: <X size={14} />,
         metadata: {} as any
       }
     ];

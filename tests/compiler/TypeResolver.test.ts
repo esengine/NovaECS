@@ -326,7 +326,7 @@ describe('TypeResolver', () => {
 
       const result = await typeResolver.resolveTypes(graph);
 
-      expect(result.nodeTypes.size).toBe(5);
+      expect(result.nodeTypes.size).toBe(7); // 5 user nodes + 2 system nodes
       expect(result.errors.filter(e => e.severity === 'error').length).toBeLessThan(3);
     });
 
@@ -363,7 +363,7 @@ describe('TypeResolver', () => {
       const result = await typeResolver.resolveTypes(graph);
 
       // Should complete without infinite loops 应该完成而不会无限循环
-      expect(result.nodeTypes.size).toBe(2);
+      expect(result.nodeTypes.size).toBe(4); // 2 user nodes + 2 system nodes
     });
   });
 });

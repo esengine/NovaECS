@@ -37,6 +37,12 @@ export abstract class BaseVisualNode implements VisualNode {
   /** Last execution result 上次执行结果 */
   protected lastResult?: NodeExecutionResult;
 
+  /** Node position in visual editor 节点在可视化编辑器中的位置 */
+  public position?: { x: number; y: number };
+
+  /** Additional metadata for the node 节点的附加元数据 */
+  public metadata?: any;
+
   constructor(id: string, type: string) {
     this.id = id;
     this.type = type;

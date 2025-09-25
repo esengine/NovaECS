@@ -3,6 +3,7 @@ import styled from '@emotion/styled';
 import { useEditor } from '../../store/EditorContext';
 import { useSelection } from '../../store/SelectionContext';
 import ProjectAssets from './ProjectAssets';
+import { Camera, Lightbulb, Gamepad2, Construction, Star } from '../../utils/icons';
 
 const SidebarContainer = styled.div`
   width: 300px;
@@ -93,7 +94,7 @@ function Sidebar() {
   const { selectAsset } = useSelection();
 
   const getEntityIcon = (entityIndex: number) => {
-    const icons = ['📷', '💡', '🎮', '🏗️', '🌟'];
+    const icons = [<Camera size={16} />, <Lightbulb size={16} />, <Gamepad2 size={16} />, <Construction size={16} />, <Star size={16} />];
     return icons[entityIndex % icons.length];
   };
 

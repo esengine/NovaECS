@@ -111,7 +111,7 @@ export class CodeGenerator {
     // Register flow control compilers 注册流程控制编译器
     const flowCompiler = new FlowNodeCompiler(this.typeResolver);
     const flowTypes = [
-      'flow.start', 'flow.if', 'flow.loop', 'flow.while', 'flow.for', 'flow.break', 'flow.continue',
+      'flow.start', 'flow.end', 'flow.if', 'flow.loop', 'flow.while', 'flow.for', 'flow.break', 'flow.continue',
       'flow.return', 'flow.sequence', 'flow.parallel'
     ];
     flowTypes.forEach(type => this.nodeCompilers.set(type, flowCompiler));

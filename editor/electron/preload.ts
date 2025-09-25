@@ -42,9 +42,15 @@ const electronAPI: ElectronAPI = {
   getFileStats: (filePath: string) =>
     ipcRenderer.invoke('get-file-stats', filePath),
 
+  deleteFile: (filePath: string) =>
+    ipcRenderer.invoke('delete-file', filePath),
+
   // Language operations 语言操作
   changeLanguage: (locale: string) =>
     ipcRenderer.invoke('change-language', locale),
+
+  initMenuLanguage: (locale: string) =>
+    ipcRenderer.invoke('init-menu-language', locale),
 
   // Menu operations 菜单操作
   setMenuVisible: (visible: boolean) =>

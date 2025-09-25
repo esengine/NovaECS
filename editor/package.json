@@ -5,15 +5,18 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "concurrently --kill-others \"vite\" \"tsc -p tsconfig.electron.json --watch\" \"wait-on http://localhost:5173 && electron .\"",
-    "build": "npm run build:renderer && npm run build:main && npm run build:electron",
+    "build": "npm run build:renderer && npm run build:main",
     "build:renderer": "vite build",
     "build:main": "tsc -p tsconfig.electron.json",
-    "build:electron": "electron-builder --dir",
-    "build:dev": "npm run build:renderer && npm run build:main",
-    "build:simple": "npm run build:dev && electron .",
-    "dist": "npm run build:renderer && npm run build:main && electron-builder --publish=never",
+    "start": "npm run build && electron .",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder --publish=never",
+    "dist:win": "npm run build && electron-builder --win --publish=never",
+    "dist:mac": "npm run build && electron-builder --mac --publish=never",
+    "dist:linux": "npm run build && electron-builder --linux --publish=never",
     "lint": "eslint src electron --ext .ts,.tsx",
-    "type-check": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit"
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.electron.json --noEmit",
+    "clean": "rimraf dist dist-electron release"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -37,6 +40,7 @@
     "i18next": "^25.4.1",
     "i18next-browser-languagedetector": "^8.0.0",
     "immer": "^10.1.0",
+    "lucide-react": "^0.544.0",
     "monaco-editor": "^0.52.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",

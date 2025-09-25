@@ -205,6 +205,10 @@
       "noNodes": "No nodes found",
       "nodes": "nodes",
       "connections": "connections",
+      "selectConnection": "Select Connection",
+      "deleteConnection": "Delete Connection",
+      "connectionSelected": "Connection selected",
+      "connectionDeleted": "Connection deleted",
       "categories": {
         "flow": "Flow Control",
         "math": "Math",
@@ -310,6 +314,7 @@
     "createVisualScript": "Create Visual Script",
     "createFolder": "Create Folder",
     "delete": "Delete",
+    "deleteConnection": "Delete Connection",
     "rename": "Rename",
     "copy": "Copy",
     "paste": "Paste",

@@ -4,6 +4,7 @@ import styled from '@emotion/styled';
 import { useEditor } from '../../store/EditorContext';
 import type { AssetData, FolderData } from '../../types/assets';
 import ContextMenu, { type ContextMenuItem } from '../common/ContextMenu';
+import { File, FileText, Image, Video, Volume2, Circle, Link, Folder, FolderOpen, Trash2 } from '../../utils/icons';
 
 const AssetsContainer = styled.div`
   display: flex;
@@ -137,15 +138,15 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
     return 'unknown';
   };
 
-  const getFileIcon = (type: AssetData['type']): string => {
+  const getFileIcon = (type: AssetData['type']) => {
     switch (type) {
-      case 'texture': return '🖼️';
-      case 'script': return '📜';
-      case 'scene': return '🎬';
-      case 'audio': return '🔊';
-      case 'material': return '⚫';
-      case 'visual': return '🔗';
-      default: return '📄';
+      case 'texture': return <Image size={16} />;
+      case 'script': return <FileText size={16} />;
+      case 'scene': return <Video size={16} />;
+      case 'audio': return <Volume2 size={16} />;
+      case 'material': return <Circle size={16} />;
+      case 'visual': return <Link size={16} />;
+      default: return <File size={16} />;
     }
   };
 
@@ -174,7 +175,7 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
     const folder: FolderData = {
       name,
       path: dirPath,
-      icon: '📁',
+      icon: <Folder size={16} />,
       expanded: name === 'Assets'
     };
 
@@ -291,7 +292,7 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
           className={selectedFolder === folder.path ? 'selected' : ''}
         >
           <FolderIcon>
-            {folder.children ? (folder.expanded ? '📂' : '📁') : folder.icon}
+            {folder.children ? (folder.expanded ? <FolderOpen size={16} /> : <Folder size={16} />) : folder.icon}
           </FolderIcon>
           <FolderName>{t(`project.${folder.name.toLowerCase()}`) || folder.name}</FolderName>
         </FolderItem>
@@ -347,6 +348,27 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
     }
   };
 
+  const handleDeleteFile = async (filePath: string) => {
+    try {
+      // Show confirmation dialog
+      const confirmed = await window.electronAPI.showInputDialog(
+        t('dialogs.confirmDelete'),
+        t('dialogs.deleteMessage'),
+        ''
+      );
+
+      if (confirmed.canceled) return;
+
+      // Delete the file
+      await window.electronAPI.deleteFile(filePath);
+
+      // Refresh the assets list
+      await loadAssetsForFolder(selectedFolder);
+    } catch (error) {
+      console.error('Failed to delete file:', error);
+    }
+  };
+
   const handleContextMenu = (event: React.MouseEvent, targetPath: string, targetType: 'folder' | 'asset' | 'empty') => {
     event.preventDefault();
     setContextMenu({
@@ -369,7 +391,7 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
       items.push({
         id: 'create-visual-script',
         label: t('contextMenu.createVisualScript'),
-        icon: '🔗',
+        icon: <Link size={14} />,
         onClick: async () => {
           const result = await window.electronAPI.showInputDialog(
             t('dialogs.createVisualScript'),
@@ -379,6 +401,17 @@ function ProjectAssets({ onAssetSelect }: ProjectAssetsProps) {
           if (!result.canceled && result.value) {
             createVisualScript(contextMenu.targetPath, result.value);
           }
+        }
+      });
+    }
+
+    if (contextMenu.targetType === 'asset' || contextMenu.targetType === 'folder') {
+      items.push({
+        id: 'delete',
+        label: t('contextMenu.delete'),
+        icon: <Trash2 size={14} />,
+        onClick: async () => {
+          await handleDeleteFile(contextMenu.targetPath);
         }
       });
     }

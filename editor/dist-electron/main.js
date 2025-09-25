@@ -258,7 +258,14 @@ function createMenu(locale = 'en') {
 // 应用程序事件处理器
 electron_1.app.whenReady().then(() => {
     createWindow();
-    createMenu('zh-CN'); // Default to Chinese
+    // Detect system language and use it for initial menu
+    const systemLocale = electron_1.app.getLocale();
+    let initialLanguage = 'en';
+    // Map system locale to supported languages
+    if (systemLocale.startsWith('zh')) {
+        initialLanguage = 'zh-CN';
+    }
+    createMenu(initialLanguage);
     electron_1.app.on('activate', () => {
         if (electron_1.BrowserWindow.getAllWindows().length === 0) {
             createWindow();
@@ -357,6 +364,12 @@ electron_1.ipcMain.handle('change-language', async (_event, locale) => {
     createMenu(locale);
     return { success: true };
 });
+// Initialize menu language handler
+// 初始化菜单语言处理器
+electron_1.ipcMain.handle('init-menu-language', async (_event, locale) => {
+    createMenu(locale);
+    return { success: true };
+});
 // Menu visibility handler
 // 菜单显示/隐藏处理器
 electron_1.ipcMain.handle('set-menu-visible', async (_event, visible) => {
@@ -424,6 +437,20 @@ electron_1.ipcMain.handle('get-file-stats', async (_event, filePath) => {
     }
     catch (error) {
         throw new Error(`Failed to get file stats: ${error.message}`);
+    }
+});
+electron_1.ipcMain.handle('delete-file', async (_event, filePath) => {
+    try {
+        const stats = await fs.promises.stat(filePath);
+        if (stats.isDirectory()) {
+            await fs.promises.rmdir(filePath, { recursive: true });
+        }
+        else {
+            await fs.promises.unlink(filePath);
+        }
+    }
+    catch (error) {
+        throw new Error(`Failed to delete file: ${error.message}`);
     }
 });
 // Path operations handler

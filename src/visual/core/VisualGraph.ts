@@ -17,6 +17,7 @@ import type {
 } from '../types';
 import { BaseVisualNode } from './BaseVisualNode';
 import { NodeGenerator } from './NodeGenerator';
+import { SystemFlowNode, createSystemStartNode, createSystemEndNode, SYSTEM_NODE_IDS } from './SystemFlowNode';
 
 /**
  * Visual programming graph
@@ -48,6 +49,23 @@ export class VisualGraph {
   constructor(name: string, description?: string) {
     this.name = name;
     this.description = description;
+
+    // Automatically create system flow nodes 自动创建系统流程节点
+    this.createSystemNodes();
+  }
+
+  /**
+   * Create system start and end nodes
+   * 创建系统开始和结束节点
+   */
+  private createSystemNodes(): void {
+    // Create and add system start node 创建并添加系统开始节点
+    const startNode = createSystemStartNode();
+    this.nodes.set(startNode.id, startNode);
+
+    // Create and add system end node 创建并添加系统结束节点
+    const endNode = createSystemEndNode();
+    this.nodes.set(endNode.id, endNode);
   }
 
   /**
@@ -73,6 +91,17 @@ export class VisualGraph {
    * @param nodeId Node ID to remove 要移除的节点ID
    */
   removeNode(nodeId: string): void {
+    // Prevent removal of system nodes 防止删除系统节点
+    if (nodeId === SYSTEM_NODE_IDS.START || nodeId === SYSTEM_NODE_IDS.END) {
+      throw new Error(`Cannot remove system node '${nodeId}' - system nodes are automatically managed`);
+    }
+
+    // Check if node exists and can be deleted 检查节点是否存在且可以删除
+    const node = this.nodes.get(nodeId);
+    if (node && node instanceof SystemFlowNode && !node.canDelete()) {
+      throw new Error(`Cannot remove protected node '${nodeId}'`);
+    }
+
     // Remove all connections involving this node
     // 移除涉及此节点的所有连接
     const connectionsToRemove = Array.from(this.connections.values())
@@ -108,6 +137,39 @@ export class VisualGraph {
    */
   getAllNodes(): VisualNode[] {
     return Array.from(this.nodes.values());
+  }
+
+  /**
+   * Get system start node
+   * 获取系统开始节点
+   */
+  getSystemStartNode(): SystemFlowNode {
+    const startNode = this.nodes.get(SYSTEM_NODE_IDS.START);
+    if (!startNode || !(startNode instanceof SystemFlowNode)) {
+      throw new Error('System start node not found or invalid');
+    }
+    return startNode;
+  }
+
+  /**
+   * Get system end node
+   * 获取系统结束节点
+   */
+  getSystemEndNode(): SystemFlowNode {
+    const endNode = this.nodes.get(SYSTEM_NODE_IDS.END);
+    if (!endNode || !(endNode instanceof SystemFlowNode)) {
+      throw new Error('System end node not found or invalid');
+    }
+    return endNode;
+  }
+
+  /**
+   * Get user-created nodes (excluding system nodes)
+   * 获取用户创建的节点（排除系统节点）
+   */
+  getUserNodes(): VisualNode[] {
+    return Array.from(this.nodes.values())
+      .filter(node => !(node instanceof SystemFlowNode));
   }
 
   /**
@@ -509,6 +571,42 @@ export class VisualGraph {
     // 使用NodeGenerator重新构建节点
     for (const nodeData of data.nodes) {
       try {
+        // Skip system nodes as they are automatically created by constructor
+        // 跳过系统节点，因为它们已由构造函数自动创建
+        if (nodeData.id === SYSTEM_NODE_IDS.START || nodeData.id === SYSTEM_NODE_IDS.END) {
+          // Just restore the input/output values for existing system nodes
+          // 只为现有的系统节点恢复输入/输出值
+          const existingNode = graph.nodes.get(nodeData.id);
+          if (existingNode) {
+            // Restore input values
+            if (nodeData.inputs) {
+              if (nodeData.inputs instanceof Map || Array.isArray(nodeData.inputs)) {
+                for (const [inputName, value] of nodeData.inputs) {
+                  existingNode.setInput(inputName, value);
+                }
+              } else {
+                for (const [inputName, value] of Object.entries(nodeData.inputs)) {
+                  existingNode.setInput(inputName, value);
+                }
+              }
+            }
+
+            // Restore output values
+            if (nodeData.outputs) {
+              if (nodeData.outputs instanceof Map || Array.isArray(nodeData.outputs)) {
+                for (const [outputName, value] of nodeData.outputs) {
+                  existingNode.setOutput(outputName, value);
+                }
+              } else {
+                for (const [outputName, value] of Object.entries(nodeData.outputs)) {
+                  existingNode.setOutput(outputName, value);
+                }
+              }
+            }
+          }
+          continue;
+        }
+
         // Attempt to recreate the node by its type
         // 尝试按类型重新创建节点
         const node = NodeGenerator.createNode(nodeData.type, nodeData.id);

@@ -57,19 +57,28 @@ export class NodeGenerator {
    */
   static registerBuiltInNodes(): void {
     // Flow control nodes
-    // 流控制节点
+    // 流程控制节点
     this.registerBuiltInNode('flow.start', {
       name: 'start',
       titleKey: 'visual.nodes.flow.start.title',
       categoryKey: 'visual.categories.flow',
       descriptionKey: 'visual.nodes.flow.start.description',
       inputs: [],
-      outputs: [{
-        type: 'execute',
-        labelKey: 'visual.pins.execute'
-      }],
+      outputs: [{ type: 'execute', labelKey: 'visual.pins.execute' }],
       stateful: false,
       executionOrder: 0,
+      originalMethod: () => {}
+    });
+
+    this.registerBuiltInNode('flow.end', {
+      name: 'end',
+      titleKey: 'visual.nodes.flow.end.title',
+      categoryKey: 'visual.categories.flow',
+      descriptionKey: 'visual.nodes.flow.end.description',
+      inputs: [{ type: 'execute', labelKey: 'visual.pins.execute' }],
+      outputs: [],
+      stateful: false,
+      executionOrder: 999,
       originalMethod: () => {}
     });
 
@@ -201,7 +210,7 @@ export class NodeGenerator {
           this.setupBuiltInPorts(metadata);
         }
 
-        private setupBuiltInPorts(metadata: VisualMethodMetadata) {
+        private setupBuiltInPorts(metadata: VisualMethodMetadata): void {
           // Resolve metadata with i18n
           const resolvedMetadata = NodeGenerator.resolveI18nMetadata(metadata);
 
@@ -219,12 +228,19 @@ export class NodeGenerator {
           }
         }
 
-        execute() {
+        execute(): void {
           const resolvedMetadata = NodeGenerator.resolveI18nMetadata(metadata);
 
           if (typeName === 'flow.start') {
-            const executeLabel = resolvedMetadata.outputs[0]?.label || 'execute';
+            // Flow start node - just set execution output
+            // 流程开始节点 - 只设置执行输出
+            const executeLabel = resolvedMetadata.outputs[0]?.label || 'Execute';
             this.setOutput(executeLabel, true);
+          } else if (typeName === 'flow.end') {
+            // Flow end node - no outputs to set
+            // 流程结束节点 - 没有输出要设置
+            // Just marks completion
+            // 只标记完成
           } else if (typeName.startsWith('math.')) {
             const aLabel = resolvedMetadata.inputs[0]?.label || 'A';
             const bLabel = resolvedMetadata.inputs[1]?.label || 'B';

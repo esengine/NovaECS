@@ -1,3 +1,5 @@
+import { ReactElement } from 'react';
+
 /**
  * Asset data interface for project files
  * 项目文件的资源数据接口
@@ -6,7 +8,7 @@ export interface AssetData {
   name: string;
   path: string;
   type: 'texture' | 'script' | 'scene' | 'audio' | 'material' | 'visual' | 'unknown';
-  icon: string;
+  icon: ReactElement;
   size?: number;
   modified?: Date;
 }
@@ -18,7 +20,7 @@ export interface AssetData {
 export interface FolderData {
   name: string;
   path: string;
-  icon: string;
+  icon: ReactElement;
   expanded: boolean;
   children?: FolderData[];
 }

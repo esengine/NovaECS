@@ -397,6 +397,7 @@ function processCCDCollision(
 
     // DEBUG: log the wall position for comparison
     if (wallBody) {
+      // TODO: Add debug logging for wall position
     }
   } else {
 
@@ -459,6 +460,7 @@ function processCCDCollision(
     });
 
   } else {
+    // No action needed for other cases
   }
 }
 
@@ -496,6 +498,7 @@ export const CCDStopOnImpact2D = system(
       } else if (hasHullB && hasCircleA) {
         processCCDCollision(world, entityB, entityA, dt);
       } else {
+        // Unsupported collision type combination
       }
     }
   }

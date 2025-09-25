@@ -20,8 +20,10 @@ const electronAPI = {
     readFile: (filePath) => electron_1.ipcRenderer.invoke('read-file', filePath),
     readDirectory: (dirPath) => electron_1.ipcRenderer.invoke('read-directory', dirPath),
     getFileStats: (filePath) => electron_1.ipcRenderer.invoke('get-file-stats', filePath),
+    deleteFile: (filePath) => electron_1.ipcRenderer.invoke('delete-file', filePath),
     // Language operations 语言操作
     changeLanguage: (locale) => electron_1.ipcRenderer.invoke('change-language', locale),
+    initMenuLanguage: (locale) => electron_1.ipcRenderer.invoke('init-menu-language', locale),
     // Menu operations 菜单操作
     setMenuVisible: (visible) => electron_1.ipcRenderer.invoke('set-menu-visible', visible),
     // Menu events 菜单事件

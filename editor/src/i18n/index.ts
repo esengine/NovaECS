@@ -34,8 +34,6 @@ i18n
   .init({
     resources,
     fallbackLng: 'en', // Fallback language 后备语言
-    lng: 'zh-CN', // Default language 默认语言
-
     interpolation: {
       escapeValue: false, // React already escapes values React已经转义了值
     },
@@ -44,7 +42,16 @@ i18n
       // Language detection options 语言检测选项
       order: ['localStorage', 'navigator', 'htmlTag'],
       caches: ['localStorage'],
-      lookupLocalStorage: 'nova-editor-language'
+      lookupLocalStorage: 'nova-editor-language',
+      // If no language is detected, default to Chinese for Chinese users
+      // 如果检测不到语言，中文用户默认使用中文
+      convertDetectedLanguage: (lng: string) => {
+        // Map common Chinese variants to zh-CN
+        if (lng.startsWith('zh')) {
+          return 'zh-CN';
+        }
+        return lng;
+      }
     },
 
     debug: process.env.NODE_ENV === 'development',

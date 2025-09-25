@@ -66,6 +66,8 @@ export const enLocale: LanguageResource = {
   // Built-in node titles
   'visual.nodes.flow.start.title': 'Start',
   'visual.nodes.flow.start.description': 'Start execution point',
+  'visual.nodes.flow.end.title': 'End',
+  'visual.nodes.flow.end.description': 'End execution point',
   'visual.nodes.math.add.title': 'Add',
   'visual.nodes.math.add.description': 'Add two numbers',
   'visual.nodes.math.multiply.title': 'Multiply',

@@ -11,7 +11,7 @@
 
 import type { VisualNode } from '../../../../src/visual/types';
 import type { VisualGraph } from '../../../../src/visual/core/VisualGraph';
-import { BaseNodeCompiler, type NodeCompilationContext } from './BaseNodeCompiler';
+import { BaseNodeCompiler, type NodeCompilationContext, type NodeCompilationResult } from './BaseNodeCompiler';
 import type { TypeResolver, TypeResolutionResult } from '../TypeResolver';
 
 /**

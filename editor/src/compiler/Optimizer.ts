@@ -13,6 +13,11 @@ import { VisualGraph } from '../../../src/visual/core/VisualGraph';
 import type { VisualNode } from '../../../src/visual/types';
 import type { Connection } from '../../../src/visual/types';
 import { TypeResolver, type TypeResolutionResult } from './TypeResolver';
+// System node ID constants
+const SYSTEM_NODE_IDS = {
+  START: '__system_start__',
+  END: '__system_end__'
+} as const;
 
 /**
  * Algebraic optimization pattern definition
@@ -160,8 +165,16 @@ export class Optimizer {
       const connections = graph.getAllConnections();
       const initialNodeCount = nodes.length;
 
-      // Copy nodes to optimized graph 将节点复制到优化图
-      nodes.forEach((node: VisualNode) => optimizedGraph.addNode(node));
+      // Copy nodes to optimized graph, skipping system nodes (they're auto-created)
+      // 将节点复制到优化图，跳过系统节点（它们是自动创建的）
+      nodes.forEach((node: VisualNode) => {
+        // Skip system nodes as they already exist in the new graph
+        // 跳过系统节点，因为它们已经存在于新图中
+        if (node.id === SYSTEM_NODE_IDS.START || node.id === SYSTEM_NODE_IDS.END) {
+          return;
+        }
+        optimizedGraph.addNode(node);
+      });
       connections.forEach((conn: Connection) => optimizedGraph.addConnection(conn));
 
 
@@ -189,9 +202,21 @@ export class Optimizer {
             // Update the graph with optimized nodes 用优化的节点更新图
             const nodeIds = optimizedGraph.getAllNodes().map((n: VisualNode) => n.id);
             const connectionIds = optimizedGraph.getAllConnections().map((c: Connection) => c.id);
-            nodeIds.forEach((id: string) => optimizedGraph.removeNode(id));
+            // Skip system nodes when removing (they can't be removed)
+            // 移除时跳过系统节点（它们无法被移除）
+            nodeIds.forEach((id: string) => {
+              if (id !== SYSTEM_NODE_IDS.START && id !== SYSTEM_NODE_IDS.END) {
+                optimizedGraph.removeNode(id);
+              }
+            });
             connectionIds.forEach((id: string) => optimizedGraph.removeConnection(id));
-            result.nodes.forEach((node: VisualNode) => optimizedGraph.addNode(node));
+            result.nodes.forEach((node: VisualNode) => {
+              // Skip system nodes when adding (they already exist)
+              // 添加时跳过系统节点（它们已经存在）
+              if (node.id !== SYSTEM_NODE_IDS.START && node.id !== SYSTEM_NODE_IDS.END) {
+                optimizedGraph.addNode(node);
+              }
+            });
             result.connections.forEach((conn: Connection) => optimizedGraph.addConnection(conn));
 
             currentNodes = optimizedGraph.getAllNodes();
@@ -210,9 +235,21 @@ export class Optimizer {
             // Update the graph with optimized nodes 用优化的节点更新图
             const nodeIds = optimizedGraph.getAllNodes().map((n: VisualNode) => n.id);
             const connectionIds = optimizedGraph.getAllConnections().map((c: Connection) => c.id);
-            nodeIds.forEach((id: string) => optimizedGraph.removeNode(id));
+            // Skip system nodes when removing (they can't be removed)
+            // 移除时跳过系统节点（它们无法被移除）
+            nodeIds.forEach((id: string) => {
+              if (id !== SYSTEM_NODE_IDS.START && id !== SYSTEM_NODE_IDS.END) {
+                optimizedGraph.removeNode(id);
+              }
+            });
             connectionIds.forEach((id: string) => optimizedGraph.removeConnection(id));
-            result.nodes.forEach((node: VisualNode) => optimizedGraph.addNode(node));
+            result.nodes.forEach((node: VisualNode) => {
+              // Skip system nodes when adding (they already exist)
+              // 添加时跳过系统节点（它们已经存在）
+              if (node.id !== SYSTEM_NODE_IDS.START && node.id !== SYSTEM_NODE_IDS.END) {
+                optimizedGraph.addNode(node);
+              }
+            });
             result.connections.forEach((conn: Connection) => optimizedGraph.addConnection(conn));
 
             currentNodes = optimizedGraph.getAllNodes();
@@ -232,9 +269,21 @@ export class Optimizer {
             // Update the graph with optimized nodes 用优化的节点更新图
             const nodeIds = optimizedGraph.getAllNodes().map((n: VisualNode) => n.id);
             const connectionIds = optimizedGraph.getAllConnections().map((c: Connection) => c.id);
-            nodeIds.forEach((id: string) => optimizedGraph.removeNode(id));
+            // Skip system nodes when removing (they can't be removed)
+            // 移除时跳过系统节点（它们无法被移除）
+            nodeIds.forEach((id: string) => {
+              if (id !== SYSTEM_NODE_IDS.START && id !== SYSTEM_NODE_IDS.END) {
+                optimizedGraph.removeNode(id);
+              }
+            });
             connectionIds.forEach((id: string) => optimizedGraph.removeConnection(id));
-            result.nodes.forEach((node: VisualNode) => optimizedGraph.addNode(node));
+            result.nodes.forEach((node: VisualNode) => {
+              // Skip system nodes when adding (they already exist)
+              // 添加时跳过系统节点（它们已经存在）
+              if (node.id !== SYSTEM_NODE_IDS.START && node.id !== SYSTEM_NODE_IDS.END) {
+                optimizedGraph.addNode(node);
+              }
+            });
             result.connections.forEach((conn: Connection) => optimizedGraph.addConnection(conn));
 
             currentNodes = optimizedGraph.getAllNodes();
@@ -252,9 +301,21 @@ export class Optimizer {
             // Update the graph with optimized nodes 用优化的节点更新图
             const nodeIds = optimizedGraph.getAllNodes().map((n: VisualNode) => n.id);
             const connectionIds = optimizedGraph.getAllConnections().map((c: Connection) => c.id);
-            nodeIds.forEach((id: string) => optimizedGraph.removeNode(id));
+            // Skip system nodes when removing (they can't be removed)
+            // 移除时跳过系统节点（它们无法被移除）
+            nodeIds.forEach((id: string) => {
+              if (id !== SYSTEM_NODE_IDS.START && id !== SYSTEM_NODE_IDS.END) {
+                optimizedGraph.removeNode(id);
+              }
+            });
             connectionIds.forEach((id: string) => optimizedGraph.removeConnection(id));
-            result.nodes.forEach((node: VisualNode) => optimizedGraph.addNode(node));
+            result.nodes.forEach((node: VisualNode) => {
+              // Skip system nodes when adding (they already exist)
+              // 添加时跳过系统节点（它们已经存在）
+              if (node.id !== SYSTEM_NODE_IDS.START && node.id !== SYSTEM_NODE_IDS.END) {
+                optimizedGraph.addNode(node);
+              }
+            });
             result.connections.forEach((conn: Connection) => optimizedGraph.addConnection(conn));
 
             currentNodes = optimizedGraph.getAllNodes();
@@ -272,9 +333,21 @@ export class Optimizer {
             // Update the graph with optimized nodes 用优化的节点更新图
             const nodeIds = optimizedGraph.getAllNodes().map((n: VisualNode) => n.id);
             const connectionIds = optimizedGraph.getAllConnections().map((c: Connection) => c.id);
-            nodeIds.forEach((id: string) => optimizedGraph.removeNode(id));
+            // Skip system nodes when removing (they can't be removed)
+            // 移除时跳过系统节点（它们无法被移除）
+            nodeIds.forEach((id: string) => {
+              if (id !== SYSTEM_NODE_IDS.START && id !== SYSTEM_NODE_IDS.END) {
+                optimizedGraph.removeNode(id);
+              }
+            });
             connectionIds.forEach((id: string) => optimizedGraph.removeConnection(id));
-            result.nodes.forEach((node: VisualNode) => optimizedGraph.addNode(node));
+            result.nodes.forEach((node: VisualNode) => {
+              // Skip system nodes when adding (they already exist)
+              // 添加时跳过系统节点（它们已经存在）
+              if (node.id !== SYSTEM_NODE_IDS.START && node.id !== SYSTEM_NODE_IDS.END) {
+                optimizedGraph.addNode(node);
+              }
+            });
             result.connections.forEach((conn: Connection) => optimizedGraph.addConnection(conn));
 
             currentNodes = optimizedGraph.getAllNodes();
@@ -362,7 +435,9 @@ export class Optimizer {
       }
 
       // Classify as dead (no consumers) 分类为死节点（无消费者）
-      if (this.isDeadNode(node, connections, nodes)) {
+      // Never classify system nodes as dead 永远不要将系统节点分类为死节点
+      if (nodeId !== SYSTEM_NODE_IDS.START && nodeId !== SYSTEM_NODE_IDS.END &&
+          this.isDeadNode(node, connections, nodes)) {
         classification.dead.add(nodeId);
       }
     }

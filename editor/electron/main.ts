@@ -232,7 +232,17 @@ function createMenu(locale: string = 'en'): void {
 
 app.whenReady().then(() => {
   createWindow();
-  createMenu('zh-CN'); // Default to Chinese
+
+  // Detect system language and use it for initial menu
+  const systemLocale = app.getLocale();
+  let initialLanguage = 'en';
+
+  // Map system locale to supported languages
+  if (systemLocale.startsWith('zh')) {
+    initialLanguage = 'zh-CN';
+  }
+
+  createMenu(initialLanguage);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -348,6 +358,13 @@ ipcMain.handle('change-language', async (_event, locale: string) => {
   return { success: true };
 });
 
+// Initialize menu language handler
+// 初始化菜单语言处理器
+ipcMain.handle('init-menu-language', async (_event, locale: string) => {
+  createMenu(locale);
+  return { success: true };
+});
+
 // Menu visibility handler
 // 菜单显示/隐藏处理器
 ipcMain.handle('set-menu-visible', async (_event, visible: boolean) => {
@@ -415,6 +432,19 @@ ipcMain.handle('get-file-stats', async (_event, filePath: string): Promise<{size
     };
   } catch (error) {
     throw new Error(`Failed to get file stats: ${(error as Error).message}`);
+  }
+});
+
+ipcMain.handle('delete-file', async (_event, filePath: string): Promise<void> => {
+  try {
+    const stats = await fs.promises.stat(filePath);
+    if (stats.isDirectory()) {
+      await fs.promises.rmdir(filePath, { recursive: true });
+    } else {
+      await fs.promises.unlink(filePath);
+    }
+  } catch (error) {
+    throw new Error(`Failed to delete file: ${(error as Error).message}`);
   }
 });
 

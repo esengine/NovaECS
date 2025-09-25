@@ -500,17 +500,6 @@ export function CompilerPanel({
                 <MetricValue>{compilationResult.metrics.optimizationsApplied.length}</MetricValue>
                 <MetricLabel>Optimizations 优化</MetricLabel>
               </MetricItem>
-              <MetricItem>
-                <MetricValue
-                  style={{
-                    color: compilationResult.metrics.estimatedPerformance === 'high' ? '#28a745' :
-                           compilationResult.metrics.estimatedPerformance === 'medium' ? '#ffa500' : '#dc3545'
-                  }}
-                >
-                  {compilationResult.metrics.estimatedPerformance.toUpperCase()}
-                </MetricValue>
-                <MetricLabel>Performance 性能</MetricLabel>
-              </MetricItem>
             </MetricsGrid>
           </MetricsSection>
         )}

@@ -26,7 +26,7 @@ export class MethodCallNode extends BaseVisualNode {
   private readonly methodName: string;
 
   /** Method metadata for validation and execution 用于验证和执行的方法元数据 */
-  private readonly metadata: VisualMethodMetadata;
+  private readonly methodMetadata: VisualMethodMetadata;
 
   constructor(
     id: string,
@@ -37,7 +37,7 @@ export class MethodCallNode extends BaseVisualNode {
     super(id, `${targetType}.${methodName}`);
     this.targetType = targetType;
     this.methodName = methodName;
-    this.metadata = metadata;
+    this.methodMetadata = metadata;
 
     // Initialize default input values
     // 初始化默认输入值
@@ -51,7 +51,7 @@ export class MethodCallNode extends BaseVisualNode {
   private initializeDefaults(): void {
     // Initialize all input pins
     // 初始化所有输入端口
-    for (const input of this.metadata.inputs || []) {
+    for (const input of this.methodMetadata.inputs || []) {
       const inputName = input.label || 'input';
       const defaultValue = input.defaultValue !== undefined ? input.defaultValue : null;
       this.setInput(inputName, defaultValue);
@@ -59,7 +59,7 @@ export class MethodCallNode extends BaseVisualNode {
 
     // Initialize all output pins
     // 初始化所有输出端口
-    for (const output of this.metadata.outputs || []) {
+    for (const output of this.methodMetadata.outputs || []) {
       const outputName = output.label || 'output';
       this.setOutput(outputName, null);
     }
@@ -94,7 +94,7 @@ export class MethodCallNode extends BaseVisualNode {
   private prepareArguments(): any[] {
     const args: any[] = [];
 
-    for (const inputConfig of this.metadata.inputs) {
+    for (const inputConfig of this.methodMetadata.inputs) {
       const inputName = inputConfig.label || 'input';
       const value = this.getInput(inputName);
 
@@ -125,7 +125,7 @@ export class MethodCallNode extends BaseVisualNode {
   private processResult(result: any): void {
     // Set primary output if defined
     // 如果定义了主要输出则设置
-    const primaryOutput = this.metadata.outputs.find(out => out.type !== 'execute');
+    const primaryOutput = this.methodMetadata.outputs.find(out => out.type !== 'execute');
     if (primaryOutput) {
       const outputName = primaryOutput.label || 'result';
       this.setOutput(outputName, result);
@@ -133,7 +133,7 @@ export class MethodCallNode extends BaseVisualNode {
 
     // Set execute output to trigger downstream nodes
     // 设置执行输出以触发下游节点
-    const executeOutput = this.metadata.outputs.find(out => out.type === 'execute');
+    const executeOutput = this.methodMetadata.outputs.find(out => out.type === 'execute');
     if (executeOutput) {
       const outputName = executeOutput.label || 'then';
       this.setOutput(outputName, true);
@@ -188,7 +188,7 @@ export class MethodCallNode extends BaseVisualNode {
   validate(): { valid: boolean; error?: string } {
     // Check required inputs
     // 检查必需输入
-    for (const inputConfig of this.metadata.inputs) {
+    for (const inputConfig of this.methodMetadata.inputs) {
       if (inputConfig.required) {
         const inputName = inputConfig.label || 'input';
         const value = this.getInput(inputName);
@@ -219,15 +219,15 @@ export class MethodCallNode extends BaseVisualNode {
 
     // Check for execute input
     // 检查执行输入
-    const hasExecuteInput = this.metadata.inputs.some(input => input.type === 'execute');
+    const hasExecuteInput = this.methodMetadata.inputs.some(input => input.type === 'execute');
     if (hasExecuteInput) {
-      const executeInputName = this.metadata.inputs.find(input => input.type === 'execute')?.label || 'execute';
+      const executeInputName = this.methodMetadata.inputs.find(input => input.type === 'execute')?.label || 'execute';
       return this.getInput(executeInputName) === true;
     }
 
     // For pure functions, execute if inputs have changed and not already executed
     // 对于纯函数，如果输入已更改且尚未执行则执行
-    if (!this.metadata.stateful) {
+    if (!this.methodMetadata.stateful) {
       return !this.executed;
     }
 
@@ -241,7 +241,7 @@ export class MethodCallNode extends BaseVisualNode {
    * @returns Method metadata 方法元数据
    */
   getMetadata(): VisualMethodMetadata {
-    return this.metadata;
+    return this.methodMetadata;
   }
 
   /**

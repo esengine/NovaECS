@@ -5,6 +5,7 @@ import WelcomeScreen from './components/WelcomeScreen';
 import WelcomeStatusBar from './components/WelcomeStatusBar';
 import { EditorProvider } from './store/EditorContext';
 import { ProjectService, ProjectInfo } from './services/ProjectService';
+import i18n from './i18n';
 
 function App() {
   const { t } = useTranslation();
@@ -21,6 +22,11 @@ function App() {
     }
 
     setIsLoading(false);
+
+    // Initialize menu language based on current i18n language
+    if (window.electronAPI?.initMenuLanguage) {
+      window.electronAPI.initMenuLanguage(i18n.language).catch(console.error);
+    }
 
     // Set up menu event listeners
     if (window.electronAPI?.onMenuEvent) {

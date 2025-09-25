@@ -4,6 +4,7 @@
  */
 
 export * from './BaseVisualNode';
+export * from './SystemFlowNode';
 export * from './MethodCallNode';
 export * from './VisualGraph';
 export * from './NodeGenerator';

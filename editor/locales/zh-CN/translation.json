@@ -205,6 +205,10 @@
       "noNodes": "未找到节点",
       "nodes": "个节点",
       "connections": "个连接",
+      "selectConnection": "选择连接",
+      "deleteConnection": "删除连接",
+      "connectionSelected": "连接已选择",
+      "connectionDeleted": "连接已删除",
       "categories": {
         "flow": "流程控制",
         "math": "数学运算",
@@ -310,6 +314,7 @@
     "createVisualScript": "创建可视化脚本",
     "createFolder": "创建文件夹",
     "delete": "删除",
+    "deleteConnection": "删除连接",
     "rename": "重命名",
     "copy": "复制",
     "paste": "粘贴",

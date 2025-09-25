@@ -19,9 +19,11 @@ export interface ElectronAPI {
   readFile: (filePath: string) => Promise<string>;
   readDirectory: (dirPath: string) => Promise<string[]>;
   getFileStats: (filePath: string) => Promise<{size: number; modified: Date; isDirectory: boolean}>;
+  deleteFile: (filePath: string) => Promise<void>;
 
   // Language operations 语言操作
   changeLanguage: (locale: string) => Promise<{ success: boolean }>;
+  initMenuLanguage: (locale: string) => Promise<{ success: boolean }>;
 
   // Menu operations 菜单操作
   setMenuVisible: (visible: boolean) => Promise<{ success: boolean }>;

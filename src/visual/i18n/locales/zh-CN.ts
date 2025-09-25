@@ -66,6 +66,8 @@ export const zhCNLocale: LanguageResource = {
   // 内置节点标题
   'visual.nodes.flow.start.title': '开始',
   'visual.nodes.flow.start.description': '开始执行点',
+  'visual.nodes.flow.end.title': '结束',
+  'visual.nodes.flow.end.description': '结束执行点',
   'visual.nodes.math.add.title': '加法',
   'visual.nodes.math.add.description': '两个数相加',
   'visual.nodes.math.multiply.title': '乘法',

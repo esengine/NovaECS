@@ -17,22 +17,17 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v2
-      with:
-        version: latest
-
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
-        cache: 'pnpm'
+        cache: 'npm'
 
     - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      run: npm ci
 
     - name: Run tests
-      run: pnpm run test:coverage -- --run
+      run: npm run test:coverage -- --run
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
@@ -42,7 +37,7 @@ jobs:
         name: codecov-umbrella
 
     - name: Build
-      run: pnpm run build
+      run: npm run build
 
   build-matrix:
     runs-on: ubuntu-latest
@@ -55,22 +50,17 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v2
-      with:
-        version: latest
-
     - name: Use Node.js 18.x
       uses: actions/setup-node@v4
       with:
         node-version: 18.x
-        cache: 'pnpm'
+        cache: 'npm'
 
     - name: Install dependencies
-      run: pnpm install --frozen-lockfile
+      run: npm ci
 
     - name: Build for ${{ matrix.environment }}
-      run: pnpm run build
+      run: npm run build
     
     - name: Test build artifacts
       run: |

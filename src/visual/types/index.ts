@@ -190,6 +190,10 @@ export interface VisualNode {
   inputs: Map<string, any>;
   /** Output values 输出值 */
   outputs: Map<string, any>;
+  /** Node position in visual editor 节点在可视化编辑器中的位置 */
+  position?: { x: number; y: number };
+  /** Additional metadata for the node 节点的附加元数据 */
+  metadata?: any;
   /** Execute node logic 执行节点逻辑 */
   execute(ctx: VisualExecutionContext): void;
   /** Check if node should execute 检查节点是否应该执行 */
@@ -200,6 +204,8 @@ export interface VisualNode {
   getOutput(name: string): any;
   /** Set output value 设置输出值 */
   setOutput(name: string, value: any): void;
+  /** Get node metadata if available 获取节点元数据（如果可用）*/
+  getMetadata?(): VisualMethodMetadata;
 }
 
 /**

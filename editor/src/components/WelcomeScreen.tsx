@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import styled from '@emotion/styled';
 import { ProjectService, type ProjectInfo } from '../services/ProjectService';
 import NewProjectDialog from './dialogs/NewProjectDialog';
+import { Folder, FolderOpen, FileText } from '../utils/icons';
 
 const WelcomeContainer = styled.div`
   display: flex;
@@ -231,7 +232,7 @@ function WelcomeScreen({ onProjectSelected }: WelcomeScreenProps) {
 
         <ActionsContainer>
           <ActionButton onClick={handleNewProject}>
-            <ActionIcon>📁</ActionIcon>
+            <ActionIcon><Folder size={48} /></ActionIcon>
             <ActionTitle>{t('project.newProject')}</ActionTitle>
             <ActionDescription>
               {t('welcome.newProjectDescription')}
@@ -239,7 +240,7 @@ function WelcomeScreen({ onProjectSelected }: WelcomeScreenProps) {
           </ActionButton>
 
           <ActionButton onClick={handleOpenProject}>
-            <ActionIcon>📂</ActionIcon>
+            <ActionIcon><FolderOpen size={48} /></ActionIcon>
             <ActionTitle>{t('project.openProject')}</ActionTitle>
             <ActionDescription>
               {t('welcome.openProjectDescription')}
@@ -256,7 +257,7 @@ function WelcomeScreen({ onProjectSelected }: WelcomeScreenProps) {
                   key={index}
                   onClick={() => handleRecentProjectClick(project)}
                 >
-                  <ProjectIcon>📋</ProjectIcon>
+                  <ProjectIcon><FileText size={24} /></ProjectIcon>
                   <ProjectInfo>
                     <ProjectName>{project.name}</ProjectName>
                     <ProjectPath>{project.path}</ProjectPath>

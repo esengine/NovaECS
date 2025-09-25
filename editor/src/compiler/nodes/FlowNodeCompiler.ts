@@ -18,7 +18,7 @@ import type { TypeResolver, TypeResolutionResult } from '../TypeResolver';
  * Flow control node types
  * 流程控制节点类型
  */
-type FlowNodeType = 'start' | 'if' | 'loop' | 'while' | 'for' | 'break' | 'continue' | 'return' | 'sequence' | 'parallel';
+type FlowNodeType = 'start' | 'end' | 'if' | 'loop' | 'while' | 'for' | 'break' | 'continue' | 'return' | 'sequence' | 'parallel';
 
 /**
  * Compiler for flow control visual nodes
@@ -60,6 +60,9 @@ export class FlowNodeCompiler extends BaseNodeCompiler {
     switch (node.type) {
       case 'flow.start':
         return this.compileStartNode(node, context);
+
+      case 'flow.end':
+        return this.compileEndNode(node, context);
 
       case 'flow.if':
         return this.compileIfNode(node, context);
@@ -122,6 +125,22 @@ export class FlowNodeCompiler extends BaseNodeCompiler {
     // 开始节点通常只是执行流的标记
     // 实际执行从连接的节点开始
     return '// System execution starts here 系统执行从此开始';
+  }
+
+  /**
+   * Compile end node (exit point)
+   * 编译结束节点（出口点）
+   *
+   * @param node Node to compile 要编译的节点
+   * @param context Compilation context 编译上下文
+   * @returns Generated code 生成的代码
+   */
+  private compileEndNode(node: VisualNode, context: NodeCompilationContext): string {
+    // End node marks the completion of system execution
+    // Can be used for cleanup or final operations
+    // 结束节点标记系统执行完成
+    // 可用于清理或最终操作
+    return '// System execution completes here 系统执行在此完成';
   }
 
   /**

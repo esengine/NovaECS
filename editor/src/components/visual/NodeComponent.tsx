@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import styled from '@emotion/styled';
 import type { VisualNode, VisualMethodMetadata, Connection } from '@esengine/nova-ecs';
 import { getCategoryColors } from '../../utils/categoryColors';
+import { Settings } from '../../utils/icons';
 
 // Node layout constants for accurate position calculation
 // 节点布局常量，用于精确位置计算
@@ -13,7 +14,7 @@ export const NODE_LAYOUT = {
   DESCRIPTION_CHARS_PER_LINE: 28, // Approximate characters per line
   BODY_PADDING: 8,
   PIN_ROW_HEIGHT: 24,
-  PIN_SIZE: 12,
+  PIN_SIZE: 16,
   PIN_MARGIN_LEFT: 8,
   PIN_MARGIN_RIGHT: 8,
   PIN_CENTER_OFFSET: 12 // Offset to pin center from row top
@@ -140,18 +141,36 @@ const PinRow = styled.div`
 `;
 
 const Pin = styled.div<{ type: 'input' | 'output'; connected: boolean }>`
-  width: 12px;
-  height: 12px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background-color: ${props => props.connected ? '#007acc' : '#6c6c6c'};
   border: 2px solid #2d2d30;
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
+  box-sizing: border-box;
+
+  /* Increase clickable area with pseudo-element */
+  &::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    border-radius: 50%;
+    cursor: pointer;
+  }
 
   &:hover {
     background-color: #007acc;
-    transform: scale(1.2);
+    transform: scale(1.3);
+    border-width: 3px;
+  }
+
+  &:active {
+    transform: scale(1.1);
   }
 
   ${props => props.type === 'input' && `
@@ -313,8 +332,24 @@ function NodeComponent({
     };
   }, [isDragging, dragOffset, node.id, onMove, viewTransform]);
 
-  // Get category colors
-  const categoryColors = getCategoryColors(category || 'Uncategorized');
+  // Check if this is a system node and use special colors
+  const isSystemNode = node.id === '__system_start__' || node.id === '__system_end__';
+  const systemColors = isSystemNode ? (
+    node.id === '__system_start__' ? {
+      primary: '#10B981',   // Green for start
+      secondary: '#059669',
+      border: '#059669',
+      text: '#FFFFFF'
+    } : {
+      primary: '#EF4444',   // Red for end
+      secondary: '#DC2626',
+      border: '#DC2626',
+      text: '#FFFFFF'
+    }
+  ) : null;
+
+  // Get category colors (use system colors for system nodes)
+  const categoryColors = systemColors || getCategoryColors(category || 'Uncategorized');
 
   // Check if a pin is connected
   const isPinConnected = (pinName: string, pinType: 'input' | 'output'): boolean => {
@@ -441,7 +476,7 @@ function NodeComponent({
         textColor={categoryColors.text}
       >
         <NodeTitle>
-          <NodeIcon>{metadata?.icon || '⚙️'}</NodeIcon>
+          <NodeIcon>{metadata?.icon || <Settings size={16} />}</NodeIcon>
           {metadata?.title || node.type}
         </NodeTitle>
         {metadata?.description && (

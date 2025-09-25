@@ -77,7 +77,7 @@ describe('Optimizer', () => {
       const result = await optimizer.optimize(graph, typeInfo);
 
       expect(result.success).toBe(true);
-      expect(result.optimizedGraph.getAllNodes().length).toBe(3); // Should remove only unreachable node
+      expect(result.optimizedGraph.getAllNodes().length).toBe(5); // 3 user nodes + 2 system nodes
       expect(result.optimizedGraph.getNode('unreachable1')).toBe(undefined);
       expect(result.optimizedGraph.getNode('reachable1')).not.toBe(null);
       expect(result.optimizedGraph.getNode('used1')).not.toBe(null);
@@ -518,8 +518,8 @@ describe('Optimizer', () => {
       const result = await optimizer.optimize(graph, typeInfo);
 
       expect(result.success).toBe(true);
-      expect(result.metrics.initialNodeCount).toBe(5);
-      expect(result.metrics.finalNodeCount).toBeLessThan(5);
+      expect(result.metrics.initialNodeCount).toBe(7); // 5 user nodes + 2 system nodes
+      expect(result.metrics.finalNodeCount).toBeLessThan(7); // Should be less than initial count
       expect(result.metrics.nodesEliminated).toBe(2); // unused1, unused2
       expect(result.metrics.constantsFolded).toBe(1); // const1 + const2
       expect(result.metrics.optimizationsApplied).toContain('DeadCodeElimination');
@@ -570,8 +570,8 @@ describe('Optimizer', () => {
       const result = await optimizer.optimize(graph, typeInfo);
 
       expect(result.success).toBe(true);
-      expect(result.metrics.initialNodeCount).toBe(0);
-      expect(result.metrics.finalNodeCount).toBe(0);
+      expect(result.metrics.initialNodeCount).toBe(2); // 2 system nodes
+      expect(result.metrics.finalNodeCount).toBe(2); // 2 system nodes (can't be eliminated)
       expect(result.metrics.nodesEliminated).toBe(0);
     });
 

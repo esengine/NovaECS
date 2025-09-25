@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, ReactElement } from 'react';
 import styled from '@emotion/styled';
 
 const MenuContainer = styled.div<{ x: number; y: number; visible: boolean }>`
@@ -57,7 +57,7 @@ const MenuSeparator = styled.div`
 export interface ContextMenuItem {
   id: string;
   label: string;
-  icon?: string;
+  icon?: ReactElement;
   disabled?: boolean;
   separator?: boolean;
   onClick?: () => void;

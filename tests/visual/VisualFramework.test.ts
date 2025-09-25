@@ -66,7 +66,7 @@ describe('Visual Framework', () => {
     createNode.setInput('Enabled', true);
     graph.addNode(createNode);
 
-    expect(graph.getAllNodes()).toHaveLength(1);
+    expect(graph.getAllNodes()).toHaveLength(3); // 1 user node + 2 system nodes (start/end)
     expect(graph.getAllConnections()).toHaveLength(0);
   });
 
@@ -236,21 +236,23 @@ describe('Visual Framework', () => {
     const serialized = graph.serialize();
 
     expect(serialized.name).toBe('SerializationTest');
-    expect(serialized.nodes).toHaveLength(1);
+    expect(serialized.nodes).toHaveLength(3); // 1 user node + 2 system nodes (start/end)
     expect(serialized.connections).toHaveLength(0);
     expect(serialized.metadata).toBeDefined();
 
     // Test deserialization
     const deserializedGraph = VisualGraph.deserialize(serialized);
     expect(deserializedGraph.name).toBe('SerializationTest');
-    expect(deserializedGraph.getAllNodes()).toHaveLength(1);
+    expect(deserializedGraph.getAllNodes()).toHaveLength(3); // 1 user node + 2 system nodes (start/end)
     expect(deserializedGraph.getAllConnections()).toHaveLength(0);
 
-    // Test that the deserialized node works
-    const deserializedNode = deserializedGraph.getAllNodes()[0];
-    expect(deserializedNode.id).toBe('create');
-    expect(deserializedNode.type).toBe('world.createEntity');
-    expect(deserializedNode.getInput('Enabled')).toBe(true);
+    // Test that the deserialized user node works
+    const allNodes = deserializedGraph.getAllNodes();
+    const deserializedNode = allNodes.find(node => node.id === 'create');
+    expect(deserializedNode).toBeDefined();
+    expect(deserializedNode!.id).toBe('create');
+    expect(deserializedNode!.type).toBe('world.createEntity');
+    expect(deserializedNode!.getInput('Enabled')).toBe(true);
   });
 
   test('should manage node inputs and outputs', () => {

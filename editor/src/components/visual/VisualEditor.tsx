@@ -5,6 +5,7 @@ import { VisualGraph, type VisualGraphData } from '@esengine/nova-ecs';
 import { useEditor } from '../../store/EditorContext';
 import NodePalette from './NodePalette';
 import VisualCanvas from './VisualCanvas';
+import { Play, Save } from '../../utils/icons';
 
 const EditorContainer = styled.div`
   display: flex;
@@ -161,10 +162,10 @@ function VisualEditor({ filePath, onSave, onClose }: VisualEditorProps) {
       event.preventDefault();
       handleSave();
     }
-    // Handle node deletion
+    // Handle node and connection deletion
     else if (event.key === 'Delete' || event.key === 'Backspace') {
       // Let VisualCanvas handle the deletion through a custom event
-      const deleteEvent = new CustomEvent('visual-delete-nodes');
+      const deleteEvent = new CustomEvent('visual-delete');
       document.dispatchEvent(deleteEvent);
     }
   };
@@ -224,14 +225,14 @@ function VisualEditor({ filePath, onSave, onClose }: VisualEditorProps) {
           </Title>
 
           <ToolbarButton onClick={handleSave} disabled={!isDirty}>
-            💾 {t('visual.toolbar.save')}
+            <Save size={16} /> {t('visual.toolbar.save')}
           </ToolbarButton>
 
           <ToolbarButton onClick={() => {
             // TODO: Add run logic
             console.log('Running graph...');
           }}>
-            ▶️ {t('visual.toolbar.run')}
+            <Play size={16} /> {t('visual.toolbar.run')}
           </ToolbarButton>
 
           {onClose && (
